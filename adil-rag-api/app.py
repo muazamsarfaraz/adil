@@ -43,6 +43,8 @@ from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from solicitor_directory import DISCLAIMER as SOLICITOR_DISCLAIMER  # noqa: E402
+from solicitor_directory import get_solicitors  # noqa: E402
 
 from content_extractor import ContentExtractor
 from conversation_log import log_conversation
@@ -342,6 +344,10 @@ tags_metadata = [
     {
         "name": "Analytics",
         "description": "Anonymised aggregate analytics from conversation logs. Requires authentication.",
+    },
+    {
+        "name": "Solicitor Directory",
+        "description": "Curated directory of solicitors with discrimination law expertise. Filterable by jurisdiction, specialism, and location.",
     },
 ]
 
@@ -1239,6 +1245,57 @@ async def generate_report(
         sections=sections,
         jurisdiction=body.jurisdiction,
     )
+
+
+# =============================================================================
+# SOLICITOR DIRECTORY ENDPOINT
+# =============================================================================
+
+
+@app.get(
+    "/api/v1/solicitors",
+    tags=["Solicitor Directory"],
+    summary="Browse curated solicitor directory",
+    responses={
+        200: {"description": "List of solicitors matching filters"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+    },
+)
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def list_solicitors(
+    request: Request,
+    jurisdiction: str | None = None,
+    specialism: str | None = None,
+    location: str | None = None,
+    _api_key: str = Security(verify_api_key),
+):
+    """
+    **Browse the curated solicitor directory.**
+
+    Returns a list of solicitors with discrimination law expertise,
+    sourced from publicly available information. All firms are pending
+    outreach — none have consented to be listed yet.
+
+    **Filters (all optional):**
+    - `jurisdiction` — e.g. "scotland", "england", "northern ireland"
+    - `specialism` — e.g. "employment", "discrimination", "hate_crime"
+    - `location` — e.g. "london", "birmingham", "glasgow"
+
+    All filters are case-insensitive partial matches.
+
+    🔐 **Requires `X-API-Key` header.**
+    """
+    results = get_solicitors(
+        jurisdiction=jurisdiction,
+        specialism=specialism,
+        location=location,
+    )
+    return {
+        "solicitors": results,
+        "total": len(results),
+        "disclaimer": SOLICITOR_DISCLAIMER,
+    }
 
 
 if __name__ == "__main__":
