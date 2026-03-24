@@ -258,7 +258,7 @@ async def _send_query(user_text: str, images: list = None):
         # Build suggested-question action buttons
         suggested = data.get("suggested_questions") or []
         actions = []
-        for i, question in enumerate(suggested[:3]):
+        for _i, question in enumerate(suggested[:3]):
             actions.append(
                 cl.Action(
                     name="suggested_question",
@@ -378,7 +378,7 @@ async def main(message: cl.Message):
             # Skip PII collection — go straight to consent with conversation data only
             cl.user_session.set("awaiting_report_consent", True)
             history = cl.user_session.get("conversation_history") or []
-            incident_text = "\n".join(turn["content"] for turn in history if turn["role"] == "user")
+            _incident_text = "\n".join(turn["content"] for turn in history if turn["role"] == "user")
             consent_msg = (
                 f"📋 **Report Submission — {target_names[target]}**\n\n"
                 "This form is **anonymous** — no personal details are needed.\n\n"

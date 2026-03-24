@@ -59,7 +59,6 @@ from models import (
     ImageQueryRequest,
     QueryRequest,
     QueryResponse,
-    ReportType,
     StatsResponse,
     SubmitReportRequest,
     SubmitReportResponse,
@@ -618,7 +617,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
 
     except Exception as e:
         logger.error(f"Query error: {e}")
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @app.post(
@@ -802,7 +801,7 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
 
     except Exception as e:
         logger.error(f"Content analysis error: {e}")
-        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.")
+        raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
 @app.post(
@@ -853,11 +852,11 @@ async def query_image(
             )
         try:
             base64.b64decode(img.data, validate=True)
-        except binascii.Error:
+        except binascii.Error as exc:
             raise HTTPException(
                 status_code=400,
                 detail=f"Image {i + 1}: invalid base64 data.",
-            )
+            ) from exc
 
     try:
         # Convert conversation history
@@ -903,7 +902,7 @@ async def query_image(
         raise HTTPException(
             status_code=500,
             detail="An internal error occurred. Please try again later.",
-        )
+        ) from e
 
 
 @app.get("/api/v1/privacy-notice", tags=["Public"])
@@ -981,7 +980,7 @@ async def report_targets(request: Request, _api_key: str = Security(verify_api_k
             targets = resp.json()
         except Exception as e:
             logger.error(f"Failed to fetch report targets: {e}")
-            raise HTTPException(status_code=503, detail="Report bridge unavailable.")
+            raise HTTPException(status_code=503, detail="Report bridge unavailable.") from e
 
     # Enhance with pii_required flag for consuming services
     NO_PII_TARGETS = {"islamophobia-uk"}
@@ -1169,10 +1168,7 @@ async def generate_report(
 
     prompt = get_report_prompt(body.report_type.value, body.jurisdiction)
 
-    history_dicts = [
-        {"role": t.role, "content": t.content}
-        for t in body.conversation_history
-    ]
+    history_dicts = [{"role": t.role, "content": t.content} for t in body.conversation_history]
 
     try:
         answer, _, usage, metadata = await rag_service.query(
@@ -1186,16 +1182,18 @@ async def generate_report(
         raise HTTPException(
             status_code=500,
             detail="Failed to generate report. Please try again.",
-        )
+        ) from e
 
     sections = parse_report_sections(answer)
 
     # Log anonymised metadata (fire-and-forget)
-    asyncio.create_task(log_conversation(
-        endpoint="generate_report",
-        query_text="",
-        conversation_history=history_dicts,
-    ))
+    asyncio.create_task(
+        log_conversation(
+            endpoint="generate_report",
+            query_text="",
+            conversation_history=history_dicts,
+        )
+    )
 
     return GenerateReportResponse(
         report_text=answer,

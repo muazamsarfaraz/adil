@@ -1,8 +1,11 @@
 """Tests for the image query endpoint (/api/v1/query/image)."""
-import os
+
 import base64
+
 import pytest
-from models import ImageQueryRequest, ImageData, ALLOWED_IMAGE_MIMES
+from pydantic import ValidationError
+
+from models import ALLOWED_IMAGE_MIMES, ImageData, ImageQueryRequest
 
 
 class TestImageModels:
@@ -31,16 +34,13 @@ class TestImageModels:
         assert img.mime_type == "image/png"
 
     def test_image_query_request_rejects_empty_images(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ImageQueryRequest(images=[], include_viability_score=False)
 
     def test_image_query_request_rejects_over_5_images(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             ImageQueryRequest(
-                images=[
-                    ImageData(mime_type="image/png", data="dGVzdA==")
-                    for _ in range(6)
-                ],
+                images=[ImageData(mime_type="image/png", data="dGVzdA==") for _ in range(6)],
                 include_viability_score=False,
             )
 
@@ -62,10 +62,7 @@ class TestImageModels:
 
     def test_image_query_request_max_5_images(self):
         req = ImageQueryRequest(
-            images=[
-                ImageData(mime_type="image/png", data="dGVzdA==")
-                for _ in range(5)
-            ],
+            images=[ImageData(mime_type="image/png", data="dGVzdA==") for _ in range(5)],
             include_viability_score=False,
         )
         assert len(req.images) == 5
@@ -91,8 +88,8 @@ class TestImageEndpointContract:
 
     @pytest.fixture
     def client(self):
-        from fastapi.testclient import TestClient
         import app as app_mod
+        from fastapi.testclient import TestClient
 
         return TestClient(app_mod.app)
 
@@ -148,10 +145,7 @@ class TestImageEndpointContract:
         resp = client.post(
             "/api/v1/query/image",
             json={
-                "images": [
-                    {"mime_type": "image/png", "data": "dGVzdA=="}
-                    for _ in range(6)
-                ],
+                "images": [{"mime_type": "image/png", "data": "dGVzdA=="} for _ in range(6)],
             },
             headers=self.auth_headers,
         )

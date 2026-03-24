@@ -1,6 +1,7 @@
 """Tests for bridge Pydantic models."""
 
 import pytest
+from pydantic import ValidationError
 
 from models import DOB, SubmitRequest, SubmitResponse
 
@@ -24,7 +25,7 @@ def test_submit_request_valid():
 
 
 def test_submit_request_missing_target():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SubmitRequest(data={"first_name": "Test"})
 
 

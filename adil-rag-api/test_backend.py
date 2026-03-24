@@ -925,7 +925,7 @@ class TestProcessMessage:
                 success=True,
                 metadata={"source": "test"},
             )
-            result = asyncio.run(extractor.process_message(f"Check these: {urls}"))
+            asyncio.run(extractor.process_message(f"Check these: {urls}"))
             assert mock_extract.call_count <= 10
 
 

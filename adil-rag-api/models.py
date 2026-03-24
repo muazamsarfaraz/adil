@@ -401,9 +401,7 @@ class ExtractedContent(BaseModel):
     extraction_method: str = Field(
         ..., description="Method used: `web_scrape`, `youtube_transcript`, `nitter_fallback`, or `whisper`."
     )
-    confidence: float | None = Field(
-        None, ge=0.0, le=1.0, description="Confidence score of the extraction (0.0–1.0)."
-    )
+    confidence: float | None = Field(None, ge=0.0, le=1.0, description="Confidence score of the extraction (0.0–1.0).")
 
 
 class AnalyzeContentRequest(BaseModel):
@@ -455,9 +453,7 @@ class AnalyzeContentResponse(BaseModel):
 
     answer: str = Field(..., description="The AI-generated legal analysis.")
     sources: list[Source] = Field(default_factory=list, description="Legal source citations.")
-    viability: ViabilityAssessment | None = Field(
-        None, description="Litigation viability assessment (if requested)."
-    )
+    viability: ViabilityAssessment | None = Field(None, description="Litigation viability assessment (if requested).")
     usage: TokenUsage = Field(..., description="Token usage and cost.")
     query_metadata: QueryMetadata = Field(..., description="Processing metadata.")
 
@@ -474,9 +470,7 @@ class AnalyzeContentResponse(BaseModel):
     extracted_content: ExtractedContent | None = Field(
         None, description="Details of the extracted content (URL, transcript, etc.)."
     )
-    content_summary: str | None = Field(
-        None, description="Summary of what was analysed, e.g., 'Analyzed 2 URL(s).'."
-    )
+    content_summary: str | None = Field(None, description="Summary of what was analysed, e.g., 'Analyzed 2 URL(s).'.")
     platform_specific_advice: str | None = Field(
         None, description="Platform-specific advice, e.g., how to report under the Online Safety Act 2023."
     )
@@ -621,9 +615,7 @@ class GenerateReportResponse(BaseModel):
         description="Report broken into sections for UI rendering.",
     )
     generated_at: str = Field(
-        default_factory=lambda: __import__("datetime").datetime.now(
-            __import__("datetime").timezone.utc
-        ).isoformat(),
+        default_factory=lambda: __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
         description="ISO 8601 timestamp of generation.",
     )
     jurisdiction: str | None = Field(None, description="Jurisdiction used.")

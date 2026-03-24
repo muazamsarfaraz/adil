@@ -913,9 +913,9 @@ class ContentExtractor:
             logger.info(f"Extracted transcript ({len(full_text)} chars) for YouTube video {video_id}")
             return full_text
 
-        except ImportError:
+        except ImportError as exc:
             logger.error("youtube-transcript-api not installed")
-            raise Exception("YouTube transcript extraction requires youtube-transcript-api package")
+            raise Exception("YouTube transcript extraction requires youtube-transcript-api package") from exc
         except Exception as e:
             logger.error(f"Failed to extract YouTube transcript for {video_id}: {e}")
             raise

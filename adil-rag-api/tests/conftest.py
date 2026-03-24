@@ -1,4 +1,5 @@
 """Shared test configuration for adil-rag-api tests."""
+
 import os
 import sys
 

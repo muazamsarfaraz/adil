@@ -7,11 +7,10 @@ Two report types:
 Provides prompt builders and a section parser. Does NOT call Gemini
 directly — the endpoint uses RAGService.query() with these prompts.
 """
+
 import re
-from typing import Optional
 
 from models import ReportSection
-
 
 # ---------------------------------------------------------------------------
 # Solicitor directory by jurisdiction
@@ -23,13 +22,8 @@ _SOLICITOR_LINKS: dict[str, str] = {
         "- muslimlawyer.co.uk (Muslim Lawyer UK)\n"
         "- muslimsolicitors.co.uk (Muslim Solicitors)"
     ),
-    "Scotland": (
-        "- lawscot.org.uk (Law Society of Scotland)\n"
-        "- muslimlawyer.co.uk (Muslim Lawyer UK)"
-    ),
-    "Northern Ireland": (
-        "- lawsoc-ni.org (Law Society of Northern Ireland)"
-    ),
+    "Scotland": ("- lawscot.org.uk (Law Society of Scotland)\n- muslimlawyer.co.uk (Muslim Lawyer UK)"),
+    "Northern Ireland": ("- lawsoc-ni.org (Law Society of Northern Ireland)"),
 }
 
 

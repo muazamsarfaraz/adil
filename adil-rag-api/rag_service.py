@@ -241,7 +241,7 @@ UK_CASE_LAW: dict[str, dict[str, str]] = {
 # ADIL SYSTEM PROMPT - UK Discrimination Law Expertise
 # =============================================================================
 
-SYSTEM_INSTRUCTION = """You are Adil (عادل - meaning "just" in Arabic), a legal education assistant 
+SYSTEM_INSTRUCTION = """You are Adil (عادل - meaning "just" in Arabic), a legal education assistant
 specializing in UK discrimination law, particularly cases affecting British Muslims.
 
 ## Your Knowledge Base
@@ -1001,7 +1001,7 @@ class RAGService:
             seen_acts[key].append(source)
 
         # Take up to 3 sections per act, prioritizing variety
-        for act_name, act_sources in seen_acts.items():
+        for _act_name, act_sources in seen_acts.items():
             unique_statutes.extend(act_sources[:3])
 
         # Combine: statutes first, then case law

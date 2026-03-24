@@ -1,11 +1,14 @@
 """Tests for report generation Pydantic models."""
+
 import pytest
+from pydantic import ValidationError
+
 from models import (
-    ReportType,
+    ConversationTurn,
     GenerateReportRequest,
     GenerateReportResponse,
     ReportSection,
-    ConversationTurn,
+    ReportType,
 )
 
 
@@ -41,7 +44,7 @@ class TestGenerateReportRequest:
         assert req.jurisdiction == "Scotland"
 
     def test_rejects_empty_history(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             GenerateReportRequest(
                 conversation_history=[],
                 report_type=ReportType.INCIDENT_SUMMARY,

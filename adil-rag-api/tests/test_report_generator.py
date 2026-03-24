@@ -1,5 +1,5 @@
 """Tests for report generation prompt builders and section parser."""
-import pytest
+
 from report_generator import (
     _build_incident_summary_prompt,
     _build_solicitor_pack_prompt,
