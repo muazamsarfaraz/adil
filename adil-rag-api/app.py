@@ -53,15 +53,19 @@ from models import (
     AnalyzeContentResponse,
     ContentType,
     ExtractedContent,
+    GenerateReportRequest,
+    GenerateReportResponse,
     HealthResponse,
     ImageQueryRequest,
     QueryRequest,
     QueryResponse,
+    ReportType,
     StatsResponse,
     SubmitReportRequest,
     SubmitReportResponse,
 )
 from rag_service import RAGService
+from report_generator import get_report_prompt, parse_report_sections
 
 # Load environment variables (override system env vars with .env file values)
 load_dotenv(override=True)
@@ -1131,6 +1135,74 @@ async def submit_report(
             fallback_report=fallback,
             target_url=result.get("target_url"),
         )
+
+
+# =============================================================================
+# REPORT GENERATION ENDPOINTS
+# =============================================================================
+
+
+@app.post(
+    "/api/v1/generate-report",
+    response_model=GenerateReportResponse,
+    tags=["Report Generation"],
+    summary="Generate a structured incident report or solicitor consultation pack",
+)
+@limiter.limit(RATE_LIMIT_QUERY)
+async def generate_report(
+    request: Request,
+    body: GenerateReportRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Generate a structured report from conversation history.
+
+    Two report types:
+    - **incident_summary**: For self-service hate crime reporting. Generates
+      a structured summary the user can copy-paste into Police, Tell MAMA, or IRU forms.
+    - **solicitor_pack**: For solicitor-path cases. Generates a consultation
+      preparation pack with key dates, legislation, and questions to ask.
+
+    Requires `X-API-Key` header.
+    """
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not initialised.")
+
+    prompt = get_report_prompt(body.report_type.value, body.jurisdiction)
+
+    history_dicts = [
+        {"role": t.role, "content": t.content}
+        for t in body.conversation_history
+    ]
+
+    try:
+        answer, _, usage, metadata = await rag_service.query(
+            query_text=prompt,
+            max_sources=0,
+            include_viability=False,
+            conversation_history=history_dicts,
+        )
+    except Exception as e:
+        logger.error(f"Report generation error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate report. Please try again.",
+        )
+
+    sections = parse_report_sections(answer)
+
+    # Log anonymised metadata (fire-and-forget)
+    asyncio.create_task(log_conversation(
+        endpoint="generate_report",
+        query_text="",
+        conversation_history=history_dicts,
+    ))
+
+    return GenerateReportResponse(
+        report_text=answer,
+        report_type=body.report_type,
+        sections=sections,
+        jurisdiction=body.jurisdiction,
+    )
 
 
 if __name__ == "__main__":
