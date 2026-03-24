@@ -39,22 +39,53 @@ MAX_IMAGE_SIZE_MB = int(os.environ.get("MAX_IMAGE_SIZE_MB", "10"))
 
 @cl.on_chat_start
 async def start_chat():
-    """Initialize chat session with conversation history"""
+    """Initialize chat session with conversation history and jurisdiction selection"""
     cl.user_session.set("message_count", 0)
     cl.user_session.set("viability_requested", False)
     cl.user_session.set("conversation_history", [])
+    cl.user_session.set("jurisdiction", None)
 
-    # Send welcome message with capability info
+    # Send welcome message with jurisdiction selector
+    actions = [
+        cl.Action(
+            name="select_jurisdiction",
+            payload={"jurisdiction": "England & Wales"},
+            label="🏴󠁧󠁢󠁥󠁮󠁧󠁿 England & Wales",
+        ),
+        cl.Action(
+            name="select_jurisdiction",
+            payload={"jurisdiction": "Scotland"},
+            label="🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
+        ),
+        cl.Action(
+            name="select_jurisdiction",
+            payload={"jurisdiction": "Northern Ireland"},
+            label="🇬🇧 Northern Ireland",
+        ),
+    ]
+
     await cl.Message(
         content=(
             "⚖️ **Welcome to AskAdil (عادل)**\n\n"
             "I'm a free legal education assistant specialising in **UK discrimination law**, "
             "particularly cases affecting British Muslims.\n\n"
+            "🇬🇧 **Please select your jurisdiction to get started:**"
+        ),
+        actions=actions,
+    ).send()
+
+
+@cl.action_callback("select_jurisdiction")
+async def on_select_jurisdiction(action: cl.Action):
+    """Handle jurisdiction selection at chat start"""
+    jurisdiction = action.payload.get("jurisdiction", "")
+    cl.user_session.set("jurisdiction", jurisdiction)
+
+    await cl.Message(
+        content=(
+            f"✅ **Jurisdiction set to: {jurisdiction}**\n\n"
             "📋 **To give you the best guidance, I'll start by asking a few "
-            "questions** — like where you're based and when the incident happened.\n\n"
-            "🇬🇧 **I'm most helpful for people in the UK** (England, Wales, Scotland, "
-            "Northern Ireland), but if you're based elsewhere I can still explain "
-            "general discrimination concepts and point you to the right resources.\n\n"
+            "questions** — like when the incident happened and the details.\n\n"
             "💡 **You can also:**\n"
             "- Upload **screenshots or photos** of messages, letters, or documents for legal analysis\n"
             "- Paste **YouTube / Facebook video / Twitter / Instagram / news article links** for legal analysis (video transcripts extracted automatically)\n"
@@ -82,6 +113,13 @@ async def _send_query(user_text: str, images: list = None):
     try:
         # Retrieve conversation history from session
         history = cl.user_session.get("conversation_history") or []
+
+        # Prepend jurisdiction context to the query
+        jurisdiction = cl.user_session.get("jurisdiction")
+        if jurisdiction:
+            query_with_context = f"[Jurisdiction: {jurisdiction}] {user_text}"
+        else:
+            query_with_context = user_text
 
         # Check for URLs
         contains_urls = has_urls(user_text)
@@ -118,7 +156,7 @@ async def _send_query(user_text: str, images: list = None):
                     f"{RAG_API_URL}/api/v1/query/image",
                     headers=api_headers,
                     json={
-                        "query": user_text or None,
+                        "query": query_with_context or None,
                         "images": images,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
@@ -129,7 +167,7 @@ async def _send_query(user_text: str, images: list = None):
                     f"{RAG_API_URL}/api/v1/analyze",
                     headers=api_headers,
                     json={
-                        "content": user_text,
+                        "content": query_with_context,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
                     },
@@ -139,7 +177,7 @@ async def _send_query(user_text: str, images: list = None):
                     f"{RAG_API_URL}/api/v1/query",
                     headers=api_headers,
                     json={
-                        "query": user_text,
+                        "query": query_with_context,
                         "max_sources": 10,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
