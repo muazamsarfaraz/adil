@@ -71,42 +71,38 @@ class TestImageModels:
         assert len(req.images) == 5
 
 
+API_KEY_VALUE = "test-secret-key-12345"
+
+
 class TestImageEndpointContract:
     """Test the /api/v1/query/image endpoint contract."""
 
-    @pytest.fixture
-    def client(self, monkeypatch):
-        """Create a test client with auth disabled (ADIL_API_KEY unset).
+    @pytest.fixture(autouse=True)
+    def _set_api_key(self, monkeypatch):
+        """Ensure a deterministic API key is configured for every test.
 
-        API_KEY is read at module level in app.py, so we must set the env var
-        *before* importing the app module.  Removing the key puts the app into
-        OPEN mode so contract tests don't need a real key.
+        We patch the module-level ``API_KEY`` directly so that
+        ``verify_api_key`` sees it without needing an ``importlib.reload``.
         """
-        monkeypatch.delenv("ADIL_API_KEY", raising=False)
-        # Force re-import so API_KEY picks up the env change
-        import importlib
         import app as app_mod
 
-        importlib.reload(app_mod)
-        from fastapi.testclient import TestClient
-
-        return TestClient(app_mod.app)
+        monkeypatch.setenv("ADIL_API_KEY", API_KEY_VALUE)
+        monkeypatch.setattr(app_mod, "API_KEY", API_KEY_VALUE)
 
     @pytest.fixture
-    def authed_client(self, monkeypatch):
-        """Create a test client with auth enabled (ADIL_API_KEY set)."""
-        monkeypatch.setenv("ADIL_API_KEY", "test-secret-key-12345")
-        import importlib
-        import app as app_mod
-
-        importlib.reload(app_mod)
+    def client(self):
         from fastapi.testclient import TestClient
+        import app as app_mod
 
         return TestClient(app_mod.app)
 
-    def test_image_endpoint_requires_auth(self, authed_client):
+    @property
+    def auth_headers(self):
+        return {"X-API-Key": API_KEY_VALUE}
+
+    def test_image_endpoint_requires_auth(self, client):
         """Endpoint rejects requests without API key when auth is enabled."""
-        resp = authed_client.post(
+        resp = client.post(
             "/api/v1/query/image",
             json={
                 "images": [{"mime_type": "image/png", "data": "dGVzdA=="}],
@@ -115,9 +111,9 @@ class TestImageEndpointContract:
         )
         assert resp.status_code in (401, 403)
 
-    def test_image_endpoint_wrong_key_rejected(self, authed_client):
+    def test_image_endpoint_wrong_key_rejected(self, client):
         """Endpoint rejects requests with wrong API key."""
-        resp = authed_client.post(
+        resp = client.post(
             "/api/v1/query/image",
             json={
                 "images": [{"mime_type": "image/png", "data": "dGVzdA=="}],
@@ -131,6 +127,7 @@ class TestImageEndpointContract:
         resp = client.post(
             "/api/v1/query/image",
             json={"images": []},
+            headers=self.auth_headers,
         )
         assert resp.status_code == 422
 
@@ -141,6 +138,7 @@ class TestImageEndpointContract:
             json={
                 "images": [{"mime_type": "image/png", "data": "dGVzdA=="}],
             },
+            headers=self.auth_headers,
         )
         # Not 404 — endpoint exists. May be 400/500 depending on Gemini config.
         assert resp.status_code != 404
@@ -155,5 +153,6 @@ class TestImageEndpointContract:
                     for _ in range(6)
                 ],
             },
+            headers=self.auth_headers,
         )
         assert resp.status_code == 422
