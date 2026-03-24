@@ -24,7 +24,7 @@ import time
 
 from google import genai
 
-from models import QueryMetadata, Source, SourceType, TokenUsage
+from models import QueryMetadata, Source, SourceType, TokenUsage, VentoBand, ViabilityAssessment
 
 logger = logging.getLogger(__name__)
 
@@ -484,6 +484,28 @@ After every post-intake response (i.e. after the user has answered your clarifyi
 5. **What You Can Do Now** (3-5 actionable resources from the directory, selected by topic/jurisdiction)
 6. **Suggested next steps** (3 follow-up questions)
 
+## Structured Viability Assessment Output
+
+When the user's query starts with "INCLUDE VIABILITY ASSESSMENT", you MUST include a structured
+viability assessment block at the END of your response in this EXACT format:
+
+---VIABILITY_ASSESSMENT---
+SCORE: [0-100 integer]
+VENTO_BAND: [lower|middle|upper|exceptional]
+VENTO_RANGE: [e.g. £12,000 – £36,500]
+STATUTORY_FOOTING: [true|false]
+CASE_LAW_PRECEDENT: [true|false]
+QUANTUM_POTENTIAL: [true|false]
+REASONING: [2-3 sentence explanation of the score, referencing the key statutory provisions and case law that support or weaken the case]
+---END_VIABILITY---
+
+This block will be machine-parsed. Use EXACT field names and format. Do not wrap it in markdown code blocks.
+The score should reflect the overall strength of a potential discrimination claim:
+- 0-25: Very weak / no clear legal basis
+- 26-50: Some basis but significant weaknesses
+- 51-75: Moderate to good case with supporting evidence
+- 76-100: Strong case with clear statutory basis and precedent
+
 ## What You Cannot Do
 - Provide personalized legal advice (you are educational only)
 - Guarantee case outcomes
@@ -764,12 +786,17 @@ class RAGService:
         max_sources: int = 10,
         include_viability: bool = False,
         conversation_history: list[dict[str, str]] | None = None,
-    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata]:
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None]:
         """Execute RAG query against UK legal documents"""
         start_time = time.time()
 
+        # Prepend viability trigger so Gemini includes the structured block
+        effective_query = query_text
+        if include_viability:
+            effective_query = "INCLUDE VIABILITY ASSESSMENT. " + query_text
+
         # Build multi-turn contents (or single-turn if no history)
-        contents = self._build_contents(query_text, conversation_history)
+        contents = self._build_contents(effective_query, conversation_history)
 
         # Query Gemini File Search
         config = {
@@ -794,6 +821,12 @@ class RAGService:
             logger.warning("Gemini response had no text (possibly safety-blocked)")
             answer = "I apologise, but I was unable to generate a response for this query. Please try rephrasing your question."
 
+        # Parse viability assessment if requested
+        viability = None
+        if include_viability:
+            viability = self._parse_viability(answer)
+            answer = self._strip_viability_block(answer)
+
         # Extract sources from citations in the answer (more useful than raw grounding chunks)
         sources = self._extract_sources_from_answer(answer, max_sources)
 
@@ -803,7 +836,7 @@ class RAGService:
         processing_time = int((time.time() - start_time) * 1000)
         metadata = QueryMetadata(original_language="en", processing_time_ms=processing_time, model_used=self.model_name)
 
-        return answer, sources, usage, metadata
+        return answer, sources, usage, metadata, viability
 
     async def query_with_images(
         self,
@@ -812,7 +845,7 @@ class RAGService:
         max_sources: int = 10,
         include_viability: bool = False,
         conversation_history: list[dict[str, str]] | None = None,
-    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata]:
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None]:
         """Execute multimodal RAG query with images using Gemini 3 Flash.
 
         Args:
@@ -823,7 +856,7 @@ class RAGService:
             conversation_history: Previous conversation turns.
 
         Returns:
-            Tuple of (answer, sources, usage, metadata).
+            Tuple of (answer, sources, usage, metadata, viability).
         """
         from google.genai import types as genai_types
 
@@ -842,6 +875,8 @@ class RAGService:
 
         # Add text query if provided, otherwise use a default prompt
         text = query_text or "Please analyse this image for any potential UK discrimination law issues."
+        if include_viability:
+            text = "INCLUDE VIABILITY ASSESSMENT. " + text
         parts.append(genai_types.Part.from_text(text=text))
 
         # Build multi-turn contents with image parts on the current turn
@@ -889,6 +924,12 @@ class RAGService:
                 "Please try with a different image or describe the content in text."
             )
 
+        # Parse viability assessment if requested
+        viability = None
+        if include_viability:
+            viability = self._parse_viability(answer)
+            answer = self._strip_viability_block(answer)
+
         # Extract sources from citations in the answer
         sources = self._extract_sources_from_answer(answer, max_sources)
 
@@ -902,7 +943,7 @@ class RAGService:
             model_used=self.vision_model_name,
         )
 
-        return answer, sources, usage, metadata
+        return answer, sources, usage, metadata, viability
 
     def _get_legislation_snippet(self, act_name: str, section: str) -> str:
         """
@@ -1032,3 +1073,62 @@ class RAGService:
             total_tokens=total_tokens,
             estimated_cost_usd=round(cost, 6),
         )
+
+    @staticmethod
+    def _parse_viability(text: str) -> ViabilityAssessment | None:
+        """Parse a structured viability block from Gemini's response.
+
+        Looks for a ---VIABILITY_ASSESSMENT--- ... ---END_VIABILITY--- block
+        and extracts structured fields into a ViabilityAssessment model.
+
+        Returns None if no block is found or if the score is malformed.
+        """
+        pattern = r"---VIABILITY_ASSESSMENT---\s*(.*?)\s*---END_VIABILITY---"
+        match = re.search(pattern, text, re.DOTALL)
+        if not match:
+            return None
+
+        block = match.group(1)
+
+        def _get(key: str) -> str | None:
+            m = re.search(rf"^{key}:\s*(.+)$", block, re.MULTILINE)
+            return m.group(1).strip() if m else None
+
+        try:
+            score_str = _get("SCORE")
+            score = int(score_str) if score_str else 50
+            score = max(0, min(100, score))
+        except (ValueError, TypeError):
+            return None
+
+        band_str = _get("VENTO_BAND")
+        vento_band = None
+        if band_str:
+            band_map = {
+                "lower": VentoBand.LOWER,
+                "middle": VentoBand.MIDDLE,
+                "upper": VentoBand.UPPER,
+                "exceptional": VentoBand.EXCEPTIONAL,
+            }
+            vento_band = band_map.get(band_str.lower())
+
+        return ViabilityAssessment(
+            score=score,
+            vento_band=vento_band,
+            vento_range=_get("VENTO_RANGE"),
+            requires_hitl=True,
+            reasoning=_get("REASONING") or "Assessment based on available information.",
+            statutory_footing=(_get("STATUTORY_FOOTING") or "").lower() == "true",
+            case_law_precedent=(_get("CASE_LAW_PRECEDENT") or "").lower() == "true",
+            quantum_potential=(_get("QUANTUM_POTENTIAL") or "").lower() == "true",
+        )
+
+    @staticmethod
+    def _strip_viability_block(text: str) -> str:
+        """Remove the viability assessment block from the answer text."""
+        return re.sub(
+            r"\s*---VIABILITY_ASSESSMENT---.*?---END_VIABILITY---\s*",
+            "\n\n",
+            text,
+            flags=re.DOTALL,
+        ).strip()

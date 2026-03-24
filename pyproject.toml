@@ -16,6 +16,9 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults (FastAPI Depends)
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"adil-rag-api/test_backend.py" = ["E402"]  # test file uses sectioned imports by design
+
 [tool.ruff.lint.isort]
 known-first-party = ["models", "rag_service", "content_extractor", "conversation_log", "email_receipt", "report_generator"]
 

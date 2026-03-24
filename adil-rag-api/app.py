@@ -570,7 +570,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         if body.conversation_history:
             history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
-        answer, sources, usage, metadata = await rag_service.query(
+        answer, sources, usage, metadata, viability = await rag_service.query(
             query_text=body.query,
             max_sources=body.max_sources,
             include_viability=body.include_viability_score,
@@ -607,7 +607,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         return QueryResponse(
             answer=answer,
             sources=sources,
-            viability=None,  # TODO: Implement viability scoring
+            viability=viability,
             usage=usage,
             query_metadata=metadata,
             educational_content_provided=True,
@@ -714,7 +714,7 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
             history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         # Execute RAG query with the combined content
-        answer, sources, usage, metadata = await rag_service.query(
+        answer, sources, usage, metadata, viability = await rag_service.query(
             query_text=context_prefix + analysis_text,
             max_sources=10,
             include_viability=body.include_viability_score,
@@ -788,7 +788,7 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
         return AnalyzeContentResponse(
             answer=answer,
             sources=sources,
-            viability=None,  # TODO: Implement viability scoring
+            viability=viability,
             usage=usage,
             query_metadata=metadata,
             educational_content_provided=True,
@@ -867,7 +867,7 @@ async def query_image(
         # Convert images to dicts for the RAG service
         images_data = [{"mime_type": img.mime_type, "data": img.data} for img in body.images]
 
-        answer, sources, usage, metadata = await rag_service.query_with_images(
+        answer, sources, usage, metadata, viability = await rag_service.query_with_images(
             images=images_data,
             query_text=body.query,
             max_sources=10,
@@ -889,7 +889,7 @@ async def query_image(
         return QueryResponse(
             answer=answer,
             sources=sources,
-            viability=None,
+            viability=viability,
             usage=usage,
             query_metadata=metadata,
             educational_content_provided=True,
@@ -1103,7 +1103,7 @@ async def submit_report(
         if rag_service and body.conversation_history:
             try:
                 history_dicts = [{"role": t.role, "content": t.content} for t in body.conversation_history]
-                fallback_answer, _, _, _ = await rag_service.query(
+                fallback_answer, _, _, _, _ = await rag_service.query(
                     query_text=(
                         "INSTRUCTION: You are generating a structured incident report, NOT having a conversation. "
                         "Do NOT ask questions. Do NOT request more information. "
@@ -1171,7 +1171,7 @@ async def generate_report(
     history_dicts = [{"role": t.role, "content": t.content} for t in body.conversation_history]
 
     try:
-        answer, _, usage, metadata = await rag_service.query(
+        answer, _, usage, metadata, _ = await rag_service.query(
             query_text=prompt,
             max_sources=0,
             include_viability=False,
