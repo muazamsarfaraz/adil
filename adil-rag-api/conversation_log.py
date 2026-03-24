@@ -117,6 +117,53 @@ async def _get_pool():
     return _pool
 
 
+async def get_analytics_summary() -> dict | None:
+    """Query conversation_logs for aggregate analytics."""
+    pool = await _get_pool()
+    if not pool:
+        return None
+
+    async with pool.acquire() as conn:
+        total = await conn.fetchval("SELECT COUNT(*) FROM conversation_logs")
+
+        topic_rows = await conn.fetch(
+            "SELECT topic, COUNT(*) as count FROM conversation_logs " "GROUP BY topic ORDER BY count DESC LIMIT 10"
+        )
+
+        jurisdiction_rows = await conn.fetch(
+            "SELECT jurisdiction, COUNT(*) as count FROM conversation_logs "
+            "WHERE jurisdiction IS NOT NULL "
+            "GROUP BY jurisdiction ORDER BY count DESC"
+        )
+
+        report_rows = await conn.fetch(
+            "SELECT report_target, COUNT(*) as count, "
+            "SUM(CASE WHEN report_success THEN 1 ELSE 0 END) as successes "
+            "FROM conversation_logs WHERE report_submitted = true "
+            "GROUP BY report_target ORDER BY count DESC"
+        )
+
+        recent_24h = await conn.fetchval(
+            "SELECT COUNT(*) FROM conversation_logs " "WHERE timestamp > NOW() - INTERVAL '24 hours'"
+        )
+
+        avg_response = await conn.fetchval(
+            "SELECT AVG(response_time_ms) FROM conversation_logs " "WHERE response_time_ms IS NOT NULL"
+        )
+
+    return {
+        "total_conversations": total or 0,
+        "last_24h": recent_24h or 0,
+        "avg_response_time_ms": round(avg_response or 0),
+        "topics": {row["topic"]: row["count"] for row in topic_rows},
+        "jurisdictions": {row["jurisdiction"]: row["count"] for row in jurisdiction_rows},
+        "reports": [
+            {"target": row["report_target"], "total": row["count"], "successful": row["successes"]}
+            for row in report_rows
+        ],
+    }
+
+
 async def log_conversation(
     endpoint: str,
     query_text: str = "",

@@ -339,6 +339,10 @@ tags_metadata = [
         "name": "Monitoring",
         "description": "Usage statistics and operational metrics. Requires authentication.",
     },
+    {
+        "name": "Analytics",
+        "description": "Anonymised aggregate analytics from conversation logs. Requires authentication.",
+    },
 ]
 
 app = FastAPI(
@@ -384,6 +388,22 @@ app.add_middleware(
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
     return JSONResponse(status_code=422, content={"detail": exc.errors()})
+
+
+# --- Request Timing Middleware ---
+@app.middleware("http")
+async def log_request_timing(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = int((time.time() - start) * 1000)
+    logger.info(
+        "request_completed path=%s method=%s status=%d duration_ms=%d",
+        request.url.path,
+        request.method,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 
 # --- Report Bridge Configuration ---
@@ -468,6 +488,21 @@ async def get_stats(request: Request, _api_key: str = Security(verify_api_key)):
             uptime_seconds=uptime,
             viability_assessments_count=stats["viability_assessments"],
         )
+
+
+@app.get("/api/v1/analytics", tags=["Analytics"])
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def analytics(request: Request, _api_key: str = Security(verify_api_key)):
+    """Anonymised usage analytics from conversation logs.
+
+    Returns aggregate statistics — no PII, no message content.
+    """
+    from conversation_log import get_analytics_summary
+
+    summary = await get_analytics_summary()
+    if summary is None:
+        raise HTTPException(status_code=503, detail="Analytics database not configured.")
+    return summary
 
 
 # ---------------------------------------------------------------------------
