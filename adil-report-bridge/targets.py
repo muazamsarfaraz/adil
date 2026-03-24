@@ -3,9 +3,10 @@
 Each target defines a reporting portal with its URL, AI agent instructions,
 and required/optional field lists. Adding a new target = adding a dict entry.
 """
-from typing import Optional, Dict, List, Any
 
-TARGETS: Dict[str, Dict[str, Any]] = {
+from typing import Any
+
+TARGETS: dict[str, dict[str, Any]] = {
     "police-uk": {
         "adapter_type": "browser",
         "name": "Police UK — National Hate Crime Report",
@@ -24,12 +25,22 @@ TARGETS: Dict[str, Dict[str, Any]] = {
             "After submission, capture the confirmation page including any reference number."
         ),
         "required_fields": [
-            "first_name", "surname", "dob", "gender", "email",
-            "incident_details", "location", "date_time",
+            "first_name",
+            "surname",
+            "dob",
+            "gender",
+            "email",
+            "incident_details",
+            "location",
+            "date_time",
         ],
         "optional_fields": [
-            "phone", "address", "role", "suspect_description",
-            "additional_info", "evidence_urls",
+            "phone",
+            "address",
+            "role",
+            "suspect_description",
+            "additional_info",
+            "evidence_urls",
         ],
         "coverage": "England & Wales",
     },
@@ -55,13 +66,25 @@ TARGETS: Dict[str, Dict[str, Any]] = {
             "After submission, capture the confirmation page."
         ),
         "required_fields": [
-            "first_name", "surname", "email", "phone",
-            "incident_type", "incident_details", "location",
+            "first_name",
+            "surname",
+            "email",
+            "phone",
+            "incident_type",
+            "incident_details",
+            "location",
         ],
         "optional_fields": [
-            "date_time", "gender", "age_group", "ethnicity",
-            "suspect_gender", "suspect_age_group", "suspect_ethnicity",
-            "role", "evidence_urls", "additional_info",
+            "date_time",
+            "gender",
+            "age_group",
+            "ethnicity",
+            "suspect_gender",
+            "suspect_age_group",
+            "suspect_ethnicity",
+            "role",
+            "evidence_urls",
+            "additional_info",
         ],
         "coverage": "United Kingdom",
     },
@@ -86,12 +109,23 @@ TARGETS: Dict[str, Dict[str, Any]] = {
             "After submission, capture the confirmation page including any reference number."
         ),
         "required_fields": [
-            "first_name", "surname", "email", "phone",
-            "incident_details", "location", "date_time",
+            "first_name",
+            "surname",
+            "email",
+            "phone",
+            "incident_details",
+            "location",
+            "date_time",
         ],
         "optional_fields": [
-            "address", "postcode", "town", "dob", "role",
-            "suspect_description", "additional_info", "evidence_urls",
+            "address",
+            "postcode",
+            "town",
+            "dob",
+            "role",
+            "suspect_description",
+            "additional_info",
+            "evidence_urls",
         ],
         "coverage": "Scotland",
     },
@@ -118,13 +152,22 @@ TARGETS: Dict[str, Dict[str, Any]] = {
             "After submission, capture the confirmation page."
         ),
         "required_fields": [
-            "first_name", "surname", "email", "phone",
-            "gender", "country", "age",
-            "incident_details", "location",
+            "first_name",
+            "surname",
+            "email",
+            "phone",
+            "gender",
+            "country",
+            "age",
+            "incident_details",
+            "location",
         ],
         "optional_fields": [
-            "ethnicity", "date_time", "role",
-            "police_reported", "additional_info",
+            "ethnicity",
+            "date_time",
+            "role",
+            "police_reported",
+            "additional_info",
         ],
         "coverage": "United Kingdom",
     },
@@ -148,11 +191,16 @@ TARGETS: Dict[str, Dict[str, Any]] = {
             "After submission, capture the confirmation or any response shown."
         ),
         "required_fields": [
-            "incident_summary", "incident_details", "location",
+            "incident_summary",
+            "incident_details",
+            "location",
         ],
         "optional_fields": [
-            "date_time", "time_of_incident", "ethnicity",
-            "incident_type", "additional_info",
+            "date_time",
+            "time_of_incident",
+            "ethnicity",
+            "incident_type",
+            "additional_info",
         ],
         "coverage": "United Kingdom",
     },
@@ -164,12 +212,17 @@ TARGETS: Dict[str, Dict[str, Any]] = {
         "email_to": "correspondence@equalityadvisoryservice.com",
         "email_subject": "Discrimination Enquiry via AskAdil",
         "required_fields": [
-            "first_name", "surname", "email",
+            "first_name",
+            "surname",
+            "email",
             "incident_details",
         ],
         "optional_fields": [
-            "phone", "location", "date_time",
-            "suspect_description", "additional_info",
+            "phone",
+            "location",
+            "date_time",
+            "suspect_description",
+            "additional_info",
         ],
         "coverage": "England, Wales & Scotland",
     },
@@ -180,24 +233,29 @@ TARGETS: Dict[str, Dict[str, Any]] = {
         "email_to": "talk@stophateuk.org",
         "email_subject": "Hate Incident Report via AskAdil",
         "required_fields": [
-            "first_name", "surname", "email",
-            "incident_details", "location",
+            "first_name",
+            "surname",
+            "email",
+            "incident_details",
+            "location",
         ],
         "optional_fields": [
-            "phone", "date_time",
-            "suspect_description", "additional_info",
+            "phone",
+            "date_time",
+            "suspect_description",
+            "additional_info",
         ],
         "coverage": "United Kingdom",
     },
 }
 
 
-def get_target(target_id: str) -> Optional[Dict[str, Any]]:
+def get_target(target_id: str) -> dict[str, Any] | None:
     """Return target config or None if not found."""
     return TARGETS.get(target_id)
 
 
-def validate_data_for_target(target_id: str, data: Dict[str, Any]) -> List[str]:
+def validate_data_for_target(target_id: str, data: dict[str, Any]) -> list[str]:
     """Return list of missing required fields for the given target."""
     target = get_target(target_id)
     if not target:

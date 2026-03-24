@@ -10,32 +10,37 @@ Endpoints:
     GET  /health/targets  - Target form reachability (cached 5 min)
     GET  /targets         - Available targets and required fields
 """
-import os
-import time
-import secrets
-import logging
-from typing import Dict
 
+import logging
+import os
+import secrets
+import time
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from dotenv import load_dotenv
+from targets import TARGETS, get_target, validate_data_for_target
 
 from models import (
-    SubmitRequest, SubmitResponse, HealthResponse,
-    TargetInfo, TargetHealthInfo,
+    HealthResponse,
+    SubmitRequest,
+    SubmitResponse,
+    TargetInfo,
 )
-from targets import TARGETS, get_target, validate_data_for_target
 
 # Lazy import — browser_agent pulls in browser-use/playwright/langchain which is heavy.
 # Importing at module level can cause startup timeouts on Railway.
 _submit_report = None
 
+
 def _get_submit_report():
     global _submit_report
     if _submit_report is None:
         from browser_agent import submit_report
+
         _submit_report = submit_report
     return _submit_report
+
 
 load_dotenv()
 
@@ -78,7 +83,7 @@ async def health():
     return HealthResponse(status="healthy", version=VERSION)
 
 
-_target_health_cache: Dict[str, dict] = {}
+_target_health_cache: dict[str, dict] = {}
 _target_health_ts: float = 0
 TARGET_HEALTH_TTL = 300
 
@@ -92,6 +97,7 @@ async def health_targets(_key: str = Security(verify_bridge_key)):
         return {"targets": _target_health_cache}
 
     import httpx
+
     results = {}
     async with httpx.AsyncClient(timeout=10.0) as client:
         for tid, tcfg in TARGETS.items():
@@ -141,6 +147,7 @@ async def submit(body: SubmitRequest, _key: str = Security(verify_bridge_key)):
 
     if adapter_type == "email":
         from email_adapter import send_email_report
+
         result = await send_email_report(body.target, target, body.data)
     else:
         result = await _get_submit_report()(body.target, body.data)

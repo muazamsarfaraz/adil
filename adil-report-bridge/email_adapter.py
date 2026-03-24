@@ -3,10 +3,11 @@
 Sends structured incident reports as formatted emails to organisations
 that accept reports via email but don't have web forms.
 """
-import os
+
 import logging
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+import os
+from datetime import UTC, datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -15,11 +16,11 @@ SENDER_EMAIL = os.getenv("SENDER_EMAIL", "noreply@mcbx.app")
 SENDER_NAME = os.getenv("SENDER_NAME", "AskAdil — MCB Platform")
 
 
-def _build_email_body(target_config: Dict[str, Any], data: Dict[str, Any]) -> str:
+def _build_email_body(target_config: dict[str, Any], data: dict[str, Any]) -> str:
     """Build a structured plain-text email body from the target config and form data."""
     lines = [
         "--- INCIDENT REPORT ---",
-        f"Submitted via AskAdil (askadil.org) on {datetime.now(timezone.utc).strftime('%d %B %Y at %H:%M UTC')}",
+        f"Submitted via AskAdil (askadil.org) on {datetime.now(UTC).strftime('%d %B %Y at %H:%M UTC')}",
         f"Target Organisation: {target_config['name']}",
         "",
     ]
@@ -60,9 +61,9 @@ def _build_email_body(target_config: Dict[str, Any], data: Dict[str, Any]) -> st
     return "\n".join(lines)
 
 
-def _build_html_body(target_config: Dict[str, Any], data: Dict[str, Any]) -> str:
+def _build_html_body(target_config: dict[str, Any], data: dict[str, Any]) -> str:
     """Build a formatted HTML email body."""
-    timestamp = datetime.now(timezone.utc).strftime('%d %B %Y at %H:%M UTC')
+    timestamp = datetime.now(UTC).strftime("%d %B %Y at %H:%M UTC")
 
     html = f"""
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -119,9 +120,9 @@ def _build_html_body(target_config: Dict[str, Any], data: Dict[str, Any]) -> str
 
 async def send_email_report(
     target_id: str,
-    target_config: Dict[str, Any],
-    data: Dict[str, Any],
-) -> Dict[str, Any]:
+    target_config: dict[str, Any],
+    data: dict[str, Any],
+) -> dict[str, Any]:
     """Send a structured incident report via SendGrid email.
 
     Args:
@@ -147,17 +148,14 @@ async def send_email_report(
             "error": f"No email recipient configured for target '{target_id}'.",
         }
 
-    subject = target_config.get(
-        "email_subject",
-        f"Incident Report via AskAdil — {target_config['name']}"
-    )
+    subject = target_config.get("email_subject", f"Incident Report via AskAdil — {target_config['name']}")
 
     plain_body = _build_email_body(target_config, data)
     html_body = _build_html_body(target_config, data)
 
     try:
         from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail, Email, To, Content, MimeType
+        from sendgrid.helpers.mail import Content, Email, Mail, MimeType, To
 
         message = Mail(
             from_email=Email(SENDER_EMAIL, SENDER_NAME),
@@ -173,7 +171,9 @@ async def send_email_report(
         if response.status_code in (200, 201, 202):
             logger.info(
                 "Email report sent: target=%s recipient=%s status=%s",
-                target_id, recipient, response.status_code,
+                target_id,
+                recipient,
+                response.status_code,
             )
             return {
                 "success": True,
@@ -182,12 +182,13 @@ async def send_email_report(
                     f"Your incident report has been emailed to {target_config['name']} "
                     f"at {recipient}. They may contact you if you provided your details."
                 ),
-                "submitted_at": datetime.now(timezone.utc).isoformat(),
+                "submitted_at": datetime.now(UTC).isoformat(),
             }
         else:
             logger.error(
                 "Email send failed: target=%s status=%s",
-                target_id, response.status_code,
+                target_id,
+                response.status_code,
             )
             return {
                 "success": False,

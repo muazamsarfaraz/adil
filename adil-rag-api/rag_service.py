@@ -14,15 +14,17 @@ Key capabilities:
 
 Implements the "Educate First, Litigate Second" philosophy.
 """
-import os
-import re
-import time
+
 import asyncio
 import base64
 import logging
-from typing import List, Tuple, Optional, Dict
+import os
+import re
+import time
+
 from google import genai
-from models import Source, SourceType, TokenUsage, QueryMetadata, ViabilityAssessment, VentoBand
+
+from models import QueryMetadata, Source, SourceType, TokenUsage
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +33,7 @@ logger = logging.getLogger(__name__)
 # UK LEGISLATION URL MAPPING
 # =============================================================================
 
-UK_LEGISLATION_URLS: Dict[str, Dict[str, str]] = {
+UK_LEGISLATION_URLS: dict[str, dict[str, str]] = {
     "Equality Act 2010": {
         "base": "https://www.legislation.gov.uk/ukpga/2010/15",
         "contents": "https://www.legislation.gov.uk/ukpga/2010/15/contents",
@@ -81,7 +83,7 @@ UK_LEGISLATION_URLS: Dict[str, Dict[str, str]] = {
 }
 
 # Jurisdiction mapping: act name -> jurisdiction string
-ACT_JURISDICTION: Dict[str, str] = {
+ACT_JURISDICTION: dict[str, str] = {
     "Equality Act 2010": "England and Wales",  # Also Scotland, but primary E&W
     "Public Order Act 1986": "England and Wales",
     "Crime and Disorder Act 1998": "England and Wales",
@@ -106,7 +108,7 @@ NI_ARTICLE_ACTS = {
 # LEGISLATION SECTION SNIPPETS - Key provisions text
 # =============================================================================
 
-LEGISLATION_SNIPPETS: Dict[str, Dict[str, str]] = {
+LEGISLATION_SNIPPETS: dict[str, dict[str, str]] = {
     "Equality Act 2010": {
         "9": "Religion means any religion and a reference to religion includes a reference to a lack of religion. Belief means any religious or philosophical belief.",
         "10": "Religion or belief is a protected characteristic. Religion means any religion; belief means any religious or philosophical belief.",
@@ -174,63 +176,63 @@ LEGISLATION_SNIPPETS: Dict[str, Dict[str, str]] = {
 # UK CASE LAW DATABASE - Key precedents with summaries
 # =============================================================================
 
-UK_CASE_LAW: Dict[str, Dict[str, str]] = {
+UK_CASE_LAW: dict[str, dict[str, str]] = {
     # Employment & Discrimination Cases
     "Eweida & Others v United Kingdom": {
         "citation": "[2013] ECHR 37",
         "court": "European Court of Human Rights",
         "url": "https://www.bailii.org/eu/cases/ECHR/2013/37.html",
-        "summary": "Landmark ECHR ruling that the right to manifest religious belief in the workplace is protected under Article 9. British Airways' blanket ban on visible religious symbols violated Eweida's rights."
+        "summary": "Landmark ECHR ruling that the right to manifest religious belief in the workplace is protected under Article 9. British Airways' blanket ban on visible religious symbols violated Eweida's rights.",
     },
     "JH Walker Ltd v Hussain": {
         "citation": "[1996] ICR 291",
         "court": "Employment Appeal Tribunal",
         # BAILII URL unverified — using National Archives fallback
         "url": "https://caselaw.nationalarchives.gov.uk/",
-        "summary": "Established that preventing Muslim employees from taking time off for Eid constitutes indirect discrimination. Employers must consider religious observance in leave policies."
+        "summary": "Established that preventing Muslim employees from taking time off for Eid constitutes indirect discrimination. Employers must consider religious observance in leave policies.",
     },
     "Azmi v Kirklees Metropolitan Borough Council": {
         "citation": "[2007] ICR 1154",
         "court": "Employment Appeal Tribunal",
         # BAILII URL unverified — using National Archives fallback
         "url": "https://caselaw.nationalarchives.gov.uk/",
-        "summary": "Teaching assistant's dismissal for refusing to remove niqab during lessons was not discrimination. The requirement was a proportionate means of achieving effective teaching."
+        "summary": "Teaching assistant's dismissal for refusing to remove niqab during lessons was not discrimination. The requirement was a proportionate means of achieving effective teaching.",
     },
     "Lee v IFoA": {
         "citation": "[2025] EAT (pending full citation)",
         "court": "Employment Appeal Tribunal",
         "url": "https://caselaw.nationalarchives.gov.uk/",
-        "summary": "Ruled that 'Islam-critical' views can constitute protected philosophical beliefs under the Equality Act 2010. Critical distinction between hostility toward people (unlawful) vs criticism of religion (protected). Note: Full neutral citation pending."
+        "summary": "Ruled that 'Islam-critical' views can constitute protected philosophical beliefs under the Equality Act 2010. Critical distinction between hostility toward people (unlawful) vs criticism of religion (protected). Note: Full neutral citation pending.",
     },
     "Grainger plc v Nicholson": {
         "citation": "[2010] ICR 360",
         "court": "Employment Appeal Tribunal",
         "url": "https://www.bailii.org/uk/cases/UKEAT/2009/0219_09_0311.html",
-        "summary": "Established the test for whether a belief qualifies as a 'philosophical belief' under Equality Act: must be genuinely held, relate to a weighty aspect of human life, be cogent, and be worthy of respect in a democratic society."
+        "summary": "Established the test for whether a belief qualifies as a 'philosophical belief' under Equality Act: must be genuinely held, relate to a weighty aspect of human life, be cogent, and be worthy of respect in a democratic society.",
     },
     "Ladele v London Borough of Islington": {
         "citation": "[2009] EWCA Civ 1357",
         "court": "Court of Appeal",
         "url": "https://www.bailii.org/ew/cases/EWCA/Civ/2009/1357.html",
-        "summary": "Registrar's refusal to conduct civil partnerships on religious grounds was not protected. Employer's equality policy was a proportionate means of achieving non-discrimination."
+        "summary": "Registrar's refusal to conduct civil partnerships on religious grounds was not protected. Employer's equality policy was a proportionate means of achieving non-discrimination.",
     },
     "Chaplin v Royal Devon and Exeter Hospital": {
         "citation": "[2010] ET 1702886/2009",
         "court": "Employment Tribunal",
         "url": "https://caselaw.nationalarchives.gov.uk/",
-        "summary": "Nurse prohibited from wearing visible cross for health and safety reasons. Tribunal found the restriction was justified and proportionate."
+        "summary": "Nurse prohibited from wearing visible cross for health and safety reasons. Tribunal found the restriction was justified and proportionate.",
     },
     "Redfearn v United Kingdom": {
         "citation": "[2012] ECHR 1878",
         "court": "European Court of Human Rights",
         "url": "https://www.bailii.org/eu/cases/ECHR/2012/1878.html",
-        "summary": "UK's failure to protect employees from dismissal based on political opinion violated Article 11 (freedom of association). Led to changes in unfair dismissal law."
+        "summary": "UK's failure to protect employees from dismissal based on political opinion violated Article 11 (freedom of association). Led to changes in unfair dismissal law.",
     },
     "Vento v Chief Constable of West Yorkshire": {
         "citation": "[2002] EWCA Civ 1871",
         "court": "Court of Appeal",
         "url": "https://www.bailii.org/ew/cases/EWCA/Civ/2002/1871.html",
-        "summary": "Established the 'Vento bands' for compensation in discrimination cases. Awards divided into lower, middle, and upper bands based on severity and impact."
+        "summary": "Established the 'Vento bands' for compensation in discrimination cases. Awards divided into lower, middle, and upper bands based on severity and impact.",
     },
 }
 
@@ -493,7 +495,7 @@ After every post-intake response (i.e. after the user has answered your clarifyi
 
 class RAGService:
     """Service for handling RAG queries with Gemini File Search"""
-    
+
     def __init__(self, gemini_api_key: str, file_search_store_id: str):
         self.client = genai.Client(api_key=gemini_api_key)
         self.file_search_store_id = file_search_store_id
@@ -503,48 +505,51 @@ class RAGService:
         # Pricing (Gemini 2.5 Flash as of Jan 2026)
         self.price_per_1k_input_tokens = 0.00015
         self.price_per_1k_output_tokens = 0.0006
-    
+
     def extract_legal_metadata(self, title: str) -> dict:
         """Extract legal metadata from document title"""
         metadata = {"source_type": SourceType.STATUTE}
-        
+
         # Detect neutral citations [YYYY] COURT NUM
-        citation_match = re.search(r'\[(\d{4})\]\s*(UKSC|UKCA|EWHC|EAT|ECHR|ICR)\s*(\d+)?', title)
+        citation_match = re.search(r"\[(\d{4})\]\s*(UKSC|UKCA|EWHC|EAT|ECHR|ICR)\s*(\d+)?", title)
         if citation_match:
             metadata["neutral_citation"] = citation_match.group(0)
             metadata["source_type"] = SourceType.CASE_LAW
-        
+
         # Detect statute sections
-        section_match = re.search(r'[Ss]ection\s*(\d+[A-Z]?)', title)
+        section_match = re.search(r"[Ss]ection\s*(\d+[A-Z]?)", title)
         if section_match:
             metadata["section"] = f"s.{section_match.group(1)}"
-        
+
         # Detect Act names
         act_patterns = [
-            (r'Equality Act 2010', "Equality Act 2010"),
-            (r'Public Order Act 1986', "Public Order Act 1986"),
-            (r'Crime and Disorder Act 1998', "Crime and Disorder Act 1998"),
-            (r'Online Safety Act 2023', "Online Safety Act 2023"),
-            (r'Human Rights Act 1998', "Human Rights Act 1998"),
-            (r'Employment Rights Act 1996', "Employment Rights Act 1996"),
-            (r'Racial and Religious Hatred Act 2006', "Racial and Religious Hatred Act 2006"),
+            (r"Equality Act 2010", "Equality Act 2010"),
+            (r"Public Order Act 1986", "Public Order Act 1986"),
+            (r"Crime and Disorder Act 1998", "Crime and Disorder Act 1998"),
+            (r"Online Safety Act 2023", "Online Safety Act 2023"),
+            (r"Human Rights Act 1998", "Human Rights Act 1998"),
+            (r"Employment Rights Act 1996", "Employment Rights Act 1996"),
+            (r"Racial and Religious Hatred Act 2006", "Racial and Religious Hatred Act 2006"),
             # Scotland
-            (r'Hate Crime and Public Order \(Scotland\) Act 2021', "Hate Crime and Public Order (Scotland) Act 2021"),
+            (r"Hate Crime and Public Order \(Scotland\) Act 2021", "Hate Crime and Public Order (Scotland) Act 2021"),
             # Northern Ireland
-            (r'Fair Employment and Treatment \(Northern Ireland\) Order 1998', "Fair Employment and Treatment (Northern Ireland) Order 1998"),
-            (r'Race Relations \(Northern Ireland\) Order 1997', "Race Relations (Northern Ireland) Order 1997"),
-            (r'Disability Discrimination Act 1995', "Disability Discrimination Act 1995"),
+            (
+                r"Fair Employment and Treatment \(Northern Ireland\) Order 1998",
+                "Fair Employment and Treatment (Northern Ireland) Order 1998",
+            ),
+            (r"Race Relations \(Northern Ireland\) Order 1997", "Race Relations (Northern Ireland) Order 1997"),
+            (r"Disability Discrimination Act 1995", "Disability Discrimination Act 1995"),
         ]
         for pattern, act_name in act_patterns:
             if re.search(pattern, title, re.IGNORECASE):
                 metadata["act_name"] = act_name
                 break
-        
+
         return metadata
 
     def generate_legislation_url(
-        self, act_name: str, section: Optional[str] = None, ref_type: str = "section"
-    ) -> Optional[str]:
+        self, act_name: str, section: str | None = None, ref_type: str = "section"
+    ) -> str | None:
         """Generate URL to legislation.gov.uk for a specific act and section/article/part.
 
         Args:
@@ -559,7 +564,7 @@ class RAGService:
 
         if section:
             # Extract just the number from section strings like "s.13" or "3A"
-            section_num_match = re.search(r'(\d+[A-Z]?)', section)
+            section_num_match = re.search(r"(\d+[A-Z]?)", section)
             if section_num_match:
                 section_num = section_num_match.group(1)
                 # Determine URL path type
@@ -571,9 +576,9 @@ class RAGService:
                     path_type = "section"
                 return f"{act_info['base']}/{path_type}/{section_num}"
 
-        return act_info['contents']
+        return act_info["contents"]
 
-    def extract_citations_from_answer(self, answer: str) -> List[Dict[str, str]]:
+    def extract_citations_from_answer(self, answer: str) -> list[dict[str, str]]:
         """
         Parse the answer text to extract statutory citations.
         Returns list of dicts with act_name, section, and formatted citation.
@@ -582,13 +587,13 @@ class RAGService:
         citations = []
         seen = set()  # Avoid duplicates
 
-        act_names_escaped = '|'.join(
-            re.escape(act) for act in UK_LEGISLATION_URLS.keys()
-        )
+        act_names_escaped = "|".join(re.escape(act) for act in UK_LEGISLATION_URLS.keys())
 
         # Pattern 1: "Section X Act Name" or "Section X(Y) Act Name"
         # e.g., "Section 10 Equality Act 2010", "Section 4 Hate Crime ... Act 2021"
-        section_pattern = r'[Ss]ections?\s+(\d+[A-Z]?(?:\(\d+\))?(?:-\d+[A-Z]?)?)\s+(?:of\s+(?:the\s+)?)?(' + act_names_escaped + r')'
+        section_pattern = (
+            r"[Ss]ections?\s+(\d+[A-Z]?(?:\(\d+\))?(?:-\d+[A-Z]?)?)\s+(?:of\s+(?:the\s+)?)?(" + act_names_escaped + r")"
+        )
 
         for match in re.finditer(section_pattern, answer):
             section = match.group(1)
@@ -597,18 +602,22 @@ class RAGService:
             if key in seen:
                 continue
             seen.add(key)
-            section_for_url = re.sub(r'\([^)]*\)', '', section).strip()
-            citations.append({
-                "section": f"s.{section}",
-                "section_for_url": section_for_url,
-                "act_name": act_name,
-                "full_citation": f"Section {section} {act_name}",
-                "ref_type": "section",
-            })
+            section_for_url = re.sub(r"\([^)]*\)", "", section).strip()
+            citations.append(
+                {
+                    "section": f"s.{section}",
+                    "section_for_url": section_for_url,
+                    "act_name": act_name,
+                    "full_citation": f"Section {section} {act_name}",
+                    "ref_type": "section",
+                }
+            )
 
         # Pattern 2: "Article X FETO/NI Order" — NI legislation uses Articles
         # e.g., "Article 3 of the Fair Employment and Treatment (Northern Ireland) Order 1998"
-        article_pattern = r'[Aa]rticles?\s+(\d+[A-Z]?(?:\(\d+\))?(?:-\d+[A-Z]?)?)\s+(?:of\s+(?:the\s+)?)?(' + act_names_escaped + r')'
+        article_pattern = (
+            r"[Aa]rticles?\s+(\d+[A-Z]?(?:\(\d+\))?(?:-\d+[A-Z]?)?)\s+(?:of\s+(?:the\s+)?)?(" + act_names_escaped + r")"
+        )
 
         for match in re.finditer(article_pattern, answer):
             article = match.group(1)
@@ -617,18 +626,20 @@ class RAGService:
             if key in seen:
                 continue
             seen.add(key)
-            article_for_url = re.sub(r'\([^)]*\)', '', article).strip()
-            citations.append({
-                "section": f"art.{article}",
-                "section_for_url": article_for_url,
-                "act_name": act_name,
-                "full_citation": f"Article {article} {act_name}",
-                "ref_type": "article",
-            })
+            article_for_url = re.sub(r"\([^)]*\)", "", article).strip()
+            citations.append(
+                {
+                    "section": f"art.{article}",
+                    "section_for_url": article_for_url,
+                    "act_name": act_name,
+                    "full_citation": f"Article {article} {act_name}",
+                    "ref_type": "article",
+                }
+            )
 
         # Pattern 3: "Part X Act Name" — for Scotland Act parts
         # e.g., "Part 3 of the Hate Crime and Public Order (Scotland) Act 2021"
-        part_pattern = r'[Pp]arts?\s+(\d+[A-Z]?)\s+(?:of\s+(?:the\s+)?)?(' + act_names_escaped + r')'
+        part_pattern = r"[Pp]arts?\s+(\d+[A-Z]?)\s+(?:of\s+(?:the\s+)?)?(" + act_names_escaped + r")"
 
         for match in re.finditer(part_pattern, answer):
             part = match.group(1)
@@ -637,13 +648,15 @@ class RAGService:
             if key in seen:
                 continue
             seen.add(key)
-            citations.append({
-                "section": f"pt.{part}",
-                "section_for_url": part,
-                "act_name": act_name,
-                "full_citation": f"Part {part} {act_name}",
-                "ref_type": "part",
-            })
+            citations.append(
+                {
+                    "section": f"pt.{part}",
+                    "section_for_url": part,
+                    "act_name": act_name,
+                    "full_citation": f"Part {part} {act_name}",
+                    "ref_type": "part",
+                }
+            )
 
         # Pattern 4: Fallback — act name mentioned without section/article number
         # e.g., "the Fair Employment and Treatment (Northern Ireland) Order 1998"
@@ -658,17 +671,19 @@ class RAGService:
                 if key in seen:
                     continue
                 seen.add(key)
-                citations.append({
-                    "section": "",
-                    "section_for_url": "",
-                    "act_name": act_name,
-                    "full_citation": act_name,
-                    "ref_type": "section",
-                })
+                citations.append(
+                    {
+                        "section": "",
+                        "section_for_url": "",
+                        "act_name": act_name,
+                        "full_citation": act_name,
+                        "ref_type": "section",
+                    }
+                )
 
         return citations
 
-    def extract_case_citations_from_answer(self, answer: str) -> List[Dict[str, str]]:
+    def extract_case_citations_from_answer(self, answer: str) -> list[dict[str, str]]:
         """
         Parse the answer text to extract case law citations.
         Looks for case names in our database (e.g., *Eweida v UK*, JH Walker Ltd v Hussain)
@@ -680,30 +695,32 @@ class RAGService:
         for case_name, case_info in UK_CASE_LAW.items():
             # Create variations of the case name to match
             # e.g., "Eweida v United Kingdom", "Eweida v UK", "Eweida"
-            name_parts = case_name.split(' v ')
+            name_parts = case_name.split(" v ")
 
             # Check if case name appears (with or without italics markers)
             patterns = [
                 re.escape(case_name),  # Full name
-                r'\*' + re.escape(case_name) + r'\*',  # *Case Name*
+                r"\*" + re.escape(case_name) + r"\*",  # *Case Name*
                 re.escape(case_info["citation"]),  # Citation like [2013] ECHR 37
             ]
 
             # Also check for just the first party name if it's distinctive
             if len(name_parts) > 0 and len(name_parts[0]) > 4:
-                patterns.append(r'\b' + re.escape(name_parts[0]) + r'\b')
+                patterns.append(r"\b" + re.escape(name_parts[0]) + r"\b")
 
             for pattern in patterns:
                 if re.search(pattern, answer, re.IGNORECASE):
                     if case_name not in seen:
                         seen.add(case_name)
-                        cases_found.append({
-                            "case_name": case_name,
-                            "citation": case_info["citation"],
-                            "court": case_info["court"],
-                            "url": case_info["url"],
-                            "summary": case_info["summary"],
-                        })
+                        cases_found.append(
+                            {
+                                "case_name": case_name,
+                                "citation": case_info["citation"],
+                                "court": case_info["court"],
+                                "url": case_info["url"],
+                                "summary": case_info["summary"],
+                            }
+                        )
                     break  # Found this case, move to next
 
         return cases_found
@@ -711,7 +728,7 @@ class RAGService:
     def _build_contents(
         self,
         query_text: str,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> list:
         """Build Gemini multi-turn contents list from conversation history.
 
@@ -726,15 +743,19 @@ class RAGService:
         contents: list = []
         if conversation_history:
             for turn in conversation_history:
-                contents.append({
-                    "role": turn["role"],
-                    "parts": [{"text": turn["content"]}],
-                })
+                contents.append(
+                    {
+                        "role": turn["role"],
+                        "parts": [{"text": turn["content"]}],
+                    }
+                )
         # Append the current user query
-        contents.append({
-            "role": "user",
-            "parts": [{"text": query_text}],
-        })
+        contents.append(
+            {
+                "role": "user",
+                "parts": [{"text": query_text}],
+            }
+        )
         return contents
 
     async def query(
@@ -742,8 +763,8 @@ class RAGService:
         query_text: str,
         max_sources: int = 10,
         include_viability: bool = False,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-    ) -> Tuple[str, List[Source], TokenUsage, QueryMetadata]:
+        conversation_history: list[dict[str, str]] | None = None,
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata]:
         """Execute RAG query against UK legal documents"""
         start_time = time.time()
 
@@ -752,14 +773,8 @@ class RAGService:
 
         # Query Gemini File Search
         config = {
-            'system_instruction': SYSTEM_INSTRUCTION,
-            'tools': [
-                {
-                    'file_search': {
-                        'file_search_store_names': [self.file_search_store_id]
-                    }
-                }
-            ]
+            "system_instruction": SYSTEM_INSTRUCTION,
+            "tools": [{"file_search": {"file_search_store_names": [self.file_search_store_id]}}],
         }
         try:
             response = await asyncio.to_thread(
@@ -770,7 +785,7 @@ class RAGService:
             )
         except Exception as e:
             logger.error(f"Gemini API error: {e}")
-            raise RuntimeError(f"Failed to generate response from AI model") from e
+            raise RuntimeError("Failed to generate response from AI model") from e
 
         # Extract answer
         try:
@@ -781,27 +796,23 @@ class RAGService:
 
         # Extract sources from citations in the answer (more useful than raw grounding chunks)
         sources = self._extract_sources_from_answer(answer, max_sources)
-        
+
         # Calculate usage
         usage = self._calculate_usage(response)
-        
+
         processing_time = int((time.time() - start_time) * 1000)
-        metadata = QueryMetadata(
-            original_language="en",
-            processing_time_ms=processing_time,
-            model_used=self.model_name
-        )
-        
+        metadata = QueryMetadata(original_language="en", processing_time_ms=processing_time, model_used=self.model_name)
+
         return answer, sources, usage, metadata
 
     async def query_with_images(
         self,
         images: list,
-        query_text: Optional[str] = None,
+        query_text: str | None = None,
         max_sources: int = 10,
         include_viability: bool = False,
-        conversation_history: Optional[List[Dict[str, str]]] = None,
-    ) -> Tuple[str, List[Source], TokenUsage, QueryMetadata]:
+        conversation_history: list[dict[str, str]] | None = None,
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata]:
         """Execute multimodal RAG query with images using Gemini 3 Flash.
 
         Args:
@@ -837,26 +848,24 @@ class RAGService:
         contents: list = []
         if conversation_history:
             for turn in conversation_history:
-                contents.append({
-                    "role": turn["role"],
-                    "parts": [{"text": turn["content"]}],
-                })
+                contents.append(
+                    {
+                        "role": turn["role"],
+                        "parts": [{"text": turn["content"]}],
+                    }
+                )
         # Current user turn with images + text
-        contents.append({
-            "role": "user",
-            "parts": parts,
-        })
+        contents.append(
+            {
+                "role": "user",
+                "parts": parts,
+            }
+        )
 
         # Config: same system instruction and file search tool
         config = {
             "system_instruction": SYSTEM_INSTRUCTION,
-            "tools": [
-                {
-                    "file_search": {
-                        "file_search_store_names": [self.file_search_store_id]
-                    }
-                }
-            ],
+            "tools": [{"file_search": {"file_search_store_names": [self.file_search_store_id]}}],
         }
 
         try:
@@ -901,8 +910,8 @@ class RAGService:
         Returns the actual provision text if available, otherwise a fallback.
         """
         # Clean section number (remove 's.', 'art.', 'pt.' prefix and subsection numbers)
-        section_num = re.sub(r'^(s|art|pt)\.', '', section)
-        section_num = re.sub(r'\([^)]*\)', '', section_num).strip()
+        section_num = re.sub(r"^(s|art|pt)\.", "", section)
+        section_num = re.sub(r"\([^)]*\)", "", section_num).strip()
 
         # Check if we have a snippet for this act and section
         if act_name in LEGISLATION_SNIPPETS:
@@ -910,7 +919,7 @@ class RAGService:
             if section_num in act_snippets:
                 return act_snippets[section_num]
             # Try without leading zeros or letters
-            base_num = re.match(r'(\d+)', section_num)
+            base_num = re.match(r"(\d+)", section_num)
             if base_num and base_num.group(1) in act_snippets:
                 return act_snippets[base_num.group(1)]
 
@@ -919,7 +928,7 @@ class RAGService:
             return f"See {section} of the {act_name} for the full statutory text."
         return f"See the {act_name} for the full statutory text."
 
-    def _extract_sources_from_answer(self, answer: str, max_sources: int) -> List[Source]:
+    def _extract_sources_from_answer(self, answer: str, max_sources: int) -> list[Source]:
         """
         Extract sources by parsing citations from the answer text.
         This produces more useful sources than raw grounding chunks.
@@ -943,33 +952,41 @@ class RAGService:
             # Get actual legislation text snippet
             excerpt = self._get_legislation_snippet(act_name, section)
 
-            sources.append(Source(
-                document_id=self._generate_doc_id(full_citation),
-                title=act_name,
-                excerpt=excerpt,
-                source_type=SourceType.STATUTE,
-                section=section,
-                act_name=act_name,
-                jurisdiction=ACT_JURISDICTION.get(act_name, "England and Wales"),
-                url=url
-            ))
+            sources.append(
+                Source(
+                    document_id=self._generate_doc_id(full_citation),
+                    title=act_name,
+                    excerpt=excerpt,
+                    source_type=SourceType.STATUTE,
+                    section=section,
+                    act_name=act_name,
+                    jurisdiction=ACT_JURISDICTION.get(act_name, "England and Wales"),
+                    url=url,
+                )
+            )
 
         # 2. Extract case law citations
         case_citations = self.extract_case_citations_from_answer(answer)
 
         for case in case_citations:
             # ECHR cases get their own jurisdiction
-            case_jurisdiction = "ECHR (applicable across UK)" if case["court"] == "European Court of Human Rights" else "England and Wales"
-            sources.append(Source(
-                document_id=self._generate_doc_id(case["case_name"]),
-                title=f"{case['case_name']} {case['citation']}",
-                excerpt=case["summary"],
-                source_type=SourceType.CASE_LAW,
-                section=case["citation"],
-                act_name=case["court"],  # Use court for act_name field
-                jurisdiction=case_jurisdiction,
-                url=case["url"]
-            ))
+            case_jurisdiction = (
+                "ECHR (applicable across UK)"
+                if case["court"] == "European Court of Human Rights"
+                else "England and Wales"
+            )
+            sources.append(
+                Source(
+                    document_id=self._generate_doc_id(case["case_name"]),
+                    title=f"{case['case_name']} {case['citation']}",
+                    excerpt=case["summary"],
+                    source_type=SourceType.CASE_LAW,
+                    section=case["citation"],
+                    act_name=case["court"],  # Use court for act_name field
+                    jurisdiction=case_jurisdiction,
+                    url=case["url"],
+                )
+            )
 
         # Deduplicate statutes by act_name if we have too many from the same act
         statute_sources = [s for s in sources if s.source_type == SourceType.STATUTE]
@@ -990,27 +1007,28 @@ class RAGService:
         # Combine: statutes first, then case law
         combined = unique_statutes + case_sources
         return combined[:max_sources]
-    
+
     def _generate_doc_id(self, title: str) -> str:
         """Generate document ID from title"""
         # Clean and create ID
-        clean = re.sub(r'[^a-zA-Z0-9\s]', '', title)
-        return clean[:50].strip().replace(' ', '-').lower() or "unknown"
-    
+        clean = re.sub(r"[^a-zA-Z0-9\s]", "", title)
+        return clean[:50].strip().replace(" ", "-").lower() or "unknown"
+
     def _calculate_usage(self, response) -> TokenUsage:
         """Calculate token usage and cost"""
         usage_meta = response.usage_metadata
         prompt_tokens = (usage_meta.prompt_token_count or 0) if usage_meta else 0
         completion_tokens = (usage_meta.candidates_token_count or 0) if usage_meta else 0
         total_tokens = prompt_tokens + completion_tokens
-        
-        cost = (prompt_tokens / 1000 * self.price_per_1k_input_tokens +
-                completion_tokens / 1000 * self.price_per_1k_output_tokens)
-        
+
+        cost = (
+            prompt_tokens / 1000 * self.price_per_1k_input_tokens
+            + completion_tokens / 1000 * self.price_per_1k_output_tokens
+        )
+
         return TokenUsage(
             prompt_tokens=prompt_tokens,
             completion_tokens=completion_tokens,
             total_tokens=total_tokens,
-            estimated_cost_usd=round(cost, 6)
+            estimated_cost_usd=round(cost, 6),
         )
-

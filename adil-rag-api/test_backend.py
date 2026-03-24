@@ -20,19 +20,17 @@ Tests cover:
 16. System prompt integrity
 17. API security and endpoint tests
 """
-import sys
-import os
-import re
+
 import asyncio
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from typing import Optional, List
-from unittest.mock import patch, MagicMock, AsyncMock
 from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # 1. Model Tests
 # ---------------------------------------------------------------------------
-from models import ConversationTurn, QueryRequest, AnalyzeContentRequest
+from models import AnalyzeContentRequest, ConversationTurn, QueryRequest
 
 
 class TestConversationTurn:
@@ -126,11 +124,7 @@ class TestParseSuggestedQuestions:
 
     def test_without_bold_markers(self):
         answer = (
-            "Here is your answer.\n\n"
-            "Suggested next steps:\n"
-            "1. Question one?\n"
-            "2. Question two?\n"
-            "3. Question three?\n"
+            "Here is your answer.\n\nSuggested next steps:\n1. Question one?\n2. Question two?\n3. Question three?\n"
         )
         result = _parse_suggested_questions(answer)
         assert result is not None
@@ -159,20 +153,25 @@ class TestParseSuggestedQuestions:
 # 3. _build_contents Tests (rag_service.py)
 # ---------------------------------------------------------------------------
 
+
 # Local copy to test without heavy genai import
 def _build_contents(query_text, conversation_history=None):
     """Mirror of RAGService._build_contents for isolated testing."""
     contents = []
     if conversation_history:
         for turn in conversation_history:
-            contents.append({
-                "role": turn["role"],
-                "parts": [{"text": turn["content"]}],
-            })
-    contents.append({
-        "role": "user",
-        "parts": [{"text": query_text}],
-    })
+            contents.append(
+                {
+                    "role": turn["role"],
+                    "parts": [{"text": turn["content"]}],
+                }
+            )
+    contents.append(
+        {
+            "role": "user",
+            "parts": [{"text": query_text}],
+        }
+    )
     return contents
 
 
@@ -209,10 +208,7 @@ class TestBuildContents:
 
     def test_long_history_preserved(self):
         """All turns should be included (trimming is caller's job)."""
-        history = [
-            {"role": "user" if i % 2 == 0 else "model", "content": f"Turn {i}"}
-            for i in range(20)
-        ]
+        history = [{"role": "user" if i % 2 == 0 else "model", "content": f"Turn {i}"} for i in range(20)]
         result = _build_contents("Latest", history)
         assert len(result) == 21  # 20 history + 1 current
 
@@ -221,11 +217,13 @@ class TestBuildContents:
 # 4. Frontend contract tests (verify API response shape)
 # ---------------------------------------------------------------------------
 
+
 class TestResponseContracts:
     """Verify Pydantic response models accept the expected shapes."""
 
     def test_query_response_with_suggested_questions(self):
-        from models import QueryResponse, TokenUsage, QueryMetadata
+        from models import QueryMetadata, QueryResponse, TokenUsage
+
         resp = QueryResponse(
             answer="Test answer",
             sources=[],
@@ -239,7 +237,8 @@ class TestResponseContracts:
         assert resp.suggested_questions == ["Q1?", "Q2?", "Q3?"]
 
     def test_query_response_without_suggested_questions(self):
-        from models import QueryResponse, TokenUsage, QueryMetadata
+        from models import QueryMetadata, QueryResponse, TokenUsage
+
         resp = QueryResponse(
             answer="Test answer",
             sources=[],
@@ -253,7 +252,8 @@ class TestResponseContracts:
         assert resp.suggested_questions is None
 
     def test_analyze_response_with_suggested_questions(self):
-        from models import AnalyzeContentResponse, TokenUsage, QueryMetadata
+        from models import AnalyzeContentResponse, QueryMetadata, TokenUsage
+
         resp = AnalyzeContentResponse(
             answer="Analysis result",
             sources=[],
@@ -316,43 +316,39 @@ class TestExtractSubtitlesFromInfo:
 
     def test_json3_subtitles(self):
         info = {
-            'requested_subtitles': {
-                'en': [{
-                    'ext': 'json3',
-                    'data': {
-                        'events': [
-                            {'segs': [{'utf8': 'Hello world'}]},
-                            {'segs': [{'utf8': 'This is a test'}]},
-                        ]
+            "requested_subtitles": {
+                "en": [
+                    {
+                        "ext": "json3",
+                        "data": {
+                            "events": [
+                                {"segs": [{"utf8": "Hello world"}]},
+                                {"segs": [{"utf8": "This is a test"}]},
+                            ]
+                        },
                     }
-                }]
+                ]
             }
         }
         result = ContentExtractor._extract_subtitles_from_info(info)
         assert result == "Hello world This is a test"
 
     def test_string_data_subtitles(self):
-        info = {
-            'subtitles': {
-                'en': [{'ext': 'vtt', 'data': 'Full subtitle text here'}]
-            }
-        }
+        info = {"subtitles": {"en": [{"ext": "vtt", "data": "Full subtitle text here"}]}}
         result = ContentExtractor._extract_subtitles_from_info(info)
         assert result == "Full subtitle text here"
 
     def test_automatic_captions_fallback(self):
         info = {
-            'requested_subtitles': None,
-            'subtitles': {},
-            'automatic_captions': {
-                'en': [{'ext': 'vtt', 'data': 'Auto-generated caption'}]
-            }
+            "requested_subtitles": None,
+            "subtitles": {},
+            "automatic_captions": {"en": [{"ext": "vtt", "data": "Auto-generated caption"}]},
         }
         result = ContentExtractor._extract_subtitles_from_info(info)
         assert result == "Auto-generated caption"
 
     def test_no_subtitles_returns_none(self):
-        info = {'subtitles': {}, 'automatic_captions': {}}
+        info = {"subtitles": {}, "automatic_captions": {}}
         result = ContentExtractor._extract_subtitles_from_info(info)
         assert result is None
 
@@ -362,15 +358,17 @@ class TestExtractSubtitlesFromInfo:
 
     def test_filters_blank_and_newline_segs(self):
         info = {
-            'requested_subtitles': {
-                'en': [{
-                    'ext': 'json3',
-                    'data': {
-                        'events': [
-                            {'segs': [{'utf8': '\n'}, {'utf8': ''}, {'utf8': 'Real text'}]},
-                        ]
+            "requested_subtitles": {
+                "en": [
+                    {
+                        "ext": "json3",
+                        "data": {
+                            "events": [
+                                {"segs": [{"utf8": "\n"}, {"utf8": ""}, {"utf8": "Real text"}]},
+                            ]
+                        },
                     }
-                }]
+                ]
             }
         }
         result = ContentExtractor._extract_subtitles_from_info(info)
@@ -386,24 +384,20 @@ class TestFacebookYtdlpExtraction:
 
     def test_ytdlp_with_subtitles_and_description(self, extractor):
         fake_info = {
-            'title': 'Islamophobia Debate 2024',
-            'description': 'A parliamentary debate on rising Islamophobia in the UK.',
-            'uploader': 'UK Parliament',
-            'duration': 3600,
-            'requested_subtitles': {
-                'en': [{'ext': 'vtt', 'data': 'The speaker discusses hate crime statistics.'}]
-            },
+            "title": "Islamophobia Debate 2024",
+            "description": "A parliamentary debate on rising Islamophobia in the UK.",
+            "uploader": "UK Parliament",
+            "duration": 3600,
+            "requested_subtitles": {"en": [{"ext": "vtt", "data": "The speaker discusses hate crime statistics."}]},
         }
-        with patch('yt_dlp.YoutubeDL') as mock_ydl_cls:
+        with patch("yt_dlp.YoutubeDL") as mock_ydl_cls:
             mock_ydl = MagicMock()
             mock_ydl.extract_info.return_value = fake_info
             mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
             mock_ydl.__exit__ = MagicMock(return_value=False)
             mock_ydl_cls.return_value = mock_ydl
 
-            result = asyncio.run(
-                extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=123")
-            )
+            result = asyncio.run(extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=123"))
 
         assert result is not None
         assert result.content_type == ContentType.FACEBOOK
@@ -416,53 +410,47 @@ class TestFacebookYtdlpExtraction:
 
     def test_ytdlp_description_only_no_subs(self, extractor):
         fake_info = {
-            'title': 'Community Event',
-            'description': 'Recording of the MCB annual conference 2024.',
-            'uploader': 'MCB',
-            'duration': 1800,
-            'subtitles': {},
-            'automatic_captions': {},
+            "title": "Community Event",
+            "description": "Recording of the MCB annual conference 2024.",
+            "uploader": "MCB",
+            "duration": 1800,
+            "subtitles": {},
+            "automatic_captions": {},
         }
-        with patch('yt_dlp.YoutubeDL') as mock_ydl_cls:
+        with patch("yt_dlp.YoutubeDL") as mock_ydl_cls:
             mock_ydl = MagicMock()
             mock_ydl.extract_info.return_value = fake_info
             mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
             mock_ydl.__exit__ = MagicMock(return_value=False)
             mock_ydl_cls.return_value = mock_ydl
 
-            result = asyncio.run(
-                extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=456")
-            )
+            result = asyncio.run(extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=456"))
 
         assert result is not None
         assert "MCB annual conference" in result.text
         assert result.metadata["has_subtitles"] is False
 
     def test_ytdlp_failure_returns_none(self, extractor):
-        with patch('yt_dlp.YoutubeDL') as mock_ydl_cls:
+        with patch("yt_dlp.YoutubeDL") as mock_ydl_cls:
             mock_ydl = MagicMock()
             mock_ydl.extract_info.side_effect = Exception("Video unavailable")
             mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
             mock_ydl.__exit__ = MagicMock(return_value=False)
             mock_ydl_cls.return_value = mock_ydl
 
-            result = asyncio.run(
-                extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=999")
-            )
+            result = asyncio.run(extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=999"))
 
         assert result is None
 
     def test_ytdlp_empty_info_returns_none(self, extractor):
-        with patch('yt_dlp.YoutubeDL') as mock_ydl_cls:
+        with patch("yt_dlp.YoutubeDL") as mock_ydl_cls:
             mock_ydl = MagicMock()
             mock_ydl.extract_info.return_value = None
             mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
             mock_ydl.__exit__ = MagicMock(return_value=False)
             mock_ydl_cls.return_value = mock_ydl
 
-            result = asyncio.run(
-                extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=000")
-            )
+            result = asyncio.run(extractor._extract_facebook_via_ytdlp("https://www.facebook.com/watch/?v=000"))
 
         assert result is None
 
@@ -483,12 +471,13 @@ class TestFacebookContentCascade:
             text="Transcript text here",
             metadata={"source": "yt-dlp", "has_subtitles": True},
         )
-        with patch.object(extractor, '_extract_facebook_via_ytdlp', new_callable=AsyncMock, return_value=ytdlp_result) as mock_ytdlp, \
-             patch.object(extractor, '_extract_facebook_via_og', new_callable=AsyncMock) as mock_og:
-
-            result = asyncio.run(
-                extractor._extract_facebook_content("https://www.facebook.com/watch/?v=123")
-            )
+        with (
+            patch.object(
+                extractor, "_extract_facebook_via_ytdlp", new_callable=AsyncMock, return_value=ytdlp_result
+            ) as mock_ytdlp,
+            patch.object(extractor, "_extract_facebook_via_og", new_callable=AsyncMock) as mock_og,
+        ):
+            result = asyncio.run(extractor._extract_facebook_content("https://www.facebook.com/watch/?v=123"))
 
         assert result.metadata["source"] == "yt-dlp"
         mock_ytdlp.assert_called_once()
@@ -503,23 +492,21 @@ class TestFacebookContentCascade:
             text="OG description text that is long enough",
             metadata={"source": "og_meta_scrape"},
         )
-        with patch.object(extractor, '_extract_facebook_via_ytdlp', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_facebook_via_og', new_callable=AsyncMock, return_value=og_result):
-
-            result = asyncio.run(
-                extractor._extract_facebook_content("https://www.facebook.com/post/456")
-            )
+        with (
+            patch.object(extractor, "_extract_facebook_via_ytdlp", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_facebook_via_og", new_callable=AsyncMock, return_value=og_result),
+        ):
+            result = asyncio.run(extractor._extract_facebook_content("https://www.facebook.com/post/456"))
 
         assert result.metadata["source"] == "og_meta_scrape"
 
     def test_all_fail_returns_fallback(self, extractor):
         """When both yt-dlp and OG fail, should return manual-paste fallback."""
-        with patch.object(extractor, '_extract_facebook_via_ytdlp', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_facebook_via_og', new_callable=AsyncMock, return_value=None):
-
-            result = asyncio.run(
-                extractor._extract_facebook_content("https://www.facebook.com/private/789")
-            )
+        with (
+            patch.object(extractor, "_extract_facebook_via_ytdlp", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_facebook_via_og", new_callable=AsyncMock, return_value=None),
+        ):
+            result = asyncio.run(extractor._extract_facebook_content("https://www.facebook.com/private/789"))
 
         assert result.metadata["source"] == "fallback"
         assert result.metadata["requires_manual_input"] is True
@@ -534,12 +521,16 @@ class TestFacebookContentCascade:
             text="Some video content",
             metadata={"source": "yt-dlp", "has_subtitles": False},
         )
-        with patch.object(extractor, '_resolve_fb_watch_url', new_callable=AsyncMock, return_value="https://www.facebook.com/watch/?v=resolved") as mock_resolve, \
-             patch.object(extractor, '_extract_facebook_via_ytdlp', new_callable=AsyncMock, return_value=ytdlp_result):
-
-            result = asyncio.run(
-                extractor._extract_facebook_content("https://fb.watch/abc/")
-            )
+        with (
+            patch.object(
+                extractor,
+                "_resolve_fb_watch_url",
+                new_callable=AsyncMock,
+                return_value="https://www.facebook.com/watch/?v=resolved",
+            ) as mock_resolve,
+            patch.object(extractor, "_extract_facebook_via_ytdlp", new_callable=AsyncMock, return_value=ytdlp_result),
+        ):
+            result = asyncio.run(extractor._extract_facebook_content("https://fb.watch/abc/"))
 
         mock_resolve.assert_called_once()
         assert result.metadata["source"] == "yt-dlp"
@@ -591,22 +582,20 @@ class TestFxTwitterExtraction:
                 "retweets": 800,
                 "replies": 200,
                 "views": 50000,
-            }
+            },
         }
 
         async def mock_get(*args, **kwargs):
             return fake_response
 
-        with patch('httpx.AsyncClient') as mock_client_cls:
+        with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.get = mock_get
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            result = asyncio.run(
-                extractor._extract_twitter_via_fxtwitter("https://x.com/BBCNews/status/123456")
-            )
+            result = asyncio.run(extractor._extract_twitter_via_fxtwitter("https://x.com/BBCNews/status/123456"))
 
         assert result is not None
         assert result.content_type == ContentType.TWITTER
@@ -623,23 +612,19 @@ class TestFxTwitterExtraction:
         async def mock_get(*args, **kwargs):
             return fake_response
 
-        with patch('httpx.AsyncClient') as mock_client_cls:
+        with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
             mock_client.get = mock_get
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
-            result = asyncio.run(
-                extractor._extract_twitter_via_fxtwitter("https://x.com/user/status/999999")
-            )
+            result = asyncio.run(extractor._extract_twitter_via_fxtwitter("https://x.com/user/status/999999"))
 
         assert result is None
 
     def test_no_tweet_id_returns_none(self, extractor):
-        result = asyncio.run(
-            extractor._extract_twitter_via_fxtwitter("https://twitter.com/user")
-        )
+        result = asyncio.run(extractor._extract_twitter_via_fxtwitter("https://twitter.com/user"))
         assert result is None
 
 
@@ -658,12 +643,13 @@ class TestTwitterContentCascade:
             text="Some tweet text about discrimination",
             metadata={"source": "fxtwitter", "screen_name": "user"},
         )
-        with patch.object(extractor, '_extract_twitter_via_fxtwitter', new_callable=AsyncMock, return_value=fx_result) as mock_fx, \
-             patch.object(extractor, '_extract_twitter_via_ytdlp', new_callable=AsyncMock) as mock_ytdlp:
-
-            result = asyncio.run(
-                extractor._extract_twitter_content("https://x.com/user/status/123")
-            )
+        with (
+            patch.object(
+                extractor, "_extract_twitter_via_fxtwitter", new_callable=AsyncMock, return_value=fx_result
+            ) as mock_fx,
+            patch.object(extractor, "_extract_twitter_via_ytdlp", new_callable=AsyncMock) as mock_ytdlp,
+        ):
+            result = asyncio.run(extractor._extract_twitter_content("https://x.com/user/status/123"))
 
         assert result.metadata["source"] == "fxtwitter"
         mock_fx.assert_called_once()
@@ -677,22 +663,20 @@ class TestTwitterContentCascade:
             text="[Tweet]\nVideo tweet text",
             metadata={"source": "yt-dlp", "has_video": True},
         )
-        with patch.object(extractor, '_extract_twitter_via_fxtwitter', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_twitter_via_ytdlp', new_callable=AsyncMock, return_value=ytdlp_result):
-
-            result = asyncio.run(
-                extractor._extract_twitter_content("https://x.com/user/status/456")
-            )
+        with (
+            patch.object(extractor, "_extract_twitter_via_fxtwitter", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_twitter_via_ytdlp", new_callable=AsyncMock, return_value=ytdlp_result),
+        ):
+            result = asyncio.run(extractor._extract_twitter_content("https://x.com/user/status/456"))
 
         assert result.metadata["source"] == "yt-dlp"
 
     def test_all_fail_returns_fallback(self, extractor):
-        with patch.object(extractor, '_extract_twitter_via_fxtwitter', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_twitter_via_ytdlp', new_callable=AsyncMock, return_value=None):
-
-            result = asyncio.run(
-                extractor._extract_twitter_content("https://x.com/user/status/789")
-            )
+        with (
+            patch.object(extractor, "_extract_twitter_via_fxtwitter", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_twitter_via_ytdlp", new_callable=AsyncMock, return_value=None),
+        ):
+            result = asyncio.run(extractor._extract_twitter_content("https://x.com/user/status/789"))
 
         assert result.metadata["source"] == "fallback"
         assert result.metadata["requires_manual_input"] is True
@@ -719,12 +703,13 @@ class TestInstagramContentCascade:
             text="A long caption about workplace discrimination that is more than 20 chars",
             metadata={"source": "og_meta_scrape"},
         )
-        with patch.object(extractor, '_extract_instagram_via_og', new_callable=AsyncMock, return_value=og_result) as mock_og, \
-             patch.object(extractor, '_extract_instagram_via_ytdlp', new_callable=AsyncMock) as mock_ytdlp:
-
-            result = asyncio.run(
-                extractor._extract_instagram_content("https://www.instagram.com/p/ABC123/")
-            )
+        with (
+            patch.object(
+                extractor, "_extract_instagram_via_og", new_callable=AsyncMock, return_value=og_result
+            ) as mock_og,
+            patch.object(extractor, "_extract_instagram_via_ytdlp", new_callable=AsyncMock) as mock_ytdlp,
+        ):
+            result = asyncio.run(extractor._extract_instagram_content("https://www.instagram.com/p/ABC123/"))
 
         assert result.metadata["source"] == "og_meta_scrape"
         mock_og.assert_called_once()
@@ -738,22 +723,20 @@ class TestInstagramContentCascade:
             text="[Post caption]\nReel about Islamophobia awareness",
             metadata={"source": "yt-dlp", "has_subtitles": False},
         )
-        with patch.object(extractor, '_extract_instagram_via_og', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_instagram_via_ytdlp', new_callable=AsyncMock, return_value=ytdlp_result):
-
-            result = asyncio.run(
-                extractor._extract_instagram_content("https://www.instagram.com/reel/XYZ789/")
-            )
+        with (
+            patch.object(extractor, "_extract_instagram_via_og", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_instagram_via_ytdlp", new_callable=AsyncMock, return_value=ytdlp_result),
+        ):
+            result = asyncio.run(extractor._extract_instagram_content("https://www.instagram.com/reel/XYZ789/"))
 
         assert result.metadata["source"] == "yt-dlp"
 
     def test_all_fail_returns_fallback(self, extractor):
-        with patch.object(extractor, '_extract_instagram_via_og', new_callable=AsyncMock, return_value=None), \
-             patch.object(extractor, '_extract_instagram_via_ytdlp', new_callable=AsyncMock, return_value=None):
-
-            result = asyncio.run(
-                extractor._extract_instagram_content("https://www.instagram.com/p/PRIVATE/")
-            )
+        with (
+            patch.object(extractor, "_extract_instagram_via_og", new_callable=AsyncMock, return_value=None),
+            patch.object(extractor, "_extract_instagram_via_ytdlp", new_callable=AsyncMock, return_value=None),
+        ):
+            result = asyncio.run(extractor._extract_instagram_content("https://www.instagram.com/p/PRIVATE/"))
 
         assert result.metadata["source"] == "fallback"
         assert result.metadata["requires_manual_input"] is True
@@ -762,24 +745,20 @@ class TestInstagramContentCascade:
     def test_ytdlp_with_subtitles(self, extractor):
         """yt-dlp extraction with video subtitles available."""
         fake_info = {
-            'title': 'Awareness Reel',
-            'description': 'Caption about discrimination',
-            'uploader': 'activist_account',
-            'duration': 30,
-            'requested_subtitles': {
-                'en': [{'ext': 'vtt', 'data': 'Spoken words from the reel'}]
-            },
+            "title": "Awareness Reel",
+            "description": "Caption about discrimination",
+            "uploader": "activist_account",
+            "duration": 30,
+            "requested_subtitles": {"en": [{"ext": "vtt", "data": "Spoken words from the reel"}]},
         }
-        with patch('yt_dlp.YoutubeDL') as mock_ydl_cls:
+        with patch("yt_dlp.YoutubeDL") as mock_ydl_cls:
             mock_ydl = MagicMock()
             mock_ydl.extract_info.return_value = fake_info
             mock_ydl.__enter__ = MagicMock(return_value=mock_ydl)
             mock_ydl.__exit__ = MagicMock(return_value=False)
             mock_ydl_cls.return_value = mock_ydl
 
-            result = asyncio.run(
-                extractor._extract_instagram_via_ytdlp("https://www.instagram.com/reel/TEST/")
-            )
+            result = asyncio.run(extractor._extract_instagram_via_ytdlp("https://www.instagram.com/reel/TEST/"))
 
         assert result is not None
         assert "Spoken words from the reel" in result.text
@@ -914,11 +893,11 @@ class TestYouTubeFallback:
 
     def test_youtube_fallback_on_failure(self, extractor):
         """When YouTube transcript extraction fails, should return manual fallback."""
-        with patch.object(extractor, 'extract_youtube_transcript', side_effect=Exception("No transcript")), \
-             patch('content_extractor._is_safe_url', return_value=True):
-            result = asyncio.run(
-                extractor.extract_url_content("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
-            )
+        with (
+            patch.object(extractor, "extract_youtube_transcript", side_effect=Exception("No transcript")),
+            patch("content_extractor._is_safe_url", return_value=True),
+        ):
+            result = asyncio.run(extractor.extract_url_content("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
             assert result.success is True
             assert result.metadata.get("requires_manual_input") is True
             assert result.metadata.get("source") == "manual_fallback"
@@ -932,15 +911,13 @@ class TestProcessMessage:
         return ContentExtractor()
 
     def test_text_only_no_urls(self, extractor):
-        result = asyncio.run(
-            extractor.process_message("I was discriminated against at work")
-        )
+        result = asyncio.run(extractor.process_message("I was discriminated against at work"))
         assert result.url_count == 0
 
     def test_max_url_limit(self, extractor):
         """Should only process up to 10 URLs."""
         urls = " ".join([f"https://example{i}.com/page" for i in range(15)])
-        with patch.object(extractor, 'extract_url_content', new_callable=AsyncMock) as mock_extract:
+        with patch.object(extractor, "extract_url_content", new_callable=AsyncMock) as mock_extract:
             mock_extract.return_value = ExtractedContent(
                 url="https://example.com",
                 content_type=ContentType.WEBPAGE,
@@ -948,16 +925,14 @@ class TestProcessMessage:
                 success=True,
                 metadata={"source": "test"},
             )
-            result = asyncio.run(
-                extractor.process_message(f"Check these: {urls}")
-            )
+            result = asyncio.run(extractor.process_message(f"Check these: {urls}"))
             assert mock_extract.call_count <= 10
 
 
 # ---------------------------------------------------------------------------
 # 13. RAG Service — Citation Extraction & URL Generation
 # ---------------------------------------------------------------------------
-from rag_service import RAGService, UK_LEGISLATION_URLS
+from rag_service import RAGService
 
 
 class TestGenerateLegislationUrl:
@@ -965,7 +940,7 @@ class TestGenerateLegislationUrl:
 
     @pytest.fixture
     def service(self):
-        with patch('google.genai.Client'):
+        with patch("google.genai.Client"):
             svc = RAGService.__new__(RAGService)
             return svc
 
@@ -978,9 +953,7 @@ class TestGenerateLegislationUrl:
         assert url == "https://www.legislation.gov.uk/ukpga/1986/64/section/29B"
 
     def test_ni_article_url(self, service):
-        url = service.generate_legislation_url(
-            "Fair Employment and Treatment (Northern Ireland) Order 1998", "3"
-        )
+        url = service.generate_legislation_url("Fair Employment and Treatment (Northern Ireland) Order 1998", "3")
         assert "/article/3" in url
 
     def test_contents_url_when_no_section(self, service):
@@ -1001,7 +974,7 @@ class TestExtractCitationsFromAnswer:
 
     @pytest.fixture
     def service(self):
-        with patch('google.genai.Client'):
+        with patch("google.genai.Client"):
             svc = RAGService.__new__(RAGService)
             return svc
 
@@ -1016,7 +989,9 @@ class TestExtractCitationsFromAnswer:
         answer = "Section 13 Equality Act 2010 covers direct discrimination. Section 19 Equality Act 2010 covers indirect discrimination."
         citations = service.extract_citations_from_answer(answer)
         # Both "Section 13 Equality Act 2010" and "Section 19 Equality Act 2010" should match
-        ea_sections = [c for c in citations if c.get("act_name") == "Equality Act 2010" and c.get("section", "").startswith("s.")]
+        ea_sections = [
+            c for c in citations if c.get("act_name") == "Equality Act 2010" and c.get("section", "").startswith("s.")
+        ]
         assert len(ea_sections) >= 2
 
     def test_ni_article(self, service):
@@ -1047,7 +1022,7 @@ class TestExtractCaseCitationsFromAnswer:
 
     @pytest.fixture
     def service(self):
-        with patch('google.genai.Client'):
+        with patch("google.genai.Client"):
             svc = RAGService.__new__(RAGService)
             return svc
 
@@ -1289,7 +1264,8 @@ class TestQueryEndpoint:
 
     def _make_mock_rag(self):
         """Create a mock RAG service that returns plausible data."""
-        from models import TokenUsage, QueryMetadata
+        from models import QueryMetadata, TokenUsage
+
         mock_rag = AsyncMock()
         mock_rag.query.return_value = (
             "The Equality Act 2010 protects you from discrimination.",
@@ -1350,7 +1326,8 @@ class TestQueryEndpoint:
 
     def test_query_detects_litigation_keywords(self):
         """When the answer mentions 'tribunal', litigation_mentioned should be True."""
-        from models import TokenUsage, QueryMetadata
+        from models import QueryMetadata, TokenUsage
+
         mock_rag = AsyncMock()
         mock_rag.query.return_value = (
             "You could bring a claim before an employment tribunal.",
@@ -1373,7 +1350,8 @@ class TestAnalyzeEndpoint:
     """Test /api/v1/analyze endpoint with mocked services."""
 
     def _make_mocks(self):
-        from models import TokenUsage, QueryMetadata
+        from models import QueryMetadata, TokenUsage
+
         mock_rag = AsyncMock()
         mock_rag.query.return_value = (
             "This content may constitute harassment under s.26 EA 2010.",
@@ -1446,4 +1424,3 @@ class TestAnalyzeEndpoint:
             assert resp.status_code == 401
         finally:
             cleanup()
-

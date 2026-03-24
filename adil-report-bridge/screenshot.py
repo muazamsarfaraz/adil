@@ -3,10 +3,11 @@
 Resizes screenshots to max 1024px wide and compresses to JPEG
 to keep the base64 payload under 500KB.
 """
+
 import base64
 import io
-from PIL import Image
 
+from PIL import Image
 
 MAX_WIDTH = 1024
 MAX_SIZE_BYTES = 500_000  # 500KB

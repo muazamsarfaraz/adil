@@ -14,12 +14,12 @@ Supported platforms:
 SSRF protection is applied to all outbound URL fetching (private/loopback
 IP blocking via socket-level validation).
 """
-import re
-import logging
+
 import asyncio
-import socket
 import ipaddress
-from typing import List, Optional
+import logging
+import re
+import socket
 from enum import Enum
 from urllib.parse import urljoin, urlparse
 
@@ -34,8 +34,10 @@ logger = logging.getLogger(__name__)
 # Pydantic Models for Content Extraction
 # =============================================================================
 
+
 class ContentType(str, Enum):
     """Type of extracted content"""
+
     TEXT = "text"
     WEBPAGE = "webpage"
     YOUTUBE = "youtube"
@@ -47,19 +49,21 @@ class ContentType(str, Enum):
 
 class ExtractedContent(BaseModel):
     """Result of content extraction from a single source"""
+
     url: str = Field(..., description="Original URL")
     content_type: ContentType = Field(..., description="Type of content extracted")
-    title: Optional[str] = Field(None, description="Page or video title")
+    title: str | None = Field(None, description="Page or video title")
     text: str = Field(..., description="Extracted text content")
     metadata: dict = Field(default_factory=dict, description="Additional metadata")
     success: bool = Field(True, description="Whether extraction succeeded")
-    error_message: Optional[str] = Field(None, description="Error message if failed")
+    error_message: str | None = Field(None, description="Error message if failed")
 
 
 class ProcessedContent(BaseModel):
     """Combined result of processing a message"""
+
     original_text: str = Field(..., description="Original message text")
-    extracted_urls: List[ExtractedContent] = Field(default_factory=list)
+    extracted_urls: list[ExtractedContent] = Field(default_factory=list)
     combined_text: str = Field(..., description="All text combined for analysis")
     url_count: int = Field(0, description="Number of URLs processed")
 
@@ -69,32 +73,24 @@ class ProcessedContent(BaseModel):
 # =============================================================================
 
 URL_PATTERNS = {
-    'youtube': re.compile(
-        r'(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/|shorts/|live/)|youtu\.be/)([a-zA-Z0-9_-]{11})',
-        re.IGNORECASE
+    "youtube": re.compile(
+        r"(?:https?://)?(?:www\.)?(?:youtube\.com/(?:watch\?v=|embed/|shorts/|live/)|youtu\.be/)([a-zA-Z0-9_-]{11})",
+        re.IGNORECASE,
     ),
-    'twitter': re.compile(
-        r'(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)',
-        re.IGNORECASE
+    "twitter": re.compile(r"(?:https?://)?(?:www\.)?(?:twitter\.com|x\.com)/\w+/status/(\d+)", re.IGNORECASE),
+    "instagram": re.compile(r"(?:https?://)?(?:www\.)?instagram\.com/(?:p|reel|reels|tv)/[\w-]+", re.IGNORECASE),
+    "facebook": re.compile(
+        r"(?:https?://)?(?:(?:www|m|web)\.)?(?:facebook\.com/(?:watch|reel|video|.+/videos/|story\.php)|fb\.watch)/.+",
+        re.IGNORECASE,
     ),
-    'instagram': re.compile(
-        r'(?:https?://)?(?:www\.)?instagram\.com/(?:p|reel|reels|tv)/[\w-]+',
-        re.IGNORECASE
-    ),
-    'facebook': re.compile(
-        r'(?:https?://)?(?:(?:www|m|web)\.)?(?:facebook\.com/(?:watch|reel|video|.+/videos/|story\.php)|fb\.watch)/.+',
-        re.IGNORECASE
-    ),
-    'generic_url': re.compile(
-        r'https?://[^\s<>"{}|\\^`\[\]]+',
-        re.IGNORECASE
-    )
+    "generic_url": re.compile(r'https?://[^\s<>"{}|\\^`\[\]]+', re.IGNORECASE),
 }
 
 
 # =============================================================================
 # SSRF Protection
 # =============================================================================
+
 
 def _is_safe_url(url: str) -> bool:
     """
@@ -108,7 +104,7 @@ def _is_safe_url(url: str) -> bool:
         return False
 
     # Reject non-http(s) schemes
-    if parsed.scheme not in ('http', 'https'):
+    if parsed.scheme not in ("http", "https"):
         return False
 
     hostname = parsed.hostname
@@ -139,6 +135,7 @@ def _is_safe_url(url: str) -> bool:
 # Content Extractor Service
 # =============================================================================
 
+
 class ContentExtractor:
     """
     Service for extracting content from URLs.
@@ -150,7 +147,7 @@ class ContentExtractor:
     def __init__(
         self,
         user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        request_timeout: float = 30.0
+        request_timeout: float = 30.0,
     ):
         """
         Initialize ContentExtractor.
@@ -161,7 +158,7 @@ class ContentExtractor:
         """
         self.user_agent = user_agent
         self.request_timeout = request_timeout
-        self._http_client: Optional[httpx.AsyncClient] = None
+        self._http_client: httpx.AsyncClient | None = None
 
         logger.info("ContentExtractor initialized")
 
@@ -182,7 +179,7 @@ class ContentExtractor:
     # URL Detection
     # -------------------------------------------------------------------------
 
-    def detect_urls(self, text: str) -> List[str]:
+    def detect_urls(self, text: str) -> list[str]:
         """
         Detect all URLs in text.
 
@@ -195,8 +192,8 @@ class ContentExtractor:
         urls = []
         seen = set()
 
-        for match in URL_PATTERNS['generic_url'].finditer(text):
-            url = match.group(0).rstrip('.,;:!?)')
+        for match in URL_PATTERNS["generic_url"].finditer(text):
+            url = match.group(0).rstrip(".,;:!?)")
             if url not in seen:
                 seen.add(url)
                 urls.append(url)
@@ -206,32 +203,32 @@ class ContentExtractor:
 
     def _classify_url(self, url: str) -> ContentType:
         """Classify URL by content type"""
-        if URL_PATTERNS['youtube'].search(url):
+        if URL_PATTERNS["youtube"].search(url):
             return ContentType.YOUTUBE
-        if URL_PATTERNS['twitter'].search(url):
+        if URL_PATTERNS["twitter"].search(url):
             return ContentType.TWITTER
-        if URL_PATTERNS['instagram'].search(url):
+        if URL_PATTERNS["instagram"].search(url):
             return ContentType.INSTAGRAM
-        if URL_PATTERNS['facebook'].search(url):
+        if URL_PATTERNS["facebook"].search(url):
             return ContentType.FACEBOOK
         return ContentType.WEBPAGE
 
-    def _extract_youtube_id(self, url: str) -> Optional[str]:
+    def _extract_youtube_id(self, url: str) -> str | None:
         """Extract YouTube video ID from URL"""
-        match = URL_PATTERNS['youtube'].search(url)
+        match = URL_PATTERNS["youtube"].search(url)
         return match.group(1) if match else None
 
     def _get_base_ytdlp_opts(self) -> dict:
         """Base yt-dlp options shared across all platform extractors."""
         return {
-            'skip_download': True,
-            'no_warnings': True,
-            'quiet': True,
-            'extract_flat': False,
-            'socket_timeout': self.request_timeout,
-            'writesubtitles': True,
-            'writeautomaticsub': True,
-            'subtitlesformat': 'json3/vtt/srv3/srv2/srv1',
+            "skip_download": True,
+            "no_warnings": True,
+            "quiet": True,
+            "extract_flat": False,
+            "socket_timeout": self.request_timeout,
+            "writesubtitles": True,
+            "writeautomaticsub": True,
+            "subtitlesformat": "json3/vtt/srv3/srv2/srv1",
         }
 
     # -------------------------------------------------------------------------
@@ -255,7 +252,7 @@ class ContentExtractor:
                 content_type=ContentType.UNKNOWN,
                 text="",
                 success=False,
-                error_message="URL rejected: points to a private or internal network address."
+                error_message="URL rejected: points to a private or internal network address.",
             )
 
         content_type = self._classify_url(url)
@@ -270,7 +267,7 @@ class ContentExtractor:
                         content_type=ContentType.YOUTUBE,
                         title=f"YouTube Video: {video_id}",
                         text=text,
-                        metadata={"video_id": video_id}
+                        metadata={"video_id": video_id},
                     )
                 except Exception as yt_err:
                     logger.warning(f"YouTube transcript extraction failed for {url}: {yt_err}")
@@ -284,8 +281,8 @@ class ContentExtractor:
                             "source": "manual_fallback",
                             "video_id": video_id,
                             "requires_manual_input": True,
-                            "fallback_message": "Could not extract transcript automatically. Please paste the video transcript or describe the content."
-                        }
+                            "fallback_message": "Could not extract transcript automatically. Please paste the video transcript or describe the content.",
+                        },
                     )
 
             if content_type == ContentType.TWITTER:
@@ -302,13 +299,7 @@ class ContentExtractor:
 
         except Exception as e:
             logger.error(f"Failed to extract content from {url}: {e}")
-            return ExtractedContent(
-                url=url,
-                content_type=content_type,
-                text="",
-                success=False,
-                error_message=str(e)
-            )
+            return ExtractedContent(url=url, content_type=content_type, text="", success=False, error_message=str(e))
 
     async def _extract_webpage_content(self, url: str) -> ExtractedContent:
         """Extract text content from a generic webpage"""
@@ -318,7 +309,7 @@ class ContentExtractor:
                 content_type=ContentType.WEBPAGE,
                 text="",
                 success=False,
-                error_message="URL rejected: points to a private or internal network address."
+                error_message="URL rejected: points to a private or internal network address.",
             )
 
         client = self._get_http_client()
@@ -326,8 +317,8 @@ class ContentExtractor:
         response.raise_for_status()
 
         # Check Content-Type — only parse HTML responses
-        content_type_header = response.headers.get('content-type', '')
-        if not any(ct in content_type_header for ct in ('text/html', 'application/xhtml+xml')):
+        content_type_header = response.headers.get("content-type", "")
+        if not any(ct in content_type_header for ct in ("text/html", "application/xhtml+xml")):
             return ExtractedContent(
                 url=url,
                 content_type=ContentType.WEBPAGE,
@@ -335,39 +326,35 @@ class ContentExtractor:
                 text="",
                 metadata={"content_type_header": content_type_header},
                 success=False,
-                error_message=f"Non-HTML content type: {content_type_header}"
+                error_message=f"Non-HTML content type: {content_type_header}",
             )
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
 
         # Remove script and style elements
-        for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside']):
+        for element in soup(["script", "style", "nav", "footer", "header", "aside"]):
             element.decompose()
 
         # Get title
         title = soup.title.string if soup.title else None
 
         # Extract main content (prefer article, main, or body)
-        main_content = soup.find('article') or soup.find('main') or soup.body
+        main_content = soup.find("article") or soup.find("main") or soup.body
 
         if main_content:
             # Get text with paragraph separation
-            paragraphs = main_content.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li'])
-            text = '\n\n'.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
+            paragraphs = main_content.find_all(["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"])
+            text = "\n\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
         else:
-            text = soup.get_text(separator='\n', strip=True)
+            text = soup.get_text(separator="\n", strip=True)
 
         # Clean up excessive whitespace
-        text = re.sub(r'\n{3,}', '\n\n', text)
+        text = re.sub(r"\n{3,}", "\n\n", text)
 
         logger.info(f"Extracted {len(text)} characters from {url}")
 
         return ExtractedContent(
-            url=url,
-            content_type=ContentType.WEBPAGE,
-            title=title,
-            text=text,
-            metadata={"content_length": len(text)}
+            url=url, content_type=ContentType.WEBPAGE, title=title, text=text, metadata={"content_length": len(text)}
         )
 
     # -------------------------------------------------------------------------
@@ -375,12 +362,12 @@ class ContentExtractor:
     # -------------------------------------------------------------------------
 
     @staticmethod
-    def _extract_tweet_id(url: str) -> Optional[str]:
+    def _extract_tweet_id(url: str) -> str | None:
         """Extract tweet ID from a Twitter/X URL."""
-        match = URL_PATTERNS['twitter'].search(url)
+        match = URL_PATTERNS["twitter"].search(url)
         return match.group(1) if match else None
 
-    async def _extract_twitter_via_fxtwitter(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_twitter_via_fxtwitter(self, url: str) -> ExtractedContent | None:
         """
         Extract tweet text via the FXTwitter API (free, no auth required).
         Returns None if the API cannot retrieve the tweet.
@@ -400,17 +387,17 @@ class ContentExtractor:
                 return None
 
             data = response.json()
-            tweet = data.get('tweet')
+            tweet = data.get("tweet")
             if not tweet:
                 return None
 
-            text = tweet.get('text', '')
+            text = tweet.get("text", "")
             if not text:
                 return None
 
-            author = tweet.get('author', {})
-            author_name = author.get('name', '')
-            screen_name = author.get('screen_name', '')
+            author = tweet.get("author", {})
+            author_name = author.get("name", "")
+            screen_name = author.get("screen_name", "")
             title = f"@{screen_name} ({author_name})" if screen_name else "Tweet"
 
             metadata = {
@@ -420,7 +407,7 @@ class ContentExtractor:
                 "tweet_id": tweet_id,
             }
             # Include engagement metrics if available
-            for key in ('likes', 'retweets', 'replies', 'views'):
+            for key in ("likes", "retweets", "replies", "views"):
                 val = tweet.get(key)
                 if val is not None:
                     metadata[key] = val
@@ -439,16 +426,18 @@ class ContentExtractor:
             logger.warning(f"FXTwitter extraction failed for {url}: {e}")
             return None
 
-    async def _extract_twitter_via_ytdlp(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_twitter_via_ytdlp(self, url: str) -> ExtractedContent | None:
         """
         Extract Twitter/X video metadata via yt-dlp.
         Only works for tweets with video; returns None for text-only tweets.
         """
-        def _run_ytdlp(target_url: str) -> Optional[dict]:
+
+        def _run_ytdlp(target_url: str) -> dict | None:
             import yt_dlp
+
             opts = self._get_base_ytdlp_opts()
-            opts['subtitleslangs'] = ['en', 'en-US', 'en-GB']
-            opts['user_agent'] = self.user_agent
+            opts["subtitleslangs"] = ["en", "en-US", "en-GB"]
+            opts["user_agent"] = self.user_agent
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     return ydl.extract_info(target_url, download=False)
@@ -462,9 +451,9 @@ class ContentExtractor:
         if not info:
             return None
 
-        description = info.get('description', '')
-        title = info.get('title', '')
-        uploader = info.get('uploader', '')
+        description = info.get("description", "")
+        title = info.get("title", "")
+        uploader = info.get("uploader", "")
         subtitle_text = self._extract_subtitles_from_info(info)
 
         text_parts = []
@@ -475,7 +464,7 @@ class ContentExtractor:
         if not text_parts:
             return None
 
-        combined_text = '\n\n'.join(text_parts)
+        combined_text = "\n\n".join(text_parts)
 
         metadata = {
             "source": "yt-dlp",
@@ -526,12 +515,11 @@ class ContentExtractor:
             success=True,
         )
 
-
     # -------------------------------------------------------------------------
     # Instagram Helpers
     # -------------------------------------------------------------------------
 
-    async def _extract_instagram_via_og(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_instagram_via_og(self, url: str) -> ExtractedContent | None:
         """Scrape og:description meta tag from Instagram's public page."""
         if not _is_safe_url(url):
             return None
@@ -540,11 +528,11 @@ class ContentExtractor:
             client = self._get_http_client()
             response = await client.get(url)
             if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                og_desc = soup.find('meta', property='og:description')
-                og_title = soup.find('meta', property='og:title')
-                description = og_desc['content'] if og_desc and og_desc.get('content') else None
-                title = og_title['content'] if og_title and og_title.get('content') else None
+                soup = BeautifulSoup(response.text, "html.parser")
+                og_desc = soup.find("meta", property="og:description")
+                og_title = soup.find("meta", property="og:title")
+                description = og_desc["content"] if og_desc and og_desc.get("content") else None
+                title = og_title["content"] if og_title and og_title.get("content") else None
                 if description and len(description) > 20:
                     logger.info(f"OG-meta extracted Instagram content ({len(description)} chars) from {url}")
                     return ExtractedContent(
@@ -558,17 +546,19 @@ class ContentExtractor:
             logger.warning(f"Instagram OG scrape failed for {url}: {e}")
         return None
 
-    async def _extract_instagram_via_ytdlp(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_instagram_via_ytdlp(self, url: str) -> ExtractedContent | None:
         """
         Extract Instagram video/reel metadata via yt-dlp.
         Works best when server has Instagram cookies configured.
         Returns None if yt-dlp cannot access the content.
         """
-        def _run_ytdlp(target_url: str) -> Optional[dict]:
+
+        def _run_ytdlp(target_url: str) -> dict | None:
             import yt_dlp
+
             opts = self._get_base_ytdlp_opts()
-            opts['subtitleslangs'] = ['en', 'en-US', 'en-GB']
-            opts['user_agent'] = self.user_agent
+            opts["subtitleslangs"] = ["en", "en-US", "en-GB"]
+            opts["user_agent"] = self.user_agent
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     return ydl.extract_info(target_url, download=False)
@@ -582,10 +572,10 @@ class ContentExtractor:
         if not info:
             return None
 
-        title = info.get('title', '')
-        description = info.get('description', '')
-        uploader = info.get('uploader', '') or info.get('uploader_id', '')
-        duration = info.get('duration')
+        title = info.get("title", "")
+        description = info.get("description", "")
+        uploader = info.get("uploader", "") or info.get("uploader_id", "")
+        duration = info.get("duration")
         subtitle_text = self._extract_subtitles_from_info(info)
 
         text_parts = []
@@ -599,7 +589,7 @@ class ContentExtractor:
             else:
                 return None
 
-        combined_text = '\n\n'.join(text_parts)
+        combined_text = "\n\n".join(text_parts)
 
         metadata = {
             "source": "yt-dlp",
@@ -661,16 +651,16 @@ class ContentExtractor:
     def _normalize_facebook_url(url: str) -> str:
         """Normalize Facebook URL: strip tracking params, fix subdomains."""
         # Remove common tracking parameters
-        url = re.sub(r'[&?](fbclid|ref|source|__tn__|__cft__|hash)=[^&]*', '', url)
-        url = re.sub(r'[&?]$', '', url)
+        url = re.sub(r"[&?](fbclid|ref|source|__tn__|__cft__|hash)=[^&]*", "", url)
+        url = re.sub(r"[&?]$", "", url)
         # Normalize subdomains for yt-dlp compatibility
-        url = url.replace('web.facebook.com', 'www.facebook.com')
-        url = url.replace('m.facebook.com', 'www.facebook.com')
+        url = url.replace("web.facebook.com", "www.facebook.com")
+        url = url.replace("m.facebook.com", "www.facebook.com")
         return url
 
     async def _resolve_fb_watch_url(self, url: str) -> str:
         """Resolve fb.watch short links by following redirect chain."""
-        if 'fb.watch' not in url:
+        if "fb.watch" not in url:
             return url
 
         try:
@@ -682,12 +672,12 @@ class ContentExtractor:
                     follow_redirects=False,
                 )
                 if response.status_code in (301, 302, 303, 307, 308):
-                    redirect_url = response.headers.get('Location', '')
+                    redirect_url = response.headers.get("Location", "")
                     if not redirect_url:
                         break
-                    if redirect_url.startswith('/'):
+                    if redirect_url.startswith("/"):
                         redirect_url = urljoin(current_url, redirect_url)
-                    if 'facebook.com' in redirect_url:
+                    if "facebook.com" in redirect_url:
                         logger.info(f"Resolved fb.watch: {url} -> {redirect_url}")
                         return redirect_url
                     current_url = redirect_url
@@ -698,17 +688,19 @@ class ContentExtractor:
 
         return url
 
-    async def _extract_facebook_via_ytdlp(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_facebook_via_ytdlp(self, url: str) -> ExtractedContent | None:
         """
         Extract Facebook video metadata and subtitles using yt-dlp.
         Returns None if yt-dlp cannot handle this URL.
         """
-        def _run_ytdlp(target_url: str) -> Optional[dict]:
+
+        def _run_ytdlp(target_url: str) -> dict | None:
             import yt_dlp
+
             opts = self._get_base_ytdlp_opts()
-            opts['subtitleslangs'] = ['en', 'en-US', 'en-GB']
-            opts['user_agent'] = self.user_agent
-            opts['retries'] = 3
+            opts["subtitleslangs"] = ["en", "en-US", "en-GB"]
+            opts["user_agent"] = self.user_agent
+            opts["retries"] = 3
             try:
                 with yt_dlp.YoutubeDL(opts) as ydl:
                     info = ydl.extract_info(target_url, download=False)
@@ -723,10 +715,10 @@ class ContentExtractor:
         if not info:
             return None
 
-        title = info.get('title', '')
-        description = info.get('description', '')
-        uploader = info.get('uploader', '')
-        duration = info.get('duration')
+        title = info.get("title", "")
+        description = info.get("description", "")
+        uploader = info.get("uploader", "")
+        duration = info.get("duration")
 
         # Try to get subtitles/captions text
         subtitle_text = self._extract_subtitles_from_info(info)
@@ -744,7 +736,7 @@ class ContentExtractor:
             else:
                 return None
 
-        combined_text = '\n\n'.join(text_parts)
+        combined_text = "\n\n".join(text_parts)
 
         metadata = {
             "source": "yt-dlp",
@@ -768,37 +760,37 @@ class ContentExtractor:
         )
 
     @staticmethod
-    def _extract_subtitles_from_info(info: dict) -> Optional[str]:
+    def _extract_subtitles_from_info(info: dict) -> str | None:
         """Pull subtitle text from yt-dlp info dict if available."""
         # yt-dlp stores subtitles in requested_subtitles or subtitles
-        for subs_key in ('requested_subtitles', 'subtitles', 'automatic_captions'):
+        for subs_key in ("requested_subtitles", "subtitles", "automatic_captions"):
             subs = info.get(subs_key)
             if not subs:
                 continue
             # subs is a dict like {'en': [{'ext': 'json3', 'data': ...}, ...]}
-            for lang in ('en', 'en-US', 'en-GB'):
+            for lang in ("en", "en-US", "en-GB"):
                 lang_subs = subs.get(lang)
                 if not lang_subs:
                     continue
                 for sub_entry in lang_subs:
                     # Some entries have inline data
-                    data = sub_entry.get('data')
+                    data = sub_entry.get("data")
                     if data:
                         # json3 format has events with segs
-                        if isinstance(data, dict) and 'events' in data:
+                        if isinstance(data, dict) and "events" in data:
                             segments = []
-                            for event in data['events']:
-                                for seg in event.get('segs', []):
-                                    text = seg.get('utf8', '').strip()
-                                    if text and text != '\n':
+                            for event in data["events"]:
+                                for seg in event.get("segs", []):
+                                    text = seg.get("utf8", "").strip()
+                                    if text and text != "\n":
                                         segments.append(text)
                             if segments:
-                                return ' '.join(segments)
+                                return " ".join(segments)
                         elif isinstance(data, str):
                             return data
         return None
 
-    async def _extract_facebook_via_og(self, url: str) -> Optional[ExtractedContent]:
+    async def _extract_facebook_via_og(self, url: str) -> ExtractedContent | None:
         """Fallback: scrape og:description meta tag from the public page."""
         if not _is_safe_url(url):
             return None
@@ -807,11 +799,11 @@ class ContentExtractor:
             client = self._get_http_client()
             response = await client.get(url)
             if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                og_desc = soup.find('meta', property='og:description')
-                og_title = soup.find('meta', property='og:title')
-                description = og_desc['content'] if og_desc and og_desc.get('content') else None
-                title = og_title['content'] if og_title and og_title.get('content') else None
+                soup = BeautifulSoup(response.text, "html.parser")
+                og_desc = soup.find("meta", property="og:description")
+                og_title = soup.find("meta", property="og:title")
+                description = og_desc["content"] if og_desc and og_desc.get("content") else None
+                title = og_title["content"] if og_title and og_title.get("content") else None
                 if description and len(description) > 20:
                     logger.info(f"OG-meta extracted Facebook content ({len(description)} chars) from {url}")
                     return ExtractedContent(
@@ -898,11 +890,11 @@ class ContentExtractor:
             transcript = None
             try:
                 # Try manually created English transcript first
-                transcript = transcript_list.find_transcript(['en'])
+                transcript = transcript_list.find_transcript(["en"])
             except Exception:
                 try:
                     # Fall back to auto-generated English
-                    transcript = transcript_list.find_generated_transcript(['en'])
+                    transcript = transcript_list.find_generated_transcript(["en"])
                 except Exception:
                     # Get any available transcript
                     for t in transcript_list:
@@ -916,7 +908,7 @@ class ContentExtractor:
             fetched_transcript = transcript.fetch()
             # New API: FetchedTranscript is iterable with .text attribute on snippets
             text_segments = [snippet.text for snippet in fetched_transcript]
-            full_text = ' '.join(text_segments)
+            full_text = " ".join(text_segments)
 
             logger.info(f"Extracted transcript ({len(full_text)} chars) for YouTube video {video_id}")
             return full_text
@@ -957,16 +949,10 @@ class ContentExtractor:
             except Exception as e:
                 logger.error(f"Failed to process URL {u}: {e}")
                 return ExtractedContent(
-                    url=u,
-                    content_type=ContentType.UNKNOWN,
-                    text="",
-                    success=False,
-                    error_message=str(e)
+                    url=u, content_type=ContentType.UNKNOWN, text="", success=False, error_message=str(e)
                 )
 
-        extracted_urls: List[ExtractedContent] = list(
-            await asyncio.gather(*[_safe_extract(u) for u in urls])
-        )
+        extracted_urls: list[ExtractedContent] = list(await asyncio.gather(*[_safe_extract(u) for u in urls]))
 
         # Combine all text for analysis
         combined_parts = [text]
@@ -976,14 +962,10 @@ class ContentExtractor:
                 source_label = f"[Content from {extracted.url}]"
                 combined_parts.append(f"\n\n{source_label}\n{extracted.text}")
 
-        combined_text = ''.join(combined_parts)
+        combined_text = "".join(combined_parts)
 
         logger.info(f"Processed message: {len(urls)} URLs, {len(combined_text)} total characters")
 
         return ProcessedContent(
-            original_text=text,
-            extracted_urls=extracted_urls,
-            combined_text=combined_text,
-            url_count=len(urls)
+            original_text=text, extracted_urls=extracted_urls, combined_text=combined_text, url_count=len(urls)
         )
-

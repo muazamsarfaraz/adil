@@ -22,47 +22,54 @@ Security:
     - SSRF protection on all outbound URL fetches
     - Input validation with max_length constraints
 """
-import os
-import re
-import time
+
 import asyncio
 import base64
 import binascii
 import logging
+import os
+import re
 import secrets
+import time
 from contextlib import asynccontextmanager
-from typing import List, Optional
 
-from fastapi import FastAPI, HTTPException, Security, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyHeader
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.openapi.utils import get_openapi
 import httpx
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request, Security
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.security import APIKeyHeader
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
-from models import (
-    QueryRequest, QueryResponse, HealthResponse, StatsResponse,
-    AnalyzeContentRequest, AnalyzeContentResponse, ExtractedContent, ContentType,
-    ImageQueryRequest, ImageData, ALLOWED_IMAGE_MIMES,
-    SubmitReportRequest, SubmitReportResponse,
-)
-from rag_service import RAGService
+from content_extractor import ContentExtractor
 from conversation_log import log_conversation
 from email_receipt import send_receipt
-from content_extractor import ContentExtractor
+from models import (
+    ALLOWED_IMAGE_MIMES,
+    AnalyzeContentRequest,
+    AnalyzeContentResponse,
+    ContentType,
+    ExtractedContent,
+    HealthResponse,
+    ImageQueryRequest,
+    QueryRequest,
+    QueryResponse,
+    StatsResponse,
+    SubmitReportRequest,
+    SubmitReportResponse,
+)
+from rag_service import RAGService
 
 # Load environment variables (override system env vars with .env file values)
 load_dotenv(override=True)
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=getattr(logging, os.getenv("LOG_LEVEL", "INFO")),
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
 
@@ -211,16 +218,16 @@ ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLO
 ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS if o.strip()]
 
 # Global services and stats
-rag_service: Optional[RAGService] = None
-content_extractor: Optional[ContentExtractor] = None
+rag_service: RAGService | None = None
+content_extractor: ContentExtractor | None = None
 _stats_lock = asyncio.Lock()
 stats = {
-    'total_queries': 0,
-    'total_tokens': 0,
-    'total_cost': 0.0,
-    'viability_assessments': 0,
-    'content_analyses': 0,
-    'start_time': time.time()
+    "total_queries": 0,
+    "total_tokens": 0,
+    "total_cost": 0.0,
+    "viability_assessments": 0,
+    "content_analyses": 0,
+    "start_time": time.time(),
 }
 
 
@@ -261,8 +268,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"Starting {API_TITLE}...")
 
     # Validate required environment variables
-    gemini_api_key = os.getenv('GEMINI_API_KEY')
-    file_search_store_id = os.getenv('FILE_SEARCH_STORE_ID')
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
+    file_search_store_id = os.getenv("FILE_SEARCH_STORE_ID")
 
     if not gemini_api_key:
         raise ValueError("GEMINI_API_KEY environment variable not set. Get one at https://aistudio.google.com/apikey")
@@ -423,9 +430,7 @@ async def health_check(request: Request):
     - `degraded` — RAG service not initialised (Gemini connection failed)
     """
     return HealthResponse(
-        status="healthy" if rag_service else "degraded",
-        version=API_VERSION,
-        gemini_connected=rag_service is not None
+        status="healthy" if rag_service else "degraded", version=API_VERSION, gemini_connected=rag_service is not None
     )
 
 
@@ -449,16 +454,16 @@ async def get_stats(request: Request, _api_key: str = Security(verify_api_key)):
     🔐 **Requires `X-API-Key` header.**
     """
     async with _stats_lock:
-        uptime = int(time.time() - stats['start_time'])
-        avg_tokens = stats['total_tokens'] / max(stats['total_queries'], 1)
+        uptime = int(time.time() - stats["start_time"])
+        avg_tokens = stats["total_tokens"] / max(stats["total_queries"], 1)
 
         return StatsResponse(
-            total_queries=stats['total_queries'],
-            total_tokens_used=stats['total_tokens'],
-            total_cost_usd=round(stats['total_cost'], 4),
+            total_queries=stats["total_queries"],
+            total_tokens_used=stats["total_tokens"],
+            total_cost_usd=round(stats["total_cost"], 4),
             average_tokens_per_query=round(avg_tokens, 2),
             uptime_seconds=uptime,
-            viability_assessments_count=stats['viability_assessments']
+            viability_assessments_count=stats["viability_assessments"],
         )
 
 
@@ -486,7 +491,7 @@ _CONTENT_TYPE_MAP = {
 }
 
 
-def _parse_suggested_questions(answer: str) -> Optional[List[str]]:
+def _parse_suggested_questions(answer: str) -> list[str] | None:
     """Extract suggested follow-up questions from the AI answer text.
 
     The system prompt instructs the model to include a section like:
@@ -560,10 +565,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         # Convert conversation history to dicts for the RAG service
         history_dicts = None
         if body.conversation_history:
-            history_dicts = [
-                {"role": turn.role, "content": turn.content}
-                for turn in body.conversation_history
-            ]
+            history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         answer, sources, usage, metadata = await rag_service.query(
             query_text=body.query,
@@ -574,11 +576,11 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
 
         # Update stats
         async with _stats_lock:
-            stats['total_queries'] += 1
-            stats['total_tokens'] += usage.total_tokens
-            stats['total_cost'] += usage.estimated_cost_usd or 0
+            stats["total_queries"] += 1
+            stats["total_tokens"] += usage.total_tokens
+            stats["total_cost"] += usage.estimated_cost_usd or 0
             if body.include_viability_score:
-                stats['viability_assessments'] += 1
+                stats["viability_assessments"] += 1
 
         # Check if litigation was mentioned
         litigation_mentioned = _check_litigation_mentioned(answer)
@@ -587,15 +589,17 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         suggested_questions = _parse_suggested_questions(answer)
 
         # Log anonymised metadata (fire-and-forget)
-        asyncio.create_task(log_conversation(
-            endpoint="query",
-            query_text=body.query,
-            conversation_history=history_dicts,
-            viability_requested=body.include_viability_score,
-            response_time_ms=metadata.processing_time_ms,
-            model_used=metadata.model_used,
-            token_count=usage.total_tokens,
-        ))
+        asyncio.create_task(
+            log_conversation(
+                endpoint="query",
+                query_text=body.query,
+                conversation_history=history_dicts,
+                viability_requested=body.include_viability_score,
+                response_time_ms=metadata.processing_time_ms,
+                model_used=metadata.model_used,
+                token_count=usage.total_tokens,
+            )
+        )
 
         return QueryResponse(
             answer=answer,
@@ -697,17 +701,14 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
                     title=first_extract.title,
                     platform=platform,
                     extraction_method=first_extract.metadata.get("source", "unknown"),
-                    confidence=0.9 if first_extract.success else 0.5
+                    confidence=0.9 if first_extract.success else 0.5,
                 )
                 context_prefix = f"[Analyzing content from {platform}] "
 
         # Convert conversation history to dicts for the RAG service
         history_dicts = None
         if body.conversation_history:
-            history_dicts = [
-                {"role": turn.role, "content": turn.content}
-                for turn in body.conversation_history
-            ]
+            history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         # Execute RAG query with the combined content
         answer, sources, usage, metadata = await rag_service.query(
@@ -719,12 +720,12 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
 
         # Update stats
         async with _stats_lock:
-            stats['total_queries'] += 1
-            stats['content_analyses'] += 1
-            stats['total_tokens'] += usage.total_tokens
-            stats['total_cost'] += usage.estimated_cost_usd or 0
+            stats["total_queries"] += 1
+            stats["content_analyses"] += 1
+            stats["total_tokens"] += usage.total_tokens
+            stats["total_cost"] += usage.estimated_cost_usd or 0
             if body.include_viability_score:
-                stats['viability_assessments'] += 1
+                stats["viability_assessments"] += 1
 
         # Generate platform-specific advice
         platform_advice = None
@@ -768,16 +769,18 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
             content_summary = f"Analyzed {processed.url_count} URL(s)."
 
         # Log anonymised metadata (fire-and-forget)
-        asyncio.create_task(log_conversation(
-            endpoint="analyze",
-            query_text=body.content,
-            conversation_history=history_dicts,
-            has_urls=processed.url_count > 0,
-            viability_requested=body.include_viability_score,
-            response_time_ms=metadata.processing_time_ms,
-            model_used=metadata.model_used,
-            token_count=usage.total_tokens,
-        ))
+        asyncio.create_task(
+            log_conversation(
+                endpoint="analyze",
+                query_text=body.content,
+                conversation_history=history_dicts,
+                has_urls=processed.url_count > 0,
+                viability_requested=body.include_viability_score,
+                response_time_ms=metadata.processing_time_ms,
+                model_used=metadata.model_used,
+                token_count=usage.total_tokens,
+            )
+        )
 
         return AnalyzeContentResponse(
             answer=answer,
@@ -790,7 +793,7 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
             suggested_questions=suggested_questions,
             extracted_content=extracted_info,
             content_summary=content_summary,
-            platform_specific_advice=platform_advice
+            platform_specific_advice=platform_advice,
         )
 
     except Exception as e:
@@ -842,7 +845,7 @@ async def query_image(
             raise HTTPException(
                 status_code=400,
                 detail=f"Image {i + 1}: unsupported format '{img.mime_type}'. "
-                       f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_MIMES))}",
+                f"Allowed: {', '.join(sorted(ALLOWED_IMAGE_MIMES))}",
             )
         try:
             base64.b64decode(img.data, validate=True)
@@ -856,16 +859,10 @@ async def query_image(
         # Convert conversation history
         history_dicts = None
         if body.conversation_history:
-            history_dicts = [
-                {"role": turn.role, "content": turn.content}
-                for turn in body.conversation_history
-            ]
+            history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         # Convert images to dicts for the RAG service
-        images_data = [
-            {"mime_type": img.mime_type, "data": img.data}
-            for img in body.images
-        ]
+        images_data = [{"mime_type": img.mime_type, "data": img.data} for img in body.images]
 
         answer, sources, usage, metadata = await rag_service.query_with_images(
             images=images_data,
@@ -877,11 +874,11 @@ async def query_image(
 
         # Update stats
         async with _stats_lock:
-            stats['total_queries'] += 1
-            stats['total_tokens'] += usage.total_tokens
-            stats['total_cost'] += usage.estimated_cost_usd or 0
+            stats["total_queries"] += 1
+            stats["total_tokens"] += usage.total_tokens
+            stats["total_cost"] += usage.estimated_cost_usd or 0
             if body.include_viability_score:
-                stats['viability_assessments'] += 1
+                stats["viability_assessments"] += 1
 
         litigation_mentioned = _check_litigation_mentioned(answer)
         suggested_questions = _parse_suggested_questions(answer)
@@ -937,7 +934,10 @@ async def privacy_notice(request: Request):
             "Complain — Contact ICO at ico.org.uk",
         ],
         "third_parties": [
-            {"name": "Target organisation (e.g. Police UK, Tell MAMA)", "receives": "Reporter PII + incident details (only on report submission with consent)"},
+            {
+                "name": "Target organisation (e.g. Police UK, Tell MAMA)",
+                "receives": "Reporter PII + incident details (only on report submission with consent)",
+            },
             {"name": "Google Gemini", "receives": "Anonymised conversation messages for AI processing"},
             {"name": "Railway (hosting)", "receives": "Technical data (IP, request logs). No message content."},
             {"name": "SendGrid", "receives": "User email address for confirmation receipts only"},
@@ -1056,27 +1056,31 @@ async def submit_report(
     del bridge_data
 
     # Log anonymised report submission metadata (fire-and-forget)
-    asyncio.create_task(log_conversation(
-        endpoint="submit_report",
-        query_text="",
-        report_submitted=True,
-        report_target=body.target,
-        report_success=result.get("success", False),
-    ))
+    asyncio.create_task(
+        log_conversation(
+            endpoint="submit_report",
+            query_text="",
+            report_submitted=True,
+            report_target=body.target,
+            report_success=result.get("success", False),
+        )
+    )
 
     if result.get("success"):
         ref = result.get("reference_number", "N/A")
-        target_display = body.target.replace('-', ' ').title()
+        target_display = body.target.replace("-", " ").title()
 
         # Send email receipt to user (fire-and-forget, never blocks response)
         if body.reporter.email and body.reporter.email != "anonymous@askadil.org":
-            asyncio.create_task(send_receipt(
-                to_email=body.reporter.email,
-                target_name=target_display,
-                reference_number=result.get("reference_number"),
-                incident_summary=body.incident.details[:300],
-                submitted_at=result.get("submitted_at"),
-            ))
+            asyncio.create_task(
+                send_receipt(
+                    to_email=body.reporter.email,
+                    target_name=target_display,
+                    reference_number=result.get("reference_number"),
+                    incident_summary=body.incident.details[:300],
+                    submitted_at=result.get("submitted_at"),
+                )
+            )
 
         return SubmitReportResponse(
             success=True,
@@ -1095,10 +1099,7 @@ async def submit_report(
         fallback = None
         if rag_service and body.conversation_history:
             try:
-                history_dicts = [
-                    {"role": t.role, "content": t.content}
-                    for t in body.conversation_history
-                ]
+                history_dicts = [{"role": t.role, "content": t.content} for t in body.conversation_history]
                 fallback_answer, _, _, _ = await rag_service.query(
                     query_text=(
                         "INSTRUCTION: You are generating a structured incident report, NOT having a conversation. "
@@ -1134,6 +1135,6 @@ async def submit_report(
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv('PORT', 8000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)
 
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run("app:app", host="0.0.0.0", port=port, reload=True)

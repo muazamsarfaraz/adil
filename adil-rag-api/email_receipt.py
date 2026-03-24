@@ -3,10 +3,10 @@
 Sends a confirmation email to the user after a successful report submission.
 Uses SendGrid. Never includes PII beyond the user's own email address.
 """
-import os
+
 import logging
-from typing import Optional
-from datetime import datetime, timezone
+import os
+from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +18,9 @@ SENDER_NAME = os.getenv("SENDER_NAME", "AskAdil — MCB Platform")
 async def send_receipt(
     to_email: str,
     target_name: str,
-    reference_number: Optional[str],
+    reference_number: str | None,
     incident_summary: str,
-    submitted_at: Optional[str] = None,
+    submitted_at: str | None = None,
 ):
     """Send a confirmation receipt email to the user after report submission.
 
@@ -40,7 +40,7 @@ async def send_receipt(
         return
 
     ref_display = reference_number or "Not provided"
-    timestamp = submitted_at or datetime.now(timezone.utc).isoformat()
+    timestamp = submitted_at or datetime.now(UTC).isoformat()
     # Truncate incident summary to avoid leaking too much
     summary_short = incident_summary[:300] + "..." if len(incident_summary) > 300 else incident_summary
 
@@ -132,7 +132,7 @@ This is an automated email. AskAdil is an educational tool, not a law firm.
 
     try:
         from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail, Email, To, Content, MimeType
+        from sendgrid.helpers.mail import Content, Email, Mail, MimeType, To
 
         message = Mail(
             from_email=Email(SENDER_EMAIL, SENDER_NAME),

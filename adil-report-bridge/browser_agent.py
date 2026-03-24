@@ -3,17 +3,17 @@
 Uses browser-use with Gemini Flash to fill multi-step web forms.
 The AI agent reads form labels semantically, adapting to UI changes.
 """
-import os
-import logging
+
 import asyncio
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+import logging
+import os
+from datetime import UTC, datetime
+from typing import Any
 
 from browser_use import Agent, Browser
 from langchain_google_genai import ChatGoogleGenerativeAI
-
-from targets import get_target
 from screenshot import compress_screenshot
+from targets import get_target
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ _semaphore = asyncio.Semaphore(1)
 SEMAPHORE_TIMEOUT = 30  # seconds to wait before returning 503
 
 
-def _build_task_prompt(target_config: Dict[str, Any], data: Dict[str, Any]) -> str:
+def _build_task_prompt(target_config: dict[str, Any], data: dict[str, Any]) -> str:
     """Build the agent task prompt from target instructions and user data."""
     instructions = target_config["instructions"]
 
@@ -54,8 +54,8 @@ def _build_task_prompt(target_config: Dict[str, Any], data: Dict[str, Any]) -> s
 
 async def submit_report(
     target_id: str,
-    data: Dict[str, Any],
-) -> Dict[str, Any]:
+    data: dict[str, Any],
+) -> dict[str, Any]:
     """Submit a report using AI browser automation."""
     target_config = get_target(target_id)
     if not target_config:
@@ -68,7 +68,7 @@ async def submit_report(
     # Acquire semaphore with timeout
     try:
         await asyncio.wait_for(_semaphore.acquire(), timeout=SEMAPHORE_TIMEOUT)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return {
             "success": False,
             "error": "Service busy — another submission is in progress. Please try again shortly.",
@@ -103,9 +103,7 @@ async def submit_report(
         try:
             page = await agent.browser_context.get_current_page()
             if page:
-                png_bytes = await asyncio.wait_for(
-                    page.screenshot(full_page=False), timeout=10
-                )
+                png_bytes = await asyncio.wait_for(page.screenshot(full_page=False), timeout=10)
                 screenshot_b64 = compress_screenshot(png_bytes)
         except Exception as e:
             logger.warning("Screenshot capture failed: %s", e)
@@ -118,7 +116,7 @@ async def submit_report(
                 "reference_number": reference,
                 "confirmation_screenshot": screenshot_b64,
                 "confirmation_text": final_result[:500],
-                "submitted_at": datetime.now(timezone.utc).isoformat(),
+                "submitted_at": datetime.now(UTC).isoformat(),
             }
         else:
             return {
@@ -129,7 +127,7 @@ async def submit_report(
                 "target_url": target_config["url"],
             }
 
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logger.error("Form submission timed out for target=%s", target_id)
         return {
             "success": False,
@@ -155,9 +153,10 @@ async def submit_report(
         del data
 
 
-def _extract_reference(text: str) -> Optional[str]:
+def _extract_reference(text: str) -> str | None:
     """Try to extract a reference number from the agent's final result text."""
     import re
+
     patterns = [
         r"(?:ref(?:erence)?[\s:]*#?\s*)([A-Z0-9-]{5,})",
         r"(HC-\d{4}-\d+)",

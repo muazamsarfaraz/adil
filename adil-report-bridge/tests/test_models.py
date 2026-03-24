@@ -1,6 +1,8 @@
 """Tests for bridge Pydantic models."""
+
 import pytest
-from models import SubmitRequest, SubmitResponse, DOB
+
+from models import DOB, SubmitRequest, SubmitResponse
 
 
 def test_submit_request_valid():

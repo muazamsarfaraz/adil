@@ -5,11 +5,10 @@ All message content is summarised into topic categories — no raw text stored.
 
 Table: conversation_logs
 """
-import os
-import logging
+
 import asyncio
-from datetime import datetime, timezone
-from typing import Optional, List, Dict
+import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +17,30 @@ _pool = None
 _pool_lock = asyncio.Lock()
 
 TOPIC_KEYWORDS = {
-    "workplace_discrimination": ["employer", "work", "job", "fired", "dismissed", "colleague", "manager", "office", "workplace", "employment"],
+    "workplace_discrimination": [
+        "employer",
+        "work",
+        "job",
+        "fired",
+        "dismissed",
+        "colleague",
+        "manager",
+        "office",
+        "workplace",
+        "employment",
+    ],
     "hate_crime": ["hate", "attack", "assault", "threat", "slur", "abuse", "violence", "racist", "islamophob"],
-    "online_hate": ["online", "social media", "twitter", "facebook", "instagram", "youtube", "post", "comment", "tiktok"],
+    "online_hate": [
+        "online",
+        "social media",
+        "twitter",
+        "facebook",
+        "instagram",
+        "youtube",
+        "post",
+        "comment",
+        "tiktok",
+    ],
     "education": ["school", "university", "teacher", "student", "college", "education"],
     "housing": ["landlord", "tenant", "housing", "rent", "evict", "accommodation"],
     "policing": ["police", "stop and search", "arrest", "officer"],
@@ -47,7 +67,7 @@ def _classify_topic(text: str) -> str:
     return best if scores[best] > 0 else "general_enquiry"
 
 
-def _detect_jurisdiction(text: str) -> Optional[str]:
+def _detect_jurisdiction(text: str) -> str | None:
     """Detect jurisdiction from message text."""
     text_lower = text.lower()
     for jurisdiction, keywords in JURISDICTION_KEYWORDS.items():
@@ -66,6 +86,7 @@ async def _get_pool():
                 return None
             try:
                 import asyncpg
+
                 _pool = await asyncpg.create_pool(database_url, min_size=1, max_size=3)
                 # Create table if not exists
                 async with _pool.acquire() as conn:
@@ -99,16 +120,16 @@ async def _get_pool():
 async def log_conversation(
     endpoint: str,
     query_text: str = "",
-    conversation_history: Optional[List[Dict]] = None,
+    conversation_history: list[dict] | None = None,
     has_urls: bool = False,
     has_images: bool = False,
     viability_requested: bool = False,
     report_submitted: bool = False,
-    report_target: Optional[str] = None,
-    report_success: Optional[bool] = None,
-    response_time_ms: Optional[int] = None,
-    model_used: Optional[str] = None,
-    token_count: Optional[int] = None,
+    report_target: str | None = None,
+    report_success: bool | None = None,
+    response_time_ms: int | None = None,
+    model_used: str | None = None,
+    token_count: int | None = None,
 ):
     """Log anonymised conversation metadata. Fire-and-forget — never blocks the response."""
     try:
@@ -119,24 +140,35 @@ async def log_conversation(
         # Build combined text for classification (no raw text stored)
         combined = query_text
         if conversation_history:
-            combined += " " + " ".join(
-                t.get("content", "") for t in conversation_history if t.get("role") == "user"
-            )
+            combined += " " + " ".join(t.get("content", "") for t in conversation_history if t.get("role") == "user")
 
         topic = _classify_topic(combined)
         jurisdiction = _detect_jurisdiction(combined)
         message_count = len(conversation_history) if conversation_history else 1
 
         async with pool.acquire() as conn:
-            await conn.execute("""
+            await conn.execute(
+                """
                 INSERT INTO conversation_logs
                 (endpoint, topic, jurisdiction, message_count, has_urls, has_images,
                  viability_requested, report_submitted, report_target, report_success,
                  response_time_ms, model_used, token_count)
                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-            """, endpoint, topic, jurisdiction, message_count, has_urls, has_images,
-                viability_requested, report_submitted, report_target, report_success,
-                response_time_ms, model_used, token_count)
+            """,
+                endpoint,
+                topic,
+                jurisdiction,
+                message_count,
+                has_urls,
+                has_images,
+                viability_requested,
+                report_submitted,
+                report_target,
+                report_success,
+                response_time_ms,
+                model_used,
+                token_count,
+            )
 
     except Exception as e:
         # Never let logging failures affect the user

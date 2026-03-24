@@ -1,5 +1,5 @@
 """Tests for target configuration."""
-import pytest
+
 from targets import TARGETS, get_target, validate_data_for_target
 
 

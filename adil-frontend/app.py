@@ -7,11 +7,12 @@ UK Discrimination Law Educational Platform
 askadil.org — A Muslim Council of Britain Initiative
 """
 
+import base64
 import os
 import re
-import base64
-import httpx
+
 import chainlit as cl
+import httpx
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -95,15 +96,19 @@ async def _send_query(user_text: str, images: list = None):
             await msg.stream_token(f"*📸 Analysing {count} image{'s' if count > 1 else ''}...*\n\n")
 
         # Check if user is asking about case viability
-        viability_keywords = ["can i sue", "do i have a case", "should i take legal action",
-                             "worth pursuing", "viability", "compensation", "how much"]
+        viability_keywords = [
+            "can i sue",
+            "do i have a case",
+            "should i take legal action",
+            "worth pursuing",
+            "viability",
+            "compensation",
+            "how much",
+        ]
         include_viability = any(kw in user_text.lower() for kw in viability_keywords)
 
         # Build conversation history payload
-        history_payload = [
-            {"role": turn["role"], "content": turn["content"]}
-            for turn in history
-        ] if history else None
+        history_payload = [{"role": turn["role"], "content": turn["content"]} for turn in history] if history else None
 
         # Choose endpoint based on content type
         api_headers = {"X-API-Key": ADIL_API_KEY} if ADIL_API_KEY else {}
@@ -117,7 +122,7 @@ async def _send_query(user_text: str, images: list = None):
                         "images": images,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
-                    }
+                    },
                 )
             elif contains_urls:
                 response = await client.post(
@@ -127,7 +132,7 @@ async def _send_query(user_text: str, images: list = None):
                         "content": user_text,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
-                    }
+                    },
                 )
             else:
                 response = await client.post(
@@ -138,39 +143,41 @@ async def _send_query(user_text: str, images: list = None):
                         "max_sources": 10,
                         "include_viability_score": include_viability,
                         "conversation_history": history_payload,
-                    }
+                    },
                 )
             response.raise_for_status()
             data = response.json()
 
         # Display answer
-        answer = data.get('answer', '')
+        answer = data.get("answer", "")
         await msg.stream_token(answer)
 
         # Add viability assessment if present
-        viability = data.get('viability')
+        viability = data.get("viability")
         if viability:
-            viability_text = f"\n\n---\n📊 **Preliminary Viability Assessment**\n"
+            viability_text = "\n\n---\n📊 **Preliminary Viability Assessment**\n"
             viability_text += f"- Score: {viability.get('score', 'N/A')}/100\n"
-            if viability.get('vento_band'):
-                viability_text += f"- Estimated Band: {viability.get('vento_band').title()} ({viability.get('vento_range', '')})\n"
+            if viability.get("vento_band"):
+                viability_text += (
+                    f"- Estimated Band: {viability.get('vento_band').title()} ({viability.get('vento_range', '')})\n"
+                )
             viability_text += f"\n⚠️ *This is a preliminary assessment. {viability.get('reasoning', '')}*\n"
-            if viability.get('requires_hitl'):
+            if viability.get("requires_hitl"):
                 viability_text += "\n🔔 **This case may benefit from professional legal review.**"
             await msg.stream_token(viability_text)
 
         # Add sources if available
-        sources = data.get('sources', [])
+        sources = data.get("sources", [])
         if sources:
             sources_text = "\n\n---\n📚 **Legal Sources:**\n"
             for i, source in enumerate(sources, 1):
-                title = source.get('title', 'Unknown')
-                citation = source.get('neutral_citation', '')
-                section = source.get('section', '')
-                url = source.get('url', '')
-                excerpt = source.get('excerpt', '')
+                title = source.get("title", "Unknown")
+                citation = source.get("neutral_citation", "")
+                section = source.get("section", "")
+                url = source.get("url", "")
+                excerpt = source.get("excerpt", "")
 
-                if section and source.get('act_name'):
+                if section and source.get("act_name"):
                     source_title = f"{section} {source.get('act_name')}"
                 elif citation:
                     source_title = f"{title} `{citation}`"
@@ -188,12 +195,12 @@ async def _send_query(user_text: str, images: list = None):
             await msg.stream_token(sources_text)
 
         # Add platform-specific advice if present (from analyze endpoint)
-        platform_advice = data.get('platform_specific_advice')
+        platform_advice = data.get("platform_specific_advice")
         if platform_advice:
             await msg.stream_token(f"\n\n---\n{platform_advice}")
 
         # Add content summary if present
-        content_summary = data.get('content_summary')
+        content_summary = data.get("content_summary")
         if content_summary:
             await msg.stream_token(f"\n\n📋 *{content_summary}*")
 
@@ -211,7 +218,7 @@ async def _send_query(user_text: str, images: list = None):
         await msg.stream_token(disclaimer)
 
         # Build suggested-question action buttons
-        suggested = data.get('suggested_questions') or []
+        suggested = data.get("suggested_questions") or []
         actions = []
         for i, question in enumerate(suggested[:3]):
             actions.append(
@@ -277,25 +284,43 @@ async def main(message: cl.Message):
     msg_lower = message.content.strip().lower()
     if msg_lower in ("report", "report to police", "submit report"):
         cl.user_session.set("awaiting_report_target", True)
-        await cl.Message(content=(
-            "📋 **Where would you like to submit your report?**\n\n"
-            "Type the number of the organisation:\n\n"
-            "**1.** 🚔 **Police UK** — National hate crime report (England & Wales)\n"
-            "**2.** 🕌 **Tell MAMA** — Anti-Muslim hate incident report (UK-wide)\n"
-            "**3.** 🏴󠁧󠁢󠁳󠁣󠁴󠁿 **Police Scotland** — Hate crime report (Scotland only)\n"
-            "**4.** 🛡️ **IRU** — Islamophobia Response Unit (UK-wide)\n"
-            "**5.** 📍 **Islamophobia UK** — Anonymous incident tracker (UK-wide, no personal details needed)\n"
-            "**6.** 📧 **EASS** — Equality Advisory Support Service (email report)\n"
-            "**7.** 📧 **Stop Hate UK** — 24/7 hate crime support (email report)\n\n"
-            "Or type **cancel** to go back."
-        )).send()
+        await cl.Message(
+            content=(
+                "📋 **Where would you like to submit your report?**\n\n"
+                "Type the number of the organisation:\n\n"
+                "**1.** 🚔 **Police UK** — National hate crime report (England & Wales)\n"
+                "**2.** 🕌 **Tell MAMA** — Anti-Muslim hate incident report (UK-wide)\n"
+                "**3.** 🏴󠁧󠁢󠁳󠁣󠁴󠁿 **Police Scotland** — Hate crime report (Scotland only)\n"
+                "**4.** 🛡️ **IRU** — Islamophobia Response Unit (UK-wide)\n"
+                "**5.** 📍 **Islamophobia UK** — Anonymous incident tracker (UK-wide, no personal details needed)\n"
+                "**6.** 📧 **EASS** — Equality Advisory Support Service (email report)\n"
+                "**7.** 📧 **Stop Hate UK** — 24/7 hate crime support (email report)\n\n"
+                "Or type **cancel** to go back."
+            )
+        ).send()
         return
 
     # Handle target selection
     if cl.user_session.get("awaiting_report_target"):
         cl.user_session.set("awaiting_report_target", False)
-        target_map = {"1": "police-uk", "2": "tell-mama", "3": "police-scotland", "4": "iru", "5": "islamophobia-uk", "6": "eass", "7": "stop-hate-uk"}
-        target_names = {"police-uk": "Police UK", "tell-mama": "Tell MAMA", "police-scotland": "Police Scotland", "iru": "IRU (Islamophobia Response Unit)", "islamophobia-uk": "Islamophobia UK", "eass": "EASS", "stop-hate-uk": "Stop Hate UK"}
+        target_map = {
+            "1": "police-uk",
+            "2": "tell-mama",
+            "3": "police-scotland",
+            "4": "iru",
+            "5": "islamophobia-uk",
+            "6": "eass",
+            "7": "stop-hate-uk",
+        }
+        target_names = {
+            "police-uk": "Police UK",
+            "tell-mama": "Tell MAMA",
+            "police-scotland": "Police Scotland",
+            "iru": "IRU (Islamophobia Response Unit)",
+            "islamophobia-uk": "Islamophobia UK",
+            "eass": "EASS",
+            "stop-hate-uk": "Stop Hate UK",
+        }
         target = target_map.get(msg_lower)
         if not target:
             if msg_lower in ("cancel", "stop", "quit", "no"):
@@ -315,9 +340,7 @@ async def main(message: cl.Message):
             # Skip PII collection — go straight to consent with conversation data only
             cl.user_session.set("awaiting_report_consent", True)
             history = cl.user_session.get("conversation_history") or []
-            incident_text = "\n".join(
-                turn["content"] for turn in history if turn["role"] == "user"
-            )
+            incident_text = "\n".join(turn["content"] for turn in history if turn["role"] == "user")
             consent_msg = (
                 f"📋 **Report Submission — {target_names[target]}**\n\n"
                 "This form is **anonymous** — no personal details are needed.\n\n"
@@ -332,31 +355,28 @@ async def main(message: cl.Message):
         cl.user_session.set("report_field_index", 0)
         cl.user_session.set("collecting_report_pii", True)
         field_name, prompt, required = REPORT_PII_FIELDS[0]
-        await cl.Message(content=(
-            f"📋 **Report Submission — {target_names[target]}**\n\n"
-            "I'll need a few personal details to fill in the reporting form on your behalf.\n\n"
-            "**How your data is handled:**\n"
-            f"- Your details are sent directly to {target_names[target]} and **immediately discarded** from our system\n"
-            "- AskAdil **does not store** your personal information\n"
-            "- You will review everything before I submit\n"
-            "- You can cancel at any time by typing **cancel**\n\n"
-            f"{prompt}"
-        )).send()
+        await cl.Message(
+            content=(
+                f"📋 **Report Submission — {target_names[target]}**\n\n"
+                "I'll need a few personal details to fill in the reporting form on your behalf.\n\n"
+                "**How your data is handled:**\n"
+                f"- Your details are sent directly to {target_names[target]} and **immediately discarded** from our system\n"
+                "- AskAdil **does not store** your personal information\n"
+                "- You will review everything before I submit\n"
+                "- You can cancel at any time by typing **cancel**\n\n"
+                f"{prompt}"
+            )
+        ).send()
         return
 
     images = None
 
     # Check for image attachments
     if message.elements:
-        image_elements = [
-            el for el in message.elements
-            if el.mime and el.mime in ALLOWED_IMAGE_MIMES and el.path
-        ]
+        image_elements = [el for el in message.elements if el.mime and el.mime in ALLOWED_IMAGE_MIMES and el.path]
         if image_elements:
             if len(image_elements) > MAX_IMAGES:
-                await cl.Message(
-                    content=f"Please upload a maximum of {MAX_IMAGES} images at a time."
-                ).send()
+                await cl.Message(content=f"Please upload a maximum of {MAX_IMAGES} images at a time.").send()
                 return
 
             images = []
@@ -364,18 +384,18 @@ async def main(message: cl.Message):
                 # Check file size
                 file_size = os.path.getsize(el.path)
                 if file_size > MAX_IMAGE_SIZE_MB * 1024 * 1024:
-                    await cl.Message(
-                        content=f"Image '{el.name}' exceeds {MAX_IMAGE_SIZE_MB}MB limit."
-                    ).send()
+                    await cl.Message(content=f"Image '{el.name}' exceeds {MAX_IMAGE_SIZE_MB}MB limit.").send()
                     return
 
                 # Read and base64 encode
                 with open(el.path, "rb") as f:
                     image_bytes = f.read()
-                images.append({
-                    "mime_type": el.mime,
-                    "data": base64.b64encode(image_bytes).decode("utf-8"),
-                })
+                images.append(
+                    {
+                        "mime_type": el.mime,
+                        "data": base64.b64encode(image_bytes).decode("utf-8"),
+                    }
+                )
 
     await _send_query(message.content, images=images)
 
@@ -410,16 +430,18 @@ async def on_start_report(action: cl.Action):
     cl.user_session.set("collecting_report_pii", True)
 
     field_name, prompt, required = REPORT_PII_FIELDS[0]
-    await cl.Message(content=(
-        "📋 **Report Submission — Police UK**\n\n"
-        "I'll need a few personal details to fill in the police hate crime reporting form on your behalf.\n\n"
-        "**How your data is handled:**\n"
-        "- Your details are sent directly to police.uk and **immediately discarded** from our system\n"
-        "- AskAdil **does not store** your personal information\n"
-        "- You will review everything before I submit\n"
-        "- You can cancel at any time by typing **cancel**\n\n"
-        f"{prompt}"
-    )).send()
+    await cl.Message(
+        content=(
+            "📋 **Report Submission — Police UK**\n\n"
+            "I'll need a few personal details to fill in the police hate crime reporting form on your behalf.\n\n"
+            "**How your data is handled:**\n"
+            "- Your details are sent directly to police.uk and **immediately discarded** from our system\n"
+            "- AskAdil **does not store** your personal information\n"
+            "- You will review everything before I submit\n"
+            "- You can cancel at any time by typing **cancel**\n\n"
+            f"{prompt}"
+        )
+    ).send()
 
 
 async def _handle_report_pii(message_text: str):
@@ -500,11 +522,15 @@ async def _handle_report_consent(message_text: str):
     data = cl.user_session.get("report_data", {})
     target = cl.user_session.get("report_target", "police-uk")
     history = cl.user_session.get("conversation_history") or []
-    target_names = {"police-uk": "Police UK", "tell-mama": "Tell MAMA", "police-scotland": "Police Scotland", "iru": "IRU", "islamophobia-uk": "Islamophobia UK"}
+    target_names = {
+        "police-uk": "Police UK",
+        "tell-mama": "Tell MAMA",
+        "police-scotland": "Police Scotland",
+        "iru": "IRU",
+        "islamophobia-uk": "Islamophobia UK",
+    }
 
-    incident_text = "\n".join(
-        turn["content"] for turn in history if turn["role"] == "user"
-    )
+    incident_text = "\n".join(turn["content"] for turn in history if turn["role"] == "user")
 
     # Anonymous targets (no PII) — use direct bridge call format
     NO_PII_TARGETS = {"islamophobia-uk"}
@@ -527,13 +553,17 @@ async def _handle_report_consent(message_text: str):
                 "role": "victim",
             },
             "evidence_urls": [],
-            "conversation_history": [
-                {"role": t["role"], "content": t["content"]} for t in history
-            ] if history else None,
+            "conversation_history": [{"role": t["role"], "content": t["content"]} for t in history]
+            if history
+            else None,
         }
     else:
         dob_parts = data.get("dob_str", "01/01/1990").split("/")
-        dob = {"day": dob_parts[0], "month": dob_parts[1], "year": dob_parts[2]} if len(dob_parts) == 3 else {"day": "01", "month": "01", "year": "1990"}
+        dob = (
+            {"day": dob_parts[0], "month": dob_parts[1], "year": dob_parts[2]}
+            if len(dob_parts) == 3
+            else {"day": "01", "month": "01", "year": "1990"}
+        )
 
         payload = {
             "target": target,
@@ -553,9 +583,9 @@ async def _handle_report_consent(message_text: str):
                 "role": "victim",
             },
             "evidence_urls": [],
-            "conversation_history": [
-                {"role": t["role"], "content": t["content"]} for t in history
-            ] if history else None,
+            "conversation_history": [{"role": t["role"], "content": t["content"]} for t in history]
+            if history
+            else None,
         }
 
     msg = cl.Message(content=f"*⏳ Submitting your report to {target_names.get(target, target)}...*")
@@ -581,10 +611,7 @@ async def _handle_report_consent(message_text: str):
 
     if result.get("success"):
         ref = result.get("reference_number", "N/A")
-        response_text = (
-            f"✅ **Report submitted successfully!**\n\n"
-            f"**Reference Number:** `{ref}`\n\n"
-        )
+        response_text = f"✅ **Report submitted successfully!**\n\n**Reference Number:** `{ref}`\n\n"
         if result.get("message"):
             response_text += f"{result['message']}\n\n"
         response_text += (
@@ -600,7 +627,7 @@ async def _handle_report_consent(message_text: str):
         msg.content = response_text
         await msg.update()
     else:
-        error_text = f"❌ **Automated submission was not successful.**\n\n"
+        error_text = "❌ **Automated submission was not successful.**\n\n"
         if result.get("error"):
             error_text += f"{result['error']}\n\n"
 
@@ -617,4 +644,3 @@ async def _handle_report_consent(message_text: str):
         await msg.update()
 
     return True
-
