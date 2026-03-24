@@ -541,3 +541,89 @@ class SubmitReportResponse(BaseModel):
     fallback_report: str | None = None
     target_url: str | None = None
     form_guide: str | None = None
+
+
+# ============================================================================
+# Report Generation Models
+# ============================================================================
+
+
+class ReportType(str, Enum):
+    """Type of report to generate from conversation history.
+
+    - **incident_summary** — Structured summary for self-service reporting
+    - **solicitor_pack** — Consultation preparation pack for solicitor-path cases
+    """
+
+    INCIDENT_SUMMARY = "incident_summary"
+    SOLICITOR_PACK = "solicitor_pack"
+
+
+class ReportSection(BaseModel):
+    """A single section of a generated report."""
+
+    heading: str = Field(..., description="Section heading, e.g. 'WHAT HAPPENED'.")
+    content: str = Field(..., description="Section content text.")
+
+
+class GenerateReportRequest(BaseModel):
+    """Request model for the `/api/v1/generate-report` endpoint.
+
+    Generates a structured report from conversation history. Two types:
+    - `incident_summary` — for self-service hate crime reporting
+    - `solicitor_pack` — for solicitor consultation preparation
+    """
+
+    conversation_history: list[ConversationTurn] = Field(
+        ...,
+        description="The conversation history to generate a report from.",
+        min_length=1,
+        max_length=50,
+    )
+    report_type: ReportType = Field(
+        ReportType.INCIDENT_SUMMARY,
+        description="Type of report to generate.",
+    )
+    jurisdiction: str | None = Field(
+        None,
+        description="User's jurisdiction (e.g. 'England and Wales', 'Scotland').",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "conversation_history": [
+                        {
+                            "role": "user",
+                            "content": "I was verbally abused on the bus for wearing a niqab.",
+                        },
+                        {
+                            "role": "model",
+                            "content": "This could constitute a religiously aggravated offence under the Crime and Disorder Act 1998...",
+                        },
+                    ],
+                    "report_type": "incident_summary",
+                    "jurisdiction": "England and Wales",
+                }
+            ]
+        }
+    )
+
+
+class GenerateReportResponse(BaseModel):
+    """Response from the `/api/v1/generate-report` endpoint."""
+
+    report_text: str = Field(..., description="The full report as formatted text.")
+    report_type: ReportType = Field(..., description="Type of report generated.")
+    sections: list[ReportSection] = Field(
+        default_factory=list,
+        description="Report broken into sections for UI rendering.",
+    )
+    generated_at: str = Field(
+        default_factory=lambda: __import__("datetime").datetime.now(
+            __import__("datetime").timezone.utc
+        ).isoformat(),
+        description="ISO 8601 timestamp of generation.",
+    )
+    jurisdiction: str | None = Field(None, description="Jurisdiction used.")
