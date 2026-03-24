@@ -234,6 +234,13 @@ UK_CASE_LAW: dict[str, dict[str, str]] = {
         "url": "https://www.bailii.org/ew/cases/EWCA/Civ/2002/1871.html",
         "summary": "Established the 'Vento bands' for compensation in discrimination cases. Awards divided into lower, middle, and upper bands based on severity and impact.",
     },
+    # Scotland-specific case law
+    "Asif v The University of Edinburgh": {
+        "citation": "[2019] ET/4104400/2018",
+        "court": "Employment Tribunal (Scotland)",
+        "url": "https://www.gov.uk/employment-tribunal-decisions",
+        "summary": "Muslim PhD student claimed direct discrimination and harassment on grounds of religion and race. Tribunal found the university failed to adequately address complaints of Islamophobic behaviour by supervisors.",
+    },
 }
 
 
