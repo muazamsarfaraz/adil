@@ -88,10 +88,106 @@ def _build_solicitor_pack_prompt(jurisdiction: str | None = None) -> str:
     )
 
 
+def _build_police_uk_guide_prompt(jurisdiction: str | None = None) -> str:
+    """Step-by-step guide for the Police UK hate crime form."""
+    return (
+        "INSTRUCTION: You are generating a STEP-BY-STEP FORM GUIDE for the Police UK "
+        "online hate crime reporting form at https://www.police.uk/ro/report/hate-crime/, "
+        "NOT having a conversation. Do NOT ask questions. Do NOT request more information. "
+        "Use ONLY the information in the conversation history.\n\n"
+        "Generate the guide in this EXACT format:\n\n"
+        "--- POLICE UK HATE CRIME FORM GUIDE ---\n"
+        "Form URL: https://www.police.uk/ro/report/hate-crime/forms/v1/hate-crime-online2/\n\n"
+        "Step 1: Enter your first name and surname\n"
+        "[Pre-fill suggestion if available from conversation, otherwise 'Enter your details']\n\n"
+        "Step 2: Enter your date of birth\n"
+        "[Format: DD/MM/YYYY]\n\n"
+        "Step 3: Select your gender\n"
+        "[Options: Female, Male, Self-describe]\n\n"
+        "Step 4: Describe what happened\n"
+        "[Copy-paste text from conversation — summarise the incident in 2-4 sentences]\n\n"
+        "Step 5: Enter where the incident happened\n"
+        "[Location from conversation, or 'Enter the location']\n\n"
+        "Step 6: Enter when the incident happened\n"
+        "[Date/time from conversation]\n\n"
+        "Step 7: Review and submit\n"
+        "[Check all details are correct before submitting]\n\n"
+        "--- END GUIDE ---"
+    )
+
+
+def _build_tell_mama_guide_prompt(jurisdiction: str | None = None) -> str:
+    """Step-by-step guide for the Tell MAMA report form."""
+    return (
+        "INSTRUCTION: You are generating a STEP-BY-STEP FORM GUIDE for the Tell MAMA "
+        "report form at https://tellmamauk.org/submit-a-report-to-us/, "
+        "NOT having a conversation. Do NOT ask questions. Do NOT request more information. "
+        "Use ONLY the information in the conversation history.\n\n"
+        "Generate the guide in this EXACT format:\n\n"
+        "--- TELL MAMA REPORT FORM GUIDE ---\n"
+        "Form URL: https://tellmamauk.org/submit-a-report-to-us/\n\n"
+        "Step 1: Enter your name\n"
+        "[Your full name]\n\n"
+        "Step 2: Enter your email address\n"
+        "[For Tell MAMA to follow up]\n\n"
+        "Step 3: Enter your phone number\n"
+        "[Optional but recommended]\n\n"
+        "Step 4: Select incident type\n"
+        "[Based on conversation: offline/online/institutional anti-Muslim hatred]\n\n"
+        "Step 5: Describe what happened\n"
+        "[Copy-paste text — detailed description from conversation]\n\n"
+        "Step 6: Enter the location\n"
+        "[Location from conversation]\n\n"
+        "Step 7: Are you the victim or a witness?\n"
+        "[Based on conversation context]\n\n"
+        "Step 8: Upload any evidence (optional)\n"
+        "[Screenshots, photos, or documents if available]\n\n"
+        "Step 9: Review and submit\n\n"
+        "--- END GUIDE ---"
+    )
+
+
+def _build_police_scotland_guide_prompt(jurisdiction: str | None = None) -> str:
+    """Step-by-step guide for the Police Scotland hate crime form."""
+    return (
+        "INSTRUCTION: You are generating a STEP-BY-STEP FORM GUIDE for the Police Scotland "
+        "hate crime reporting form at https://www.scotland.police.uk/secureforms/c3/, "
+        "NOT having a conversation. Do NOT ask questions. Do NOT request more information. "
+        "Use ONLY the information in the conversation history.\n\n"
+        "Generate the guide in this EXACT format:\n\n"
+        "--- POLICE SCOTLAND HATE CRIME FORM GUIDE ---\n"
+        "Form URL: https://www.scotland.police.uk/secureforms/c3/\n\n"
+        "Step 1: Is this an emergency? Select 'No' (unless ongoing threat)\n\n"
+        "Step 2: Select 'Hate Related Incident - Religion'\n\n"
+        "Step 3: Are you reporting for yourself or someone else?\n"
+        "[Based on conversation context]\n\n"
+        "Step 4: Do you wish to remain anonymous? Select Yes or No\n\n"
+        "Step 5: Enter your personal details (name, address, phone, email)\n\n"
+        "Step 6: What happened? (max 2000 characters)\n"
+        "[Copy-paste: summarise the incident from conversation]\n\n"
+        "Step 7: Where did this happen? (max 2000 characters)\n"
+        "[Location from conversation]\n\n"
+        "Step 8: When did this happen? (max 2000 characters)\n"
+        "[Date/time from conversation]\n\n"
+        "Step 9: Description of the person responsible (max 2000 characters)\n"
+        "[If available from conversation, otherwise 'Unknown']\n\n"
+        "Step 10: Any additional information (max 2000 characters)\n"
+        "[Legal context from AskAdil analysis]\n\n"
+        "Step 11: Tick the disclaimer checkbox and submit\n\n"
+        "--- END GUIDE ---"
+    )
+
+
 def get_report_prompt(report_type: str, jurisdiction: str | None = None) -> str:
     """Return the appropriate prompt for the given report type."""
     if report_type == "solicitor_pack":
         return _build_solicitor_pack_prompt(jurisdiction)
+    elif report_type == "police_uk_guide":
+        return _build_police_uk_guide_prompt(jurisdiction)
+    elif report_type == "tell_mama_guide":
+        return _build_tell_mama_guide_prompt(jurisdiction)
+    elif report_type == "police_scotland_guide":
+        return _build_police_scotland_guide_prompt(jurisdiction)
     return _build_incident_summary_prompt(jurisdiction)
 
 

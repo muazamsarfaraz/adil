@@ -559,10 +559,16 @@ class ReportType(str, Enum):
 
     - **incident_summary** — Structured summary for self-service reporting
     - **solicitor_pack** — Consultation preparation pack for solicitor-path cases
+    - **police_uk_guide** — Step-by-step guide for the Police UK hate crime form
+    - **tell_mama_guide** — Step-by-step guide for the Tell MAMA report form
+    - **police_scotland_guide** — Step-by-step guide for Police Scotland hate crime form
     """
 
     INCIDENT_SUMMARY = "incident_summary"
     SOLICITOR_PACK = "solicitor_pack"
+    POLICE_UK_GUIDE = "police_uk_guide"
+    TELL_MAMA_GUIDE = "tell_mama_guide"
+    POLICE_SCOTLAND_GUIDE = "police_scotland_guide"
 
 
 class ReportSection(BaseModel):
