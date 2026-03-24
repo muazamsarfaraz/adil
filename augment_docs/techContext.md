@@ -19,8 +19,12 @@
 | **Twitter/X API** | FXTwitter | Free API for tweet metadata (text, media) — replaces Nitter |
 | **Landing Page** | nginx:alpine | Static HTML/CSS/JS, `envsubst` for `$PORT` |
 | **Image Generation** | Gemini | `gemini-3-pro-image-preview` for concept images |
-| **Deployment** | Railway | CLI upload (not GitHub-linked) |
+| **Deployment** | Railway | GitHub-linked via `muazamsarfaraz/adil` (private) + CLI upload |
 | **Containers** | Docker | Python 3.11-slim (backend/frontend/bridge), nginx:alpine (landing) |
+| **CI/CD** | GitHub Actions | Lint (ruff) + test on PR; repo: `muazamsarfaraz/adil` (private) |
+| **Pre-commit** | pre-commit | ruff lint + ruff format hooks |
+| **Linting** | Ruff | `ruff check .` + `ruff format .` configured in `pyproject.toml` |
+| **Type Checking** | mypy | Configured in `pyproject.toml` |
 
 ## Environment Variables
 
@@ -86,7 +90,8 @@
 | **adil-frontend Domain (Railway)** | `adil-frontend-production.up.railway.app` |
 | **adil-landing Domain (Railway)** | `adil-landing-production.up.railway.app` |
 | **adil-report-bridge Domain** | Internal only — no public domain |
-| **Deploy Method** | CLI upload (`railway up`) |
+| **Deploy Method** | GitHub-linked + CLI upload (`railway up`) |
+| **GitHub Repo** | `muazamsarfaraz/adil` (private) |
 
 ## Custom Domain
 
@@ -129,19 +134,33 @@ railway up -d
 ## Lint / Test Commands
 
 ```bash
-# Run full test suite (125 tests)
+# Linting (configured in pyproject.toml)
+ruff check .
+ruff format --check .
+mypy .
+
+# Run full test suite — adil-rag-api (214+ tests)
+cd adil-rag-api
 python -m pytest test_backend.py -v
 
 # Run specific test class
 python -m pytest test_backend.py::TestModelValidation -v
 
+# Run report bridge tests (22 tests)
+cd adil-report-bridge
+python -m pytest tests/ -v
+
+# Run Playwright E2E tests (4 tests)
+cd adil-frontend
+python -m pytest tests/ -v
+
 # Test dependencies are in requirements-dev.txt (pytest, pytest-asyncio, httpx)
+
+# Pre-commit hooks (run automatically on git commit)
+pre-commit run --all-files
 ```
 
-> **TODO (remaining):**
-> - `ruff check .` (Python linting — not yet configured)
-> - `ruff format .` (Python formatting — not yet configured)
-> - `mypy .` (type checking — not yet configured)
+**Total test count: 240+** (214+ adil-rag-api, 22 adil-report-bridge, 4 Playwright E2E)
 
 ## Key Design Decisions
 
@@ -158,14 +177,21 @@ python -m pytest test_backend.py::TestModelValidation -v
 ```
 adil/
 ├── .env                          # API keys (DO NOT COMMIT)
+├── .gitignore                    # Git ignore rules
+├── pyproject.toml                # Ruff + mypy configuration
+├── .pre-commit-config.yaml       # Pre-commit hooks (ruff lint+format)
+├── .github/
+│   └── workflows/                # GitHub Actions CI/CD (lint+test on PR)
 ├── adil-rag-api/                 # Service A: FastAPI backend
-│   ├── app.py                    # FastAPI app, endpoints, _parse_suggested_questions() (~680 lines)
-│   ├── rag_service.py            # RAG logic, _build_contents(), Gemini FST, system prompt (~900 lines)
+│   ├── app.py                    # FastAPI app, endpoints, _parse_suggested_questions(), timing middleware (~680+ lines)
+│   ├── rag_service.py            # RAG logic, _build_contents(), Gemini FST, system prompt, viability parser (~900+ lines)
 │   ├── content_extractor.py      # URL/content extraction, cascade pattern (~900 lines)
-│   ├── models.py                 # Pydantic models (ConversationTurn, ViabilityAssessment, ImageQueryRequest, etc.) (~370 lines)
+│   ├── models.py                 # Pydantic models (ConversationTurn, ViabilityAssessment, ImageQueryRequest, ReportType, GenerateReportRequest/Response, etc.)
+│   ├── report_generator.py       # Report generation: prompt builders + section parser for 5 report types
+│   ├── solicitor_directory.py    # Curated solicitor directory: 24 firms, filterable by jurisdiction/specialism/location
 │   ├── email_receipt.py          # SendGrid email receipt after successful report submission
 │   ├── conversation_log.py       # Anonymised conversation metadata → Postgres (fire-and-forget)
-│   ├── test_backend.py           # Full test suite — 125 tests (~1460 lines)
+│   ├── test_backend.py           # Full test suite — 214+ tests
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── requirements-dev.txt      # Test dependencies (pytest, pytest-asyncio, httpx)
@@ -178,13 +204,14 @@ adil/
 │           ├── 2026-03-07-reporting-integration-roadmap.md   # Reporting portal integration PRD
 │           └── muslim-solicitors-seed-database.json          # 24 firms, outreach tracking
 ├── adil-frontend/                # Service B: Chainlit UI
-│   ├── app.py                    # Chainlit handlers (session history, action callbacks)
+│   ├── app.py                    # Chainlit handlers (session history, action callbacks, jurisdiction selector)
 │   ├── chainlit.md               # Welcome page content
 │   ├── Dockerfile
 │   ├── entrypoint.sh
 │   ├── requirements.txt
 │   ├── railway.toml
 │   ├── .env.example
+│   ├── tests/                    # Playwright E2E tests (4 tests)
 │   ├── .chainlit/
 │   │   ├── config.toml           # UI config (theme moved to public/theme.json in v2.x)
 │   │   └── translations/
@@ -206,9 +233,9 @@ adil/
 │   ├── requirements.txt
 │   ├── railway.toml
 │   └── tests/
-│       └── test_targets.py       # Config validation tests
+│       └── test_targets.py       # Config validation tests (22 tests)
 ├── adil-landing/                 # Service C: Landing page (nginx)
-│   ├── index.html                # Single-page HTML/CSS/JS (~1340 lines)
+│   ├── index.html                # Single-page HTML/CSS/JS — WCAG 2.2 AA compliant (~1340+ lines)
 │   ├── images/                   # Hero + story card images (AI-generated placeholders)
 │   │   ├── hero-concept-1-workplace.jpeg
 │   │   ├── hero-concept-2-community.jpeg

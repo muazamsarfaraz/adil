@@ -2,7 +2,7 @@
 
 **Free AI-powered UK discrimination law guidance for British Muslims**
 
-[askadil.org](https://askadil.org) | A Muslim Council of Britain Initiative
+[askadil.org](https://askadil.org) | A Muslim Council of Britain Initiative | [GitHub](https://github.com/muazamsarfaraz/adil)
 
 ---
 
@@ -20,12 +20,19 @@ AskAdil is **not a law firm**. It educates users about their rights, helps them 
 - Routes users to the right path: **self-service** for hate crime reporting, **solicitor referral** for workplace claims
 - Remembers conversation context for natural multi-turn dialogue
 - Covers all four UK jurisdictions: England & Wales, Scotland, Northern Ireland
+- **Viability scoring** — structured assessment (0-100 score, Vento band, statutory footing, case law precedent, quantum potential)
+- **Dynamic evidence checklist** — 3-6 tailored items when viability is assessed
+- **Report generation** — incident summaries, solicitor consultation packs, and smart form guides
+- **Solicitor directory** — 24 curated firms filterable by jurisdiction, specialism, and location
+- **Image analysis** — upload screenshots and document photos for AI-powered legal analysis
+- **Analytics** — aggregate usage statistics from anonymised conversation data
 
 ### Legal knowledge base
 
-- **Legislation:** Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, Crime and Disorder Act 1998, Human Rights Act 1998, Employment Rights Act 1996, Racial and Religious Hatred Act 2006
-- **Case law:** 9 landmark cases (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, Lee v IFoA, Grainger v Nicholson, Ladele v Islington, Chaplin v Royal Devon, Redfearn v UK, Vento v Chief Constable)
+- **Legislation:** Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, Crime and Disorder Act 1998, Human Rights Act 1998, Employment Rights Act 1996, Racial and Religious Hatred Act 2006, Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997
+- **Case law:** 9+ landmark cases including Scottish case law (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, Lee v IFoA, Grainger v Nicholson, Ladele v Islington, Chaplin v Royal Devon, Redfearn v UK, Vento v Chief Constable)
 - **Vento bands:** 2025-2026 compensation ranges for injury to feelings claims
+- **Jurisdictions:** England & Wales, Scotland, Northern Ireland — with jurisdiction-specific legislation and case law
 
 ---
 
@@ -170,20 +177,28 @@ A 4-tier phased approach to integrating with UK reporting portals:
 
 See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details including form field analysis for IRU, Tell MAMA, Police Scotland, ACAS, ET1, and others.
 
-### Consumer API — key endpoints
+### API endpoints
 
 | Endpoint | Auth | Purpose |
 |----------|------|---------|
-| `POST /api/v1/query` | Required | Main RAG query; `ConversationTurn.role` is `"model"` (Gemini convention, not `"assistant"`) |
-| `GET /api/v1/report-targets` | Required | Returns available targets; includes `pii_required: bool` per target |
-| `POST /api/v1/submit-report` | Required | Submits report; requires `consent_confirmed: true` (rejected if false) |
+| `GET /` | None | Service discovery |
+| `GET /health` | None | Liveness probe |
+| `GET /stats` | None | Runtime statistics |
+| `POST /api/v1/query` | Required | Multi-turn legal Q&A with viability scoring + evidence checklist |
+| `POST /api/v1/analyze` | Required | Content extraction + legal analysis |
+| `POST /api/v1/query/image` | Required | Image analysis (Gemini Flash vision) |
+| `POST /api/v1/generate-report` | Required | Report generation (5 types: incident_summary, solicitor_pack, police_uk_guide, tell_mama_guide, police_scotland_guide) |
 | `GET /api/v1/privacy-notice` | None | Structured JSON privacy notice |
+| `GET /api/v1/report-targets` | Required | Available reporting targets; includes `pii_required: bool` per target |
+| `POST /api/v1/submit-report` | Required | Submit hate crime report; requires `consent_confirmed: true` |
+| `GET /api/v1/solicitors` | Required | Curated solicitor directory (24 firms, filterable by jurisdiction/specialism/location) |
+| `GET /api/v1/analytics` | Required | Usage analytics (aggregate stats from Postgres) |
 
 ### Find a Muslim Solicitor
 
-A seed database of 24 solicitor firms (8 Muslim-community-focus, 8 discrimination specialists, 5 Scotland, 3 NI) has been researched for a future "Find a Muslim Solicitor" feature. All firms require outreach and consent before listing.
+The `GET /api/v1/solicitors` endpoint provides a curated directory of 24 solicitor firms (8 Muslim-community-focus, 8 discrimination specialists, 5 Scotland, 3 NI), filterable by jurisdiction, specialism, and location. Powered by `solicitor_directory.py`.
 
-See `docs/plans/muslim-solicitors-seed-database.json` for the full database.
+The underlying seed database is at `docs/plans/muslim-solicitors-seed-database.json` for outreach tracking.
 
 ---
 
@@ -237,15 +252,25 @@ cd adil-rag-api
 # Install test dependencies
 pip install -r requirements-dev.txt
 
-# Run all 125 tests
+# Run all 214+ backend tests
 python -m pytest test_backend.py -v
+
+# Run report bridge tests (22 tests)
+cd adil-report-bridge
+python -m pytest tests/ -v
+
+# Run Playwright E2E tests (4 tests)
+cd adil-frontend
+python -m pytest tests/ -v
 ```
+
+**Total: 240+ tests** across 3 services.
 
 ---
 
 ## Deployment
 
-All three services deploy to Railway as Docker containers:
+All four services deploy to Railway as Docker containers:
 
 ```bash
 # Backend
@@ -282,12 +307,20 @@ Custom domain `askadil.org` is managed via Cloudflare DNS (CNAME to Railway).
 adil/
 ├── README.md
 ├── .env                              # API keys (DO NOT COMMIT)
-├── adil-rag-api/                     # Backend (FastAPI)
-│   ├── app.py                        # Endpoints, auth, rate limiting
-│   ├── rag_service.py                # RAG logic, Gemini FST, system prompt
+├── .gitignore
+├── pyproject.toml                    # Ruff + mypy configuration
+├── .pre-commit-config.yaml           # Pre-commit hooks (ruff lint+format)
+├── .github/workflows/                # GitHub Actions CI/CD (lint+test on PR)
+├── adil-rag-api/                     # Backend (FastAPI) — 214+ tests
+│   ├── app.py                        # Endpoints, auth, rate limiting, timing middleware
+│   ├── rag_service.py                # RAG logic, Gemini FST, system prompt, viability parser
 │   ├── content_extractor.py          # URL/content extraction
-│   ├── models.py                     # Pydantic request/response models
-│   ├── test_backend.py               # 125 tests
+│   ├── models.py                     # Pydantic models (including ReportType, ViabilityAssessment)
+│   ├── report_generator.py           # Report generation: 5 types (incident, solicitor, form guides)
+│   ├── solicitor_directory.py        # Curated solicitor directory (24 firms)
+│   ├── email_receipt.py              # SendGrid email receipts
+│   ├── conversation_log.py           # Anonymised conversation logging to Postgres
+│   ├── test_backend.py               # 214+ tests
 │   ├── requirements.txt
 │   ├── requirements-dev.txt          # Test dependencies
 │   ├── Dockerfile
@@ -295,12 +328,21 @@ adil/
 │       ├── 2026-03-07-actionable-next-steps-design.md
 │       ├── 2026-03-07-reporting-integration-roadmap.md
 │       └── muslim-solicitors-seed-database.json
-├── adil-frontend/                    # Frontend (Chainlit)
-│   ├── app.py                        # Chat handlers, session management
+├── adil-frontend/                    # Frontend (Chainlit) — 4 E2E tests
+│   ├── app.py                        # Chat handlers, session management, jurisdiction selector
 │   ├── chainlit.md                   # Welcome page
+│   ├── tests/                        # Playwright E2E tests
 │   ├── Dockerfile
 │   └── public/                       # Theme, logos, branding
-├── adil-landing/                     # Landing page (nginx)
+├── adil-report-bridge/               # Report bridge (internal) — 22 tests
+│   ├── app.py                        # FastAPI: /submit, /health, /targets
+│   ├── browser_agent.py              # browser-use + Playwright form automation
+│   ├── email_adapter.py              # SendGrid email adapter
+│   ├── targets.py                    # 7 targets (5 browser, 2 email)
+│   ├── models.py                     # Pydantic models
+│   ├── Dockerfile                    # Python 3.11-slim + Playwright + Chromium
+│   └── tests/                        # 22 tests
+├── adil-landing/                     # Landing page (nginx) — WCAG 2.2 AA
 │   ├── index.html                    # Single-page landing (HTML/CSS/JS)
 │   ├── images/                       # Hero + story card images
 │   ├── nginx.conf.template           # nginx config with $PORT substitution
@@ -321,7 +363,7 @@ adil/
 
 | Component | Technology |
 |-----------|-----------|
-| LLM | Google Gemini (gemini-2.5-flash / gemini-2.5-pro) |
+| LLM | Google Gemini (gemini-2.5-flash / gemini-2.5-pro / gemini-3-flash-preview) |
 | Grounding | Gemini File Search Tool (FST) |
 | Backend | FastAPI, Python 3.11 |
 | Frontend | Chainlit v2.9.6 |
@@ -332,9 +374,15 @@ adil/
 | Content extraction | yt-dlp, youtube-transcript-api, BeautifulSoup4, FXTwitter API |
 | HTTP client | httpx (async, persistent connections) |
 | Rate limiting | slowapi |
-| Landing page | nginx (Alpine), static HTML/CSS/JS |
+| Landing page | nginx (Alpine), static HTML/CSS/JS — WCAG 2.2 AA |
 | Deployment | Railway (Docker) |
 | DNS / CDN | Cloudflare |
+| CI/CD | GitHub Actions (lint+test on PR) |
+| Linting | Ruff (check + format) |
+| Type checking | mypy |
+| Pre-commit | ruff lint + format hooks |
+| E2E testing | Playwright (4 tests) |
+| Source control | Git — GitHub (`muazamsarfaraz/adil`, private) |
 
 ---
 

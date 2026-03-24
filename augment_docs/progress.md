@@ -107,37 +107,58 @@
 | 2026-03-24 | Resource directory expanded to 24 orgs | 5 new orgs added: BTP, Muslim Safety Net, British Muslim Trust, Islamophobia UK, Prevent Watch. |
 | 2026-03-24 | Documentation updated | README.md, techContext.md, privacy-notice.md, report-bridge spec all updated to reflect current state. |
 
+### 2026-03-24 — Major Feature Sprint (19 features, 17 commits)
+
+| Date | Task | Notes |
+|------|------|-------|
+| 2026-03-24 | Git initialisation | `.gitignore` + initial commit of recovered codebase |
+| 2026-03-24 | Ruff linting + mypy type checking | Configured in `pyproject.toml`. All code passes. |
+| 2026-03-24 | Jurisdiction selector UI | 3 clickable buttons at chat start in Chainlit (England & Wales / Scotland / NI) |
+| 2026-03-24 | Report generation models | `ReportType` enum, `GenerateReportRequest`, `GenerateReportResponse` in models.py |
+| 2026-03-24 | Report generator module | `report_generator.py` — prompt builders + section parser for 5 report types |
+| 2026-03-24 | POST /api/v1/generate-report endpoint | Incident summary + solicitor pack + 3 smart form guides |
+| 2026-03-24 | Image endpoint test coverage | Comprehensive tests for `/api/v1/query/image` |
+| 2026-03-24 | Final lint pass | All code passes ruff check + ruff format + mypy |
+| 2026-03-24 | Structured viability scoring | Parses VIABILITY_ASSESSMENT block from Gemini into `ViabilityAssessment` model (score 0-100, Vento band, statutory_footing, case_law_precedent, quantum_potential) |
+| 2026-03-24 | Dynamic evidence checklist | 3-6 tailored items parsed from EVIDENCE_CHECKLIST block when viability requested |
+| 2026-03-24 | CI/CD | GitHub repo at `muazamsarfaraz/adil` (private), GitHub Actions for lint+test on PR |
+| 2026-03-24 | Analytics endpoint | `GET /api/v1/analytics` with aggregate stats from Postgres |
+| 2026-03-24 | Request timing middleware | Logs path, method, status, duration_ms for all requests |
+| 2026-03-24 | Secrets audit | Clean — no secrets found in git |
+| 2026-03-24 | Playwright E2E tests | 4 tests against live site in adil-frontend |
+| 2026-03-24 | Smart Form Guides | `police_uk_guide`, `tell_mama_guide`, `police_scotland_guide` report types added to generate-report |
+| 2026-03-24 | Solicitor Directory | `GET /api/v1/solicitors` — 24 firms, filterable by jurisdiction/specialism/location via `solicitor_directory.py` |
+| 2026-03-24 | FST Corpus expansion | Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997, Scottish case law added to knowledge base |
+| 2026-03-24 | Landing page WCAG 2.2 AA | 21 a11y fixes applied + accessibility statement published |
+| 2026-03-24 | Pre-commit hooks | ruff lint+format runs automatically before every commit |
+
+**Test counts after sprint:** adil-rag-api 214+, adil-report-bridge 22, adil-frontend 4 Playwright E2E = **240+ total**
+
 ## In Progress
 
 | Task | Status | Notes |
 |------|--------|-------|
+| Deploy 2026-03-24 sprint to Railway | 📋 Pending | Push all changes to production |
 | Landing page custom domain | 📋 Pending | Assign `landing.askadil.org` or swap as main domain via Cloudflare |
 | Replace placeholder images | 📋 Pending | Commission real editorial photography from British Muslim photographer |
 | Solicitor firm outreach | 📋 Awaiting MCB | 24 firms identified, template email ready. MCB to lead outreach. |
 | AML partnership | 📋 Awaiting MCB | Contact amlevents@mail.com for member directory sharing |
-| Jurisdiction selector UI | 📋 Planned | Clickable buttons at chat start |
-| Tier 1 implementation | 📋 Planned | Incident Summary Generator + Solicitor Consultation Pack endpoints |
 
 ## Backlog
 
 | Task | Priority | Notes |
 |------|----------|-------|
-| Git initialisation | High | No version control currently |
-| Update test suite for image support | High | Add tests for ImageQueryRequest validation, /api/v1/query/image endpoint, base64 validation |
-| Linting setup (ruff) | High | No code quality checks |
-| Tier 1: Incident Summary Generator | High | `/api/v1/generate-report` endpoint — no partnership needed |
-| Tier 1: Solicitor Consultation Pack | High | Generate case summary for solicitor appointments |
-| Type checking (mypy) | Medium | No static type analysis |
-| Viability scoring (structured output) | High | Populate `ViabilityAssessment` model from Gemini |
-| Jurisdiction FST corpus expansion | Medium | Scotland, NI, Wales-specific legislation |
-| Tier 2: Smart Form Guides | Medium | Step-by-step guides for Police Scotland, Tell MAMA forms |
-| Tier 2: Curated Solicitor Directory | Medium | After outreach — only consented firms. New endpoint. |
-| GitHub-linked Railway deploys | Medium | Currently CLI-only |
+| Wales FST corpus expansion | Medium | Wales-specific PSED regulations not yet in corpus |
+| Decision Tree: viability -> tier routing | Medium | Route by viability score to appropriate tier |
+| Tier 3: Case summary generation | Medium | From conversation history for MCB referral |
+| Tier 3: "Request Legal Review" button | Low | Requires MCB infrastructure |
 | Tier 3: Referral Partnerships | Low | Requires partner agreements (Tell MAMA, IRU, AML) |
 | Tier 3: Solicitor Referral Service | Low | Send case summary to solicitor with user consent |
 | Tier 4: Third Party Reporting Centre | Low | Apply for TPRC status with Police Scotland, Tell MAMA |
 | Hub Locator database | Low | PRD defined but not implemented |
 | Letter before Action templates | Low | PRD defined but not implemented |
+| Vento Calculator | Low | 2026 inflation-adjusted claim estimation |
+| Language Support | Low | Urdu, Arabic, Bengali LLM prompts |
 
 ---
 *Updated: 2026-03-24*

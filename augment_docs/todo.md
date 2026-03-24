@@ -1,6 +1,6 @@
 # Todo — Project Ad'l (Active Checklist)
 
-## Current Sprint: Security, Extraction & Tests (2026-03-07)
+## Current Sprint: Major Feature Sprint (2026-03-24)
 
 ### Completed (2026-02-19 sprint)
 - [x] Multi-turn conversation memory — backend (`models.py`, `rag_service.py`, `app.py`)
@@ -31,9 +31,30 @@
 - [x] Code quality: duplicate Eweida removed, BAILII URLs fixed, dead code removed, DRY refactors
 - [x] Review input validation on all endpoints
 
+### Completed (2026-03-24 sprint)
+- [x] Git initialisation with .gitignore
+- [x] Ruff linting + mypy type checking (pyproject.toml)
+- [x] Jurisdiction selector UI (3 buttons at chat start in Chainlit)
+- [x] Report generation models (ReportType, GenerateReportRequest/Response)
+- [x] Report generator module (prompt builders + section parser)
+- [x] POST /api/v1/generate-report endpoint (incident summary + solicitor pack)
+- [x] Image endpoint test coverage
+- [x] Final lint pass
+- [x] Structured viability scoring — parses VIABILITY_ASSESSMENT block from Gemini into ViabilityAssessment model (score 0-100, Vento band, statutory_footing, case_law_precedent, quantum_potential)
+- [x] Dynamic evidence checklist — 3-6 tailored items parsed from EVIDENCE_CHECKLIST block when viability requested
+- [x] CI/CD — GitHub repo at muazamsarfaraz/adil (private), GitHub Actions for lint+test
+- [x] Analytics endpoint — GET /api/v1/analytics with aggregate stats from Postgres
+- [x] Request timing middleware — logs path, method, status, duration_ms
+- [x] Secrets audit — clean, no secrets in git
+- [x] Playwright E2E tests — 4 tests against live site
+- [x] Smart Form Guides — police_uk_guide, tell_mama_guide, police_scotland_guide report types
+- [x] Solicitor Directory — GET /api/v1/solicitors with 24 firms, filterable by jurisdiction/specialism/location
+- [x] FST Corpus expansion — Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997, Scottish case law
+- [x] Landing page WCAG 2.2 AA — 21 a11y fixes + accessibility statement
+- [x] Pre-commit hooks — ruff lint+format
+
 ### Remaining
 - [ ] Deploy backend + frontend changes to Railway + verify
-- [ ] Jurisdiction selector UI: clickable buttons at chat start (England / Wales / Scotland / NI)
 
 ## Landing Page (2026-03-07)
 
@@ -46,8 +67,8 @@
 - [x] Railway domain: `adil-landing-production.up.railway.app`
 - [ ] Custom domain for landing page (e.g. `landing.askadil.org`)
 - [ ] Replace AI-generated images with real editorial photography
-- [ ] Full WCAG 2.2 AA audit
-- [ ] Publish accessibility statement page
+- [x] Full WCAG 2.2 AA audit — 21 a11y fixes applied
+- [x] Publish accessibility statement page
 
 ## Immediate (Infrastructure)
 
@@ -55,8 +76,8 @@
 - [x] Verify sync (MD5 checksums, 22/22 files)
 - [x] Add `FILE_SEARCH_STORE_ID` + `RAG_API_URL` to `.env`
 - [x] Initialise augment_docs/ Memory Bank
-- [ ] Initialise git repository + `.gitignore`
-- [ ] Initial commit of recovered codebase
+- [x] Initialise git repository + `.gitignore`
+- [x] Initial commit of recovered codebase
 
 ## Quality Gates
 
@@ -64,10 +85,10 @@
 - [x] Write unit tests for `content_extractor.py`
 - [x] Write unit tests for `models.py`
 - [x] Write integration tests for API endpoints
-- [ ] Set up Python linting (`ruff check .`)
-- [ ] Set up Python formatting (`ruff format .`)
-- [ ] Set up type checking (`mypy .` or `pyright`)
-- [ ] Write Playwright E2E tests for Chainlit frontend
+- [x] Set up Python linting (`ruff check .`)
+- [x] Set up Python formatting (`ruff format .`)
+- [x] Set up type checking (`mypy .` or `pyright`)
+- [x] Write Playwright E2E tests for Chainlit frontend (4 tests)
 
 ## Security Hardening
 
@@ -87,29 +108,29 @@
 - [x] TLS certificate verification re-enabled
 - [x] Error detail leakage fixed
 - [x] Thread-safe stats
-- [ ] Audit for exposed secrets in codebase
-- [ ] Add request logging / observability
+- [x] Audit for exposed secrets in codebase — clean, no secrets in git
+- [x] Add request logging / observability — request timing middleware (path, method, status, duration_ms)
 
 ## CI/CD
 
-- [ ] Link Railway to GitHub for automated deploys
-- [ ] Set up GitHub Actions for lint + test on PR
-- [ ] Add pre-commit hooks (ruff, mypy)
+- [x] Link Railway to GitHub for automated deploys — GitHub repo at muazamsarfaraz/adil (private)
+- [x] Set up GitHub Actions for lint + test on PR
+- [x] Add pre-commit hooks (ruff lint+format)
 
 ## Feature Backlog — Jurisdiction (FR4)
 
 - [x] System prompt jurisdiction awareness (S7)
-- [ ] Jurisdiction selector UI (clickable buttons at chat start)
-- [ ] Jurisdiction stored in session + prepended to every query
-- [ ] Expand FST corpus: Scotland-specific legislation (Hate Crime Act 2021)
-- [ ] Expand FST corpus: NI-specific orders (FETO 1998)
+- [x] Jurisdiction selector UI (3 clickable buttons at chat start)
+- [x] Jurisdiction stored in session + prepended to every query
+- [x] Expand FST corpus: Scotland-specific legislation (Hate Crime Act 2021)
+- [x] Expand FST corpus: NI-specific orders (FETO 1998, NI Race Relations Order 1997)
 - [ ] Expand FST corpus: Wales-specific PSED regulations
 
 ## Feature Backlog — Triage & Escalation (FR5)
 
 - [x] Tier 2 escalation / Actionable Next Steps (Section 10 in system prompt with full resource directory)
-- [ ] Viability scoring: structured Gemini output -> `ViabilityAssessment` model
-- [ ] Evidence Checklist generator (dynamic, per FR3 — Ilm Threshold)
+- [x] Viability scoring: structured Gemini output -> `ViabilityAssessment` model (score 0-100, Vento band, statutory_footing, case_law_precedent, quantum_potential)
+- [x] Evidence Checklist generator (dynamic, 3-6 tailored items parsed from EVIDENCE_CHECKLIST block)
 - [ ] Decision Tree: viability score -> tier routing
 - [ ] Tier 3: "Request Legal Review" button -> MCB referral (requires MCB infrastructure)
 - [ ] Tier 3: Case summary generation from conversation history
@@ -120,14 +141,15 @@
 See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details.
 
 ### Tier 1 (No Partnership Required)
-- [ ] Incident Summary Generator endpoint (`POST /api/v1/generate-report`) — self-service path
-- [ ] Solicitor Consultation Pack generator — solicitor path (case summary, key dates, legislation, questions)
-- [ ] Add Muslim solicitor directory links to system prompt resource directory
+- [x] Incident Summary Generator endpoint (`POST /api/v1/generate-report`) — self-service path
+- [x] Solicitor Consultation Pack generator — solicitor path (case summary, key dates, legislation, questions)
+- [x] Add Muslim solicitor directory links to system prompt resource directory
 
 ### Tier 2 (No Partnership Required)
-- [ ] Smart Form Guides: Police Scotland hate crime form (step-by-step with pre-filled text)
-- [ ] Smart Form Guides: Tell MAMA report form
-- [ ] Curated Solicitor Directory endpoint (`GET /api/v1/solicitors`) — consented firms only
+- [x] Smart Form Guides: Police Scotland hate crime form (police_scotland_guide report type)
+- [x] Smart Form Guides: Tell MAMA report form (tell_mama_guide report type)
+- [x] Smart Form Guides: Police UK guide (police_uk_guide report type)
+- [x] Curated Solicitor Directory endpoint (`GET /api/v1/solicitors`) — 24 firms, filterable by jurisdiction/specialism/location
 
 ### Tier 3 (Requires Partnerships)
 - [ ] Tell MAMA referral integration (API or structured email)
@@ -163,4 +185,4 @@ See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details.
 - [ ] FST Partition Strategy: Folder A (Statutory), Folder B (Precedent), Folder C (Guidelines), Folder D (Jurisdiction-Specific)
 
 ---
-*Updated: 2026-03-07*
+*Updated: 2026-03-24*
