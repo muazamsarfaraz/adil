@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accessibility Statement | AskAdil</title>
+    <meta name="description" content="AskAdil's commitment to web accessibility and WCAG 2.2 AA compliance.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --green-900: #0D3B1E;
+            --green-800: #14532D;
+            --green-700: #166534;
+            --green-100: #DCFCE7;
+            --green-50: #F0FDF4;
+            --gold-500: #D4A843;
+            --gold-700: #8B6914;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --slate-200: #E2E8F0;
+            --white: #FFFFFF;
+            --font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+            --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            font-size: 1.0625rem;
+            line-height: 1.7;
+            color: var(--slate-800);
+            background: #FAFAF8;
+        }
+
+        a { color: var(--green-700); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        :focus-visible {
+            outline: 3px solid var(--gold-500);
+            outline-offset: 2px;
+        }
+
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 1rem;
+            z-index: 10000;
+            padding: 0.75rem 1.5rem;
+            background: var(--green-900);
+            color: var(--white);
+            font-weight: 600;
+            border-radius: 0 0 8px 8px;
+            transition: top 0.2s;
+        }
+        .skip-link:focus { top: 0; text-decoration: none; }
+
+        .page-header {
+            background: var(--green-900);
+            color: var(--white);
+            padding: 3rem 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding-left: clamp(1.25rem, 4vw, 2rem);
+            padding-right: clamp(1.25rem, 4vw, 2rem);
+        }
+
+        .page-header h1 {
+            font-family: var(--font-display);
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+            margin-bottom: 0.5rem;
+        }
+
+        .page-header p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1.125rem;
+        }
+
+        .content {
+            padding: 3rem 0 5rem;
+        }
+
+        .content h2 {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            color: var(--green-900);
+            margin-top: 2.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .content h2:first-child {
+            margin-top: 0;
+        }
+
+        .content p {
+            margin-bottom: 1rem;
+            color: var(--slate-600);
+        }
+
+        .content ul {
+            margin-bottom: 1rem;
+            padding-left: 1.5rem;
+        }
+
+        .content li {
+            margin-bottom: 0.5rem;
+            color: var(--slate-600);
+        }
+
+        .content strong {
+            color: var(--slate-800);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 2.5rem;
+            font-weight: 600;
+            color: var(--green-700);
+        }
+
+        .updated {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--slate-200);
+            font-size: 0.875rem;
+            color: var(--slate-600);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <header class="page-header" role="banner">
+        <div class="container">
+            <h1>Accessibility Statement</h1>
+            <p>Our commitment to making AskAdil accessible to everyone.</p>
+        </div>
+    </header>
+
+    <main id="main-content" role="main">
+        <div class="container content">
+            <h2>Our Commitment</h2>
+            <p>
+                AskAdil is committed to ensuring digital accessibility for people with disabilities.
+                We continually improve the user experience for everyone and apply the relevant
+                accessibility standards to achieve this.
+            </p>
+            <p>
+                We aim to conform to the <strong>Web Content Accessibility Guidelines (WCAG) 2.2</strong>
+                at <strong>Level AA</strong>. These guidelines explain how to make web content more
+                accessible to people with a wide range of disabilities, including visual, auditory,
+                physical, speech, cognitive, language, learning, and neurological disabilities.
+            </p>
+
+            <h2>Measures Taken</h2>
+            <p>We have taken the following measures to ensure accessibility on the AskAdil landing page:</p>
+            <ul>
+                <li>Sufficient colour contrast ratios (minimum 4.5:1 for normal text, 3:1 for large text) across all text and background combinations</li>
+                <li>Descriptive alternative text on all meaningful images</li>
+                <li>Visible focus indicators on all interactive elements for keyboard navigation</li>
+                <li>ARIA landmark roles and labels on navigation, main content, and footer regions</li>
+                <li>A skip-to-content link as the first focusable element on each page</li>
+                <li>Logical tab order for keyboard-only navigation</li>
+                <li>Semantic HTML elements (header, nav, main, section, footer)</li>
+                <li>Language attributes on foreign-language text (Arabic)</li>
+                <li>Respect for user motion preferences via <code>prefers-reduced-motion</code></li>
+                <li>Responsive design that works across screen sizes and zoom levels up to 200%</li>
+            </ul>
+
+            <h2>Known Limitations</h2>
+            <p>Despite our best efforts, some areas may have limited accessibility:</p>
+            <ul>
+                <li><strong>AI-generated placeholder images:</strong> The current hero and story card images are AI-generated placeholders. While they have descriptive alt text, they will be replaced with genuine editorial photography that better represents the British Muslim community.</li>
+                <li><strong>Third-party content:</strong> External links to legislation.gov.uk, Tell MAMA, ACAS, and other third-party resources are governed by those organisations' own accessibility policies.</li>
+                <li><strong>Mobile navigation:</strong> On small screens, the navigation links are currently hidden. A fully accessible mobile menu is planned for a future update.</li>
+            </ul>
+
+            <h2>Feedback and Contact</h2>
+            <p>
+                We welcome your feedback on the accessibility of the AskAdil website.
+                If you encounter any accessibility barriers or have suggestions for improvement,
+                please contact us:
+            </p>
+            <ul>
+                <li><strong>Email:</strong> <a href="mailto:accessibility@askadil.org">accessibility@askadil.org</a></li>
+                <li><strong>Organisation:</strong> Muslim Council of Britain</li>
+            </ul>
+            <p>We aim to respond to accessibility feedback within 5 working days.</p>
+
+            <h2>Compatibility</h2>
+            <p>
+                AskAdil is designed to be compatible with the following assistive technologies:
+            </p>
+            <ul>
+                <li>Screen readers (NVDA, JAWS, VoiceOver, TalkBack)</li>
+                <li>Screen magnification software</li>
+                <li>Speech recognition software</li>
+                <li>Keyboard-only navigation</li>
+            </ul>
+
+            <h2>Standards</h2>
+            <p>
+                This website aims to conform to
+                <a href="https://www.w3.org/TR/WCAG22/">WCAG 2.2 Level AA</a>.
+                WCAG 2.2 is the current international standard for web accessibility,
+                published by the World Wide Web Consortium (W3C).
+            </p>
+
+            <a href="index.html" class="back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+                Back to AskAdil
+            </a>
+
+            <p class="updated">
+                This accessibility statement was last updated on 24 March 2026.
+            </p>
+        </div>
+    </main>
+</body>
+</html>
