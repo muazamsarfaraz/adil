@@ -309,6 +309,12 @@ class QueryResponse(BaseModel):
         None, description="Suggested follow-up questions for the user to explore."
     )
 
+    # Evidence checklist
+    evidence_checklist: list[str] | None = Field(
+        None,
+        description="Dynamic evidence checklist — items the user should gather to strengthen their case. Only populated when viability assessment is requested.",
+    )
+
 
 class HealthResponse(BaseModel):
     """Health check response from the `/health` endpoint.
@@ -464,6 +470,12 @@ class AnalyzeContentResponse(BaseModel):
     # Suggested follow-up questions
     suggested_questions: list[str] | None = Field(
         None, description="Suggested follow-up questions for the user to explore."
+    )
+
+    # Evidence checklist
+    evidence_checklist: list[str] | None = Field(
+        None,
+        description="Dynamic evidence checklist — items the user should gather to strengthen their case. Only populated when viability assessment is requested.",
     )
 
     # Content extraction specific fields

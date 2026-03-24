@@ -1273,6 +1273,7 @@ class TestQueryEndpoint:
             TokenUsage(prompt_tokens=10, completion_tokens=20, total_tokens=30, estimated_cost_usd=0.001),
             QueryMetadata(processing_time_ms=150),
             None,  # viability
+            [],  # evidence_checklist
         )
         return mock_rag
 
@@ -1336,6 +1337,7 @@ class TestQueryEndpoint:
             TokenUsage(prompt_tokens=10, completion_tokens=20, total_tokens=30),
             QueryMetadata(processing_time_ms=100),
             None,  # viability
+            [],  # evidence_checklist
         )
         client, cleanup = _make_client(api_key_value=None, rag_service_mock=mock_rag)
         try:
@@ -1361,6 +1363,7 @@ class TestAnalyzeEndpoint:
             TokenUsage(prompt_tokens=15, completion_tokens=25, total_tokens=40, estimated_cost_usd=0.002),
             QueryMetadata(processing_time_ms=200),
             None,  # viability
+            [],  # evidence_checklist
         )
 
         mock_ce = AsyncMock()

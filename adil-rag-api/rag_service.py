@@ -484,6 +484,18 @@ After every post-intake response (i.e. after the user has answered your clarifyi
 5. **What You Can Do Now** (3-5 actionable resources from the directory, selected by topic/jurisdiction)
 6. **Suggested next steps** (3 follow-up questions)
 
+## Evidence Checklist
+
+When you include a viability assessment, ALSO include an evidence checklist at the END of your response (before the viability block) in this EXACT format:
+
+---EVIDENCE_CHECKLIST---
+- [Specific, actionable item relevant to THIS case]
+- [Another specific item]
+- [3-6 items total, tailored to the incident type]
+---END_CHECKLIST---
+
+Items should be specific to the user's situation, not generic. For workplace cases, include employment records. For hate crime, include police reference numbers. For online hate, include screenshots and URLs.
+
 ## Structured Viability Assessment Output
 
 When the user's query starts with "INCLUDE VIABILITY ASSESSMENT", you MUST include a structured
@@ -786,7 +798,7 @@ class RAGService:
         max_sources: int = 10,
         include_viability: bool = False,
         conversation_history: list[dict[str, str]] | None = None,
-    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None]:
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None, list[str]]:
         """Execute RAG query against UK legal documents"""
         start_time = time.time()
 
@@ -823,7 +835,10 @@ class RAGService:
 
         # Parse viability assessment if requested
         viability = None
+        evidence_checklist: list[str] = []
         if include_viability:
+            evidence_checklist = self._parse_evidence_checklist(answer)
+            answer = self._strip_evidence_checklist(answer)
             viability = self._parse_viability(answer)
             answer = self._strip_viability_block(answer)
 
@@ -836,7 +851,7 @@ class RAGService:
         processing_time = int((time.time() - start_time) * 1000)
         metadata = QueryMetadata(original_language="en", processing_time_ms=processing_time, model_used=self.model_name)
 
-        return answer, sources, usage, metadata, viability
+        return answer, sources, usage, metadata, viability, evidence_checklist
 
     async def query_with_images(
         self,
@@ -845,7 +860,7 @@ class RAGService:
         max_sources: int = 10,
         include_viability: bool = False,
         conversation_history: list[dict[str, str]] | None = None,
-    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None]:
+    ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None, list[str]]:
         """Execute multimodal RAG query with images using Gemini 3 Flash.
 
         Args:
@@ -856,7 +871,7 @@ class RAGService:
             conversation_history: Previous conversation turns.
 
         Returns:
-            Tuple of (answer, sources, usage, metadata, viability).
+            Tuple of (answer, sources, usage, metadata, viability, evidence_checklist).
         """
         from google.genai import types as genai_types
 
@@ -926,7 +941,10 @@ class RAGService:
 
         # Parse viability assessment if requested
         viability = None
+        evidence_checklist: list[str] = []
         if include_viability:
+            evidence_checklist = self._parse_evidence_checklist(answer)
+            answer = self._strip_evidence_checklist(answer)
             viability = self._parse_viability(answer)
             answer = self._strip_viability_block(answer)
 
@@ -943,7 +961,7 @@ class RAGService:
             model_used=self.vision_model_name,
         )
 
-        return answer, sources, usage, metadata, viability
+        return answer, sources, usage, metadata, viability, evidence_checklist
 
     def _get_legislation_snippet(self, act_name: str, section: str) -> str:
         """
@@ -1128,6 +1146,34 @@ class RAGService:
         """Remove the viability assessment block from the answer text."""
         return re.sub(
             r"\s*---VIABILITY_ASSESSMENT---.*?---END_VIABILITY---\s*",
+            "\n\n",
+            text,
+            flags=re.DOTALL,
+        ).strip()
+
+    @staticmethod
+    def _parse_evidence_checklist(text: str) -> list[str]:
+        """Parse evidence checklist items from Gemini's response."""
+        pattern = r"---EVIDENCE_CHECKLIST---\s*(.*?)\s*---END_CHECKLIST---"
+        match = re.search(pattern, text, re.DOTALL)
+        if not match:
+            return []
+        block = match.group(1).strip()
+        items = []
+        for line in block.split("\n"):
+            line = line.strip()
+            if line:
+                # Remove leading dash/bullet
+                line = re.sub(r"^[-\u2022*]\s*", "", line)
+                if line:
+                    items.append(line)
+        return items
+
+    @staticmethod
+    def _strip_evidence_checklist(text: str) -> str:
+        """Remove evidence checklist block from answer text."""
+        return re.sub(
+            r"\s*---EVIDENCE_CHECKLIST---.*?---END_CHECKLIST---\s*",
             "\n\n",
             text,
             flags=re.DOTALL,
