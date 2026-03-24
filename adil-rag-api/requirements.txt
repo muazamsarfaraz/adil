@@ -1,0 +1,21 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+google-genai>=0.4.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# Security & rate limiting
+slowapi>=0.1.9
+
+# Content extraction dependencies
+httpx>=0.25.0
+beautifulsoup4>=4.12.0
+youtube-transcript-api>=1.2.0
+yt-dlp>=2025.1.0
+
+# Anonymised conversation logging
+asyncpg>=0.29.0
+
+# Email receipts
+sendgrid>=6.10.0
+

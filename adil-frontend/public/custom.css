@@ -1,0 +1,54 @@
+/* AskAdil — Custom action button styling */
+/* Chainlit 2.x renders actions as buttons inside a flex container below messages */
+
+/* Target all action buttons — broad selectors to catch Chainlit's rendered output */
+[data-testid="action-button"],
+button[id^="action-"],
+.inline-action-button,
+/* Chainlit wraps actions in a div with gap — target buttons inside message action containers */
+.message-actions button,
+[class*="action"] button,
+/* Fallback: style all small buttons that appear after message content */
+.step-message-content + div button,
+.prose + div button {
+    border: 2px solid hsl(var(--primary)) !important;
+    border-radius: 8px !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    margin: 4px 4px !important;
+    transition: all 0.2s ease !important;
+}
+
+/* Hover effect for all action buttons */
+[data-testid="action-button"]:hover,
+button[id^="action-"]:hover,
+.inline-action-button:hover,
+.message-actions button:hover,
+[class*="action"] button:hover,
+.step-message-content + div button:hover,
+.prose + div button:hover {
+    background-color: hsl(var(--primary) / 0.1) !important;
+    transform: translateY(-1px) !important;
+}
+
+/* Make the Report to Police button stand out with red styling */
+/* Target by button text content using attribute or last-child */
+[data-testid="action-button"]:last-child,
+button[id^="action-"]:last-child,
+.message-actions button:last-child,
+[class*="action"] button:last-child,
+.step-message-content + div button:last-child,
+.prose + div button:last-child {
+    border-color: #c62828 !important;
+    background-color: rgba(198, 40, 40, 0.06) !important;
+    color: #c62828 !important;
+}
+
+[data-testid="action-button"]:last-child:hover,
+button[id^="action-"]:last-child:hover,
+.message-actions button:last-child:hover,
+[class*="action"] button:last-child:hover,
+.step-message-content + div button:last-child:hover,
+.prose + div button:last-child:hover {
+    background-color: rgba(198, 40, 40, 0.15) !important;
+}

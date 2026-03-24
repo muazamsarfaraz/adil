@@ -1,0 +1,4 @@
+chainlit>=2.9.6
+httpx>=0.25.0
+python-dotenv>=1.0.0
+

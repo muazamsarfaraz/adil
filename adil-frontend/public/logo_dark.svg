@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 60" width="280" height="60">
+  <defs>
+    <linearGradient id="greenGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4CAF50;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#81C784;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Scale icon -->
+  <text x="10" y="42" font-size="28" fill="#4CAF50">&#x2696;&#xFE0F;</text>
+  <!-- Main text: AskAdil -->
+  <text x="46" y="42" font-family="Georgia, serif" font-size="34" font-weight="bold" fill="#4CAF50">AskAdil</text>
+  <!-- Arabic text: عادل -->
+  <text x="192" y="42" font-family="Arial, sans-serif" font-size="26" fill="#81C784" direction="rtl">&#x0639;&#x0627;&#x062F;&#x0644;</text>
+</svg>
+

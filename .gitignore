@@ -1,0 +1,52 @@
+# ===== Environment & Secrets =====
+.env
+.env.local
+.env.production
+
+# ===== Python =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# ===== Virtual Environments =====
+.venv/
+venv/
+env/
+
+# ===== Testing & Linting Caches =====
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ===== Chainlit Runtime =====
+.chainlit/
+.files/
+
+# ===== Railway CLI Artifacts =====
+deploy_api.txt
+link_api.txt
+fe_check.txt
+
+# ===== Large / Regenerable Data =====
+legislation_downloads/
+
+# ===== Node =====
+node_modules/
+
+# ===== IDE & OS =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

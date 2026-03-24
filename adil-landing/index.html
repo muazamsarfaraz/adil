@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AskAdil | Educate First, Litigate Second</title>
+    <meta name="description" content="Free AI-powered UK discrimination law guidance for British Muslims. Understand your rights, report hate crimes, find a solicitor.">
+
+    <!-- Fonts: DM Serif Display (authority) + Source Sans 3 (clarity) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============================================
+           CSS VARIABLES — THE ASKADIL PALETTE
+           ============================================ */
+        :root {
+            /* Greens — from Islamic tradition */
+            --green-900: #0D3B1E;
+            --green-800: #14532D;
+            --green-700: #166534;
+            --green-600: #16A34A;
+            --green-500: #22C55E;
+            --green-100: #DCFCE7;
+            --green-50: #F0FDF4;
+
+            /* Gold — accent, trust, premium */
+            --gold-600: #B8860B;
+            --gold-500: #D4A843;
+            --gold-400: #E5C76B;
+            --gold-100: #FEF9E7;
+
+            /* Neutrals */
+            --slate-900: #0F172A;
+            --slate-800: #1E293B;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748B;
+            --slate-400: #94A3B8;
+            --slate-300: #CBD5E1;
+            --slate-200: #E2E8F0;
+            --slate-100: #F1F5F9;
+            --slate-50: #F8FAFC;
+            --white: #FFFFFF;
+
+            /* Typography */
+            --font-display: 'DM Serif Display', Georgia, 'Times New Roman', serif;
+            --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+            --font-arabic: 'Noto Naskh Arabic', serif;
+
+            /* Spacing */
+            --section-pad: clamp(4rem, 8vw, 8rem);
+            --container-max: 1200px;
+            --container-pad: clamp(1.25rem, 4vw, 2rem);
+        }
+
+        /* ============================================
+           RESET & BASE
+           ============================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html {
+            scroll-behavior: smooth;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-body);
+            font-size: 1.0625rem;
+            line-height: 1.7;
+            color: var(--slate-800);
+            background: #FAFAF8;
+            overflow-x: hidden;
+        }
+
+        img { max-width: 100%; height: auto; display: block; }
+        a { color: var(--green-700); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Skip to content — accessibility */
+        .skip-link {
+            position: absolute;
+            top: -100%;
+            left: 1rem;
+            z-index: 10000;
+            padding: 0.75rem 1.5rem;
+            background: var(--green-900);
+            color: var(--white);
+            font-weight: 600;
+            border-radius: 0 0 8px 8px;
+            transition: top 0.2s;
+        }
+        .skip-link:focus {
+            top: 0;
+            text-decoration: none;
+        }
+
+
+        .container {
+            max-width: var(--container-max);
+            margin: 0 auto;
+            padding-left: var(--container-pad);
+            padding-right: var(--container-pad);
+        }
+
+        /* ============================================
+           ANIMATIONS
+           ============================================ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideInLeft {
+            from { opacity: 0; transform: translateX(-40px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ============================================
+           HEADER / NAV
+           ============================================ */
+        .site-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.06);
+            transition: box-shadow 0.3s ease;
+        }
+
+        .site-header.scrolled {
+            box-shadow: 0 1px 12px rgba(0,0,0,0.08);
+        }
+
+        .nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 72px;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-display);
+            font-size: 1.35rem;
+            color: var(--green-800);
+            text-decoration: none;
+        }
+
+        .nav-logo svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .nav-logo .arabic-name {
+            font-family: var(--font-arabic);
+            font-size: 1.1rem;
+            color: var(--gold-600);
+            margin-left: 0.25rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--slate-700);
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover { color: var(--green-700); text-decoration: none; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1.75rem;
+            border-radius: 8px;
+            font-family: var(--font-body);
+            font-size: 0.9375rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--green-800);
+            color: var(--white) !important;
+        }
+
+        .btn-primary:hover {
+            background: var(--green-700);
+            color: var(--white) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(22, 101, 52, 0.3);
+            text-decoration: none;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--green-800);
+            border: 2px solid var(--green-800);
+        }
+
+        .btn-outline:hover {
+            background: var(--green-50);
+            text-decoration: none;
+        }
+
+        .btn-large {
+            padding: 1rem 2.25rem;
+            font-size: 1.0625rem;
+            border-radius: 10px;
+        }
+
+        /* ============================================
+           HERO
+           ============================================ */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding-top: 72px;
+            overflow: hidden;
+        }
+
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .hero-bg img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center 30%;
+        }
+
+        .hero-bg::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                135deg,
+                rgba(13, 59, 30, 0.88) 0%,
+                rgba(13, 59, 30, 0.72) 40%,
+                rgba(13, 59, 30, 0.45) 100%
+            );
+        }
+
+        /* Subtle geometric Islamic pattern overlay */
+        .hero-bg::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 680px;
+            animation: fadeInUp 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 100px;
+            padding: 0.4rem 1rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--gold-400);
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 1.5rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--gold-400);
+            border-radius: 50%;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .hero h1 {
+            font-family: var(--font-display);
+            font-size: clamp(2.5rem, 5.5vw, 4rem);
+            line-height: 1.1;
+            color: var(--white);
+            margin-bottom: 1.25rem;
+            letter-spacing: -0.01em;
+        }
+
+        .hero h1 em {
+            font-style: italic;
+            color: var(--gold-400);
+        }
+
+        .hero-sub {
+            font-size: clamp(1.125rem, 2vw, 1.3125rem);
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 2.5rem;
+            max-width: 540px;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 3rem;
+        }
+
+        .btn-hero {
+            background: var(--white);
+            color: var(--green-900);
+        }
+
+        .btn-hero:hover {
+            background: var(--green-100);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            text-decoration: none;
+        }
+
+        .btn-hero-outline {
+            background: transparent;
+            color: var(--white);
+            border: 2px solid rgba(255,255,255,0.5);
+        }
+
+        .btn-hero-outline:hover {
+            border-color: var(--white);
+            background: rgba(255,255,255,0.08);
+            text-decoration: none;
+        }
+
+        .hero-trust {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.875rem;
+        }
+
+        .hero-trust svg {
+            flex-shrink: 0;
+        }
+
+        /* ============================================
+           SOCIAL PROOF BAR
+           ============================================ */
+        .proof-bar {
+            background: var(--slate-50);
+            border-top: 1px solid var(--slate-200);
+            border-bottom: 1px solid var(--slate-200);
+            padding: 2rem 0;
+        }
+
+        .proof-bar .container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 2rem 3rem;
+        }
+
+        .proof-label {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: var(--slate-500);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .proof-stats {
+            display: flex;
+            gap: 3rem;
+        }
+
+        .proof-stat {
+            text-align: center;
+        }
+
+        .proof-stat-number {
+            font-family: var(--font-display);
+            font-size: 1.75rem;
+            color: var(--green-800);
+        }
+
+        .proof-stat-label {
+            font-size: 0.8125rem;
+            color: var(--slate-500);
+            font-weight: 500;
+        }
+
+        /* ============================================
+           STORY SECTION — "PEOPLE LIKE YOU"
+           ============================================ */
+        .stories {
+            padding: var(--section-pad) 0;
+            background: var(--white);
+        }
+
+        .section-eyebrow {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--green-700);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 0.75rem;
+        }
+
+        .section-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.75rem, 3.5vw, 2.5rem);
+            color: var(--slate-900);
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .section-desc {
+            font-size: 1.125rem;
+            color: var(--slate-600);
+            max-width: 600px;
+            margin-bottom: 3rem;
+        }
+
+        .story-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+
+        .story-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .story-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+            border-color: var(--green-500);
+        }
+
+        .story-card-img {
+            height: 200px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .story-card-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .story-card:hover .story-card-img img {
+            transform: scale(1.04);
+        }
+
+        .story-tag {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: var(--green-800);
+            color: var(--white);
+            font-size: 0.6875rem;
+            font-weight: 700;
+            padding: 0.25rem 0.75rem;
+            border-radius: 100px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .story-card-body {
+            padding: 1.5rem;
+        }
+
+        .story-quote {
+            font-family: var(--font-display);
+            font-size: 1.125rem;
+            font-style: italic;
+            color: var(--slate-800);
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+
+        .story-quote::before { content: '\201C'; }
+        .story-quote::after { content: '\201D'; }
+
+        .story-outcome {
+            font-size: 0.875rem;
+            color: var(--green-700);
+            font-weight: 600;
+        }
+
+        .story-person {
+            font-size: 0.8125rem;
+            color: var(--slate-500);
+            margin-top: 0.75rem;
+        }
+
+        /* ============================================
+           HOW IT WORKS
+           ============================================ */
+        .how-it-works {
+            padding: var(--section-pad) 0;
+            background: var(--green-900);
+            color: var(--white);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .how-it-works::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .how-it-works .section-eyebrow { color: var(--gold-400); }
+        .how-it-works .section-title { color: var(--white); }
+        .how-it-works .section-desc { color: rgba(255,255,255,0.7); }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step {
+            text-align: center;
+            padding: 2.5rem 2rem;
+        }
+
+        .step-number {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            border: 2px solid var(--gold-500);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--gold-400);
+            margin: 0 auto 1.25rem;
+        }
+
+        .step h3 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .step p {
+            font-size: 0.9375rem;
+            color: rgba(255,255,255,0.7);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           FEATURES
+           ============================================ */
+        .features {
+            padding: var(--section-pad) 0;
+            background: var(--slate-50);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: var(--white);
+            border: 1px solid var(--slate-200);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: var(--green-500);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--green-100);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.25rem;
+            color: var(--green-800);
+        }
+
+        .feature-card h3 {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--slate-900);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-card p {
+            font-size: 0.9375rem;
+            color: var(--slate-600);
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           TWO PATHS SECTION
+           ============================================ */
+        .paths {
+            padding: var(--section-pad) 0;
+            background: var(--white);
+        }
+
+        .paths-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .path-card {
+            border-radius: 20px;
+            padding: 2.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .path-self {
+            background: var(--green-50);
+            border: 2px solid var(--green-100);
+        }
+
+        .path-solicitor {
+            background: var(--gold-100);
+            border: 2px solid rgba(184, 134, 11, 0.15);
+        }
+
+        .path-card h3 {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--slate-900);
+        }
+
+        .path-card p {
+            color: var(--slate-600);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .path-list {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+
+        .path-list li {
+            padding: 0.4rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            font-size: 0.9375rem;
+            color: var(--slate-700);
+        }
+
+        .path-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.7rem;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .path-self .path-list li::before {
+            background: var(--green-600);
+        }
+
+        .path-solicitor .path-list li::before {
+            background: var(--gold-600);
+        }
+
+        /* ============================================
+           ORGANISATIONS
+           ============================================ */
+        .orgs {
+            padding: var(--section-pad) 0;
+            background: var(--slate-50);
+            text-align: center;
+        }
+
+        .orgs-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 2.5rem 3.5rem;
+            margin-top: 2rem;
+            opacity: 0.5;
+            filter: grayscale(1);
+            transition: all 0.5s;
+        }
+
+        .orgs-grid:hover {
+            opacity: 0.8;
+            filter: grayscale(0.3);
+        }
+
+        .org-name {
+            font-family: var(--font-display);
+            font-size: 1.25rem;
+            color: var(--slate-700);
+        }
+
+        /* ============================================
+           CTA SECTION
+           ============================================ */
+        .cta {
+            padding: var(--section-pad) 0;
+            background: var(--green-900);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta h2 {
+            font-family: var(--font-display);
+            font-size: clamp(2rem, 4vw, 3rem);
+            color: var(--white);
+            margin-bottom: 1rem;
+        }
+
+        .cta h2 em {
+            color: var(--gold-400);
+            font-style: italic;
+        }
+
+        .cta p {
+            font-size: 1.125rem;
+            color: rgba(255,255,255,0.7);
+            max-width: 540px;
+            margin: 0 auto 2.5rem;
+        }
+
+        .btn-cta {
+            background: var(--white);
+            color: var(--green-900);
+            font-size: 1.125rem;
+            padding: 1.125rem 2.5rem;
+        }
+
+        .btn-cta:hover {
+            background: var(--green-100);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            text-decoration: none;
+        }
+
+        .cta-disclaimer {
+            margin-top: 2rem;
+            font-size: 0.8125rem;
+            color: rgba(255,255,255,0.4);
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
+            background: var(--slate-900);
+            color: var(--slate-400);
+            padding: 3rem 0 2rem;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-brand p {
+            font-size: 0.875rem;
+            line-height: 1.6;
+            margin-top: 1rem;
+            max-width: 300px;
+        }
+
+        .footer-col h4 {
+            font-family: var(--font-display);
+            font-size: 1rem;
+            color: var(--white);
+            margin-bottom: 1rem;
+        }
+
+        .footer-col ul {
+            list-style: none;
+        }
+
+        .footer-col li {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-col a {
+            color: var(--slate-400);
+            font-size: 0.875rem;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover { color: var(--white); }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8125rem;
+        }
+
+        .footer-legal {
+            max-width: 600px;
+            line-height: 1.6;
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+
+            .story-grid,
+            .steps,
+            .features-grid,
+            .paths-grid,
+            .footer-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-content { padding: 2rem 0; }
+
+            .proof-stats { gap: 1.5rem; }
+
+            .hero-trust { flex-wrap: wrap; }
+        }
+
+        @media (max-width: 480px) {
+            .hero-actions { flex-direction: column; }
+            .hero-actions .btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Accessibility: skip to main content -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
+    <!-- ===================== HEADER ===================== -->
+    <header class="site-header" id="header">
+        <nav class="nav container">
+            <a href="/" class="nav-logo">
+                <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="18" cy="18" r="17" stroke="currentColor" stroke-width="2"/>
+                    <path d="M12 24V14l6-4 6 4v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M18 10v14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M12 18h12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+                AskAdil <span class="arabic-name">(&#1593;&#1575;&#1583;&#1604;)</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#paths">Your Options</a></li>
+                <li><a href="https://askadil.org" class="btn btn-primary">Start a Conversation</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- ===================== HERO ===================== -->
+    <main id="main-content">
+    <section class="hero">
+        <div class="hero-bg">
+            <!-- In production: replace with real editorial photography -->
+            <img src="images/hero-concept-2-community.jpeg" alt="British Muslim community members collaborating on legal rights at an East London Community Centre" loading="eager">
+        </div>
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-badge">A Muslim Council of Britain Initiative</div>
+                <h1>Educate First,<br><em>Litigate Second.</em></h1>
+                <p class="hero-sub">
+                    Free AI-powered guidance on UK discrimination law.
+                    Understand your rights, report hate crimes, and find a
+                    Muslim solicitor &mdash; all in one conversation.
+                </p>
+                <div class="hero-actions">
+                    <a href="https://askadil.org" class="btn btn-large btn-hero">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        Start a Conversation
+                    </a>
+                    <a href="#how-it-works" class="btn btn-large btn-hero-outline">
+                        Learn How It Works
+                    </a>
+                </div>
+                <div class="hero-trust">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Free &amp; confidential &middot; No account needed &middot; Grounded in UK legislation &middot; Not legal advice
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== PROOF BAR ===================== -->
+    <div class="proof-bar">
+        <div class="container">
+            <span class="proof-label">Covering</span>
+            <div class="proof-stats">
+                <div class="proof-stat">
+                    <div class="proof-stat-number">7</div>
+                    <div class="proof-stat-label">UK Acts of Parliament</div>
+                </div>
+                <div class="proof-stat">
+                    <div class="proof-stat-number">9</div>
+                    <div class="proof-stat-label">Landmark Cases</div>
+                </div>
+                <div class="proof-stat">
+                    <div class="proof-stat-number">18</div>
+                    <div class="proof-stat-label">Support Organisations</div>
+                </div>
+                <div class="proof-stat">
+                    <div class="proof-stat-number">4</div>
+                    <div class="proof-stat-label">UK Jurisdictions</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===================== STORIES ===================== -->
+    <section class="stories" id="stories">
+        <div class="container">
+            <div class="reveal">
+                <div class="section-eyebrow">People Like You</div>
+                <h2 class="section-title">Your rights are real. We help you understand them.</h2>
+                <p class="section-desc">
+                    Every day, British Muslims face discrimination at work, online, and in public services.
+                    AskAdil helps you understand exactly where you stand &mdash; and what to do next.
+                </p>
+            </div>
+            <div class="story-grid">
+                <div class="story-card reveal" style="transition-delay: 0.1s">
+                    <div class="story-card-img">
+                        <img src="images/hero-concept-1-workplace.jpeg" alt="Muslim woman in workplace">
+                        <span class="story-tag">Workplace</span>
+                    </div>
+                    <div class="story-card-body">
+                        <p class="story-quote">My employer said I couldn't wear my hijab. AskAdil showed me Section 13 of the Equality Act and helped me draft a grievance letter.</p>
+                        <p class="story-outcome">Outcome: Policy changed within 2 weeks</p>
+                        <p class="story-person">Scenario based on Eweida v UK &middot; Workplace, London</p>
+                    </div>
+                </div>
+                <div class="story-card reveal" style="transition-delay: 0.2s">
+                    <div class="story-card-img">
+                        <img src="images/hero-concept-3-phone.jpeg" alt="Muslim man checking phone">
+                        <span class="story-tag">Online Hate</span>
+                    </div>
+                    <div class="story-card-body">
+                        <p class="story-quote">Someone posted hateful content about Muslims. AskAdil analysed the video and walked me through reporting it to Tell MAMA.</p>
+                        <p class="story-outcome">Outcome: Content removed, incident recorded</p>
+                        <p class="story-person">Scenario based on Public Order Act 1986 s.29B &middot; Online, Manchester</p>
+                    </div>
+                </div>
+                <div class="story-card reveal" style="transition-delay: 0.3s">
+                    <div class="story-card-img">
+                        <img src="images/hero-concept-2-community.jpeg" alt="Community members at a meeting">
+                        <span class="story-tag">Finding Help</span>
+                    </div>
+                    <div class="story-card-body">
+                        <p class="story-quote">I didn't know where to start. AskAdil explained my options, generated a case summary, and helped me find a Muslim solicitor nearby.</p>
+                        <p class="story-outcome">Outcome: Free initial consultation booked</p>
+                        <p class="story-person">Scenario based on employment tribunal claims &middot; Birmingham</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== HOW IT WORKS ===================== -->
+    <section class="how-it-works" id="how-it-works">
+        <div class="container">
+            <div class="reveal" style="text-align: center">
+                <div class="section-eyebrow">How It Works</div>
+                <h2 class="section-title">Three steps to understanding your rights</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    No sign-up required. Just start typing. AskAdil asks the right questions,
+                    searches UK legislation, and gives you a clear action plan.
+                </p>
+            </div>
+            <div class="steps">
+                <div class="step reveal" style="transition-delay: 0.1s">
+                    <div class="step-number">1</div>
+                    <h3>Tell us what happened</h3>
+                    <p>Describe your situation in your own words. AskAdil asks clarifying questions about jurisdiction, timeline, and context.</p>
+                </div>
+                <div class="step reveal" style="transition-delay: 0.2s">
+                    <div class="step-number">2</div>
+                    <h3>Get legal education</h3>
+                    <p>Receive a clear explanation of your rights under UK law, with specific section citations, case law references, and direct links to legislation.</p>
+                </div>
+                <div class="step reveal" style="transition-delay: 0.3s">
+                    <div class="step-number">3</div>
+                    <h3>Take action</h3>
+                    <p>Get actionable next steps: report to the right organisation, generate an incident summary, or find a Muslim solicitor for professional help.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FEATURES ===================== -->
+    <section class="features" id="features">
+        <div class="container">
+            <div class="reveal" style="text-align: center; margin-bottom: 3rem;">
+                <div class="section-eyebrow">What AskAdil Can Do</div>
+                <h2 class="section-title">Built for the British Muslim experience</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card reveal" style="transition-delay: 0.1s">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    </div>
+                    <h3>Legal Education</h3>
+                    <p>Clear explanations of the Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, and more &mdash; with links to the actual legislation on legislation.gov.uk.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 0.15s">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+                    </div>
+                    <h3>Content Analysis</h3>
+                    <p>Paste a YouTube, Facebook, Twitter/X, Instagram, or news article link. AskAdil extracts the content and analyses it for potential legal issues.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 0.2s">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/></svg>
+                    </div>
+                    <h3>Actionable Next Steps</h3>
+                    <p>Every response includes 3&ndash;5 relevant organisations &mdash; Tell MAMA, ACAS, Citizens Advice, Police Scotland, and more &mdash; selected for your situation and jurisdiction.</p>
+                </div>
+                <div class="feature-card reveal" style="transition-delay: 0.25s">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </div>
+                    <h3>Find a Solicitor</h3>
+                    <p>For complex cases, AskAdil generates a consultation pack and helps you find a Muslim solicitor who understands both UK law and your community context.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== TWO PATHS ===================== -->
+    <section class="paths" id="paths">
+        <div class="container">
+            <div class="reveal" style="text-align: center; margin-bottom: 3rem;">
+                <div class="section-eyebrow">Your Options</div>
+                <h2 class="section-title">Two paths, one conversation</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    AskAdil helps you understand which path is right for your situation.
+                </p>
+            </div>
+            <div class="paths-grid">
+                <div class="path-card path-self reveal" style="transition-delay: 0.1s">
+                    <h3>Report It Yourself</h3>
+                    <p>For hate crimes, online abuse, and Islamophobic incidents you can report directly to the right organisation.</p>
+                    <ul class="path-list">
+                        <li>AskAdil generates an incident report summary</li>
+                        <li>Step-by-step guide for each organisation's form</li>
+                        <li>Tell MAMA, IRU, Police Scotland, True Vision</li>
+                        <li>No solicitor needed</li>
+                    </ul>
+                    <a href="https://askadil.org" class="btn btn-primary">Report an Incident</a>
+                </div>
+                <div class="path-card path-solicitor reveal" style="transition-delay: 0.2s">
+                    <h3>Get Legal Representation</h3>
+                    <p>For workplace discrimination, compensation claims, and complex cases that need professional legal help.</p>
+                    <ul class="path-list">
+                        <li>AskAdil generates a solicitor consultation pack</li>
+                        <li>Case summary, key dates, relevant legislation</li>
+                        <li>Explains the ACAS &rarr; ET1 process</li>
+                        <li>Helps find a Muslim discrimination solicitor</li>
+                    </ul>
+                    <a href="https://askadil.org" class="btn btn-outline" style="border-color: var(--gold-600); color: var(--gold-600);">Find a Solicitor</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== ORGANISATIONS ===================== -->
+    <section class="orgs">
+        <div class="container">
+            <div class="reveal">
+                <div class="section-eyebrow">Organisations We Connect You With</div>
+                <h2 class="section-title">Trusted by the organisations that matter</h2>
+            </div>
+            <div class="orgs-grid reveal">
+                <span class="org-name">Tell MAMA</span>
+                <span class="org-name">Citizens Advice</span>
+                <span class="org-name">ACAS</span>
+                <span class="org-name">The Law Society</span>
+                <span class="org-name">EASS</span>
+                <span class="org-name">IRU</span>
+                <span class="org-name">Stop Hate UK</span>
+                <span class="org-name">Police Scotland</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== CTA ===================== -->
+    <section class="cta">
+        <div class="container">
+            <div class="cta-content reveal">
+                <h2>Know your rights.<br>Take <em>action.</em></h2>
+                <p>Start a free, confidential conversation about UK discrimination law.
+                   No account needed. No judgement. Just answers grounded in legislation.</p>
+                <a href="https://askadil.org" class="btn btn-large btn-cta">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Start a Conversation
+                </a>
+                <p class="cta-disclaimer">
+                    AskAdil is an educational tool, not a law firm. It does not provide legal advice.
+                    Always consult a qualified solicitor before taking legal action.
+                </p>
+            </div>
+        </div>
+    </section>
+    </main>
+
+    <!-- ===================== FOOTER ===================== -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-brand">
+                    <a href="/" class="nav-logo" style="color: white;">
+                        AskAdil <span class="arabic-name">(&#1593;&#1575;&#1583;&#1604;)</span>
+                    </a>
+                    <p>A Muslim Council of Britain initiative. Educate First, Litigate Second. Free AI-powered UK discrimination law guidance for British Muslims.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>Legal Topics</h4>
+                    <ul>
+                        <li><a href="https://askadil.org">Workplace Discrimination</a></li>
+                        <li><a href="https://askadil.org">Online Hate Speech</a></li>
+                        <li><a href="https://askadil.org">Service Discrimination</a></li>
+                        <li><a href="https://askadil.org">Hate Crime Reporting</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Resources</h4>
+                    <ul>
+                        <li><a href="https://www.legislation.gov.uk/ukpga/2010/15/contents">Equality Act 2010</a></li>
+                        <li><a href="https://solicitors.lawsociety.org.uk/">Find a Solicitor</a></li>
+                        <li><a href="https://tellmamauk.org/">Tell MAMA</a></li>
+                        <li><a href="https://www.acas.org.uk/">ACAS</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>Emergency</h4>
+                    <ul>
+                        <li><strong style="color: white;">999</strong> &mdash; Immediate danger</li>
+                        <li><strong style="color: white;">101</strong> &mdash; Non-emergency police</li>
+                        <li><a href="https://stophateuk.org/">Stop Hate UK</a><br>0800 138 1625 (24/7)</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p class="footer-legal">
+                    AskAdil is an educational tool, not a law firm. Nothing on this platform constitutes legal advice.
+                    Always consult a <a href="https://solicitors.lawsociety.org.uk/" style="color: var(--gold-400);">qualified solicitor</a> before taking action.
+                    &copy; Muslim Council of Britain.
+                </p>
+                <a href="https://askadil.org" style="color: var(--gold-400); font-weight: 600;">askadil.org</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===================== SCROLL REVEAL ===================== -->
+    <script>
+        // Header scroll effect
+        const header = document.getElementById('header');
+        window.addEventListener('scroll', () => {
+            header.classList.toggle('scrolled', window.scrollY > 20);
+        });
+
+        // Intersection Observer for scroll reveals
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -60px 0px'
+        });
+
+        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>

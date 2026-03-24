@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- Background circle -->
+  <circle cx="16" cy="16" r="15" fill="#1B5E20"/>
+  <!-- Scale of justice icon -->
+  <text x="16" y="23" font-size="18" fill="white" text-anchor="middle">&#x2696;</text>
+</svg>
+

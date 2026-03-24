@@ -1,0 +1,16 @@
+# Project Adil - Frontend Service (Chainlit UI)
+# Railway deployment configuration
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables are set in Railway dashboard:
+# - RAG_API_URL (e.g., https://adil-rag-api.up.railway.app)
+

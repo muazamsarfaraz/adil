@@ -1,0 +1,10 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+browser-use>=0.2.0
+playwright>=1.40.0
+langchain-google-genai>=2.0.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+httpx>=0.25.0
+Pillow>=10.0.0
+sendgrid>=6.10.0

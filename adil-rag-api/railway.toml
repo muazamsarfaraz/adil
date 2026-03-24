@@ -1,0 +1,20 @@
+# Project Adil - RAG API Service
+# Railway deployment configuration
+
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+# Environment variables are set in Railway dashboard:
+# - GEMINI_API_KEY (secret)
+# - FILE_SEARCH_STORE_ID
+# - GEMINI_MODEL (optional, defaults to gemini-2.5-flash)
+# - GEMINI_MODEL_VISION (optional, defaults to gemini-3-flash-preview)
+# - MAX_IMAGE_SIZE_MB (optional, defaults to 10)
+
