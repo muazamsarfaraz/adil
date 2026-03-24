@@ -40,6 +40,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
+from geolocation import detect_jurisdiction_from_ip, extract_client_ip
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -461,6 +462,28 @@ async def health_check(request: Request):
     return HealthResponse(
         status="healthy" if rag_service else "degraded", version=API_VERSION, gemini_connected=rag_service is not None
     )
+
+
+@app.get("/api/v1/detect-jurisdiction", tags=["Public"])
+@limiter.limit("30/minute")
+async def detect_jurisdiction(request: Request):
+    """Auto-detect user's UK jurisdiction from IP address.
+
+    Uses IP geolocation to suggest England & Wales, Scotland, or Northern Ireland.
+    No authentication required. Returns null if detection fails or user is outside UK.
+    """
+    client_ip = extract_client_ip(dict(request.headers)) or request.client.host
+    jurisdiction = await detect_jurisdiction_from_ip(client_ip)
+    return {
+        "jurisdiction": jurisdiction,
+        "source": "ip_geolocation",
+        "confidence": "approximate",
+        "message": (
+            f"Based on your location, you appear to be in {jurisdiction}."
+            if jurisdiction
+            else "Could not detect your location. Please select your jurisdiction."
+        ),
+    }
 
 
 # =============================================================================

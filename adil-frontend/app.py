@@ -39,40 +39,94 @@ MAX_IMAGE_SIZE_MB = int(os.environ.get("MAX_IMAGE_SIZE_MB", "10"))
 
 @cl.on_chat_start
 async def start_chat():
-    """Initialize chat session with conversation history and jurisdiction selection"""
+    """Initialize chat session with auto-detected jurisdiction."""
     cl.user_session.set("message_count", 0)
     cl.user_session.set("viability_requested", False)
     cl.user_session.set("conversation_history", [])
     cl.user_session.set("jurisdiction", None)
 
-    # Send welcome message with jurisdiction selector
-    actions = [
-        cl.Action(
-            name="select_jurisdiction",
-            payload={"jurisdiction": "England & Wales"},
-            label="🏴󠁧󠁢󠁥󠁮󠁧󠁿 England & Wales",
-        ),
-        cl.Action(
-            name="select_jurisdiction",
-            payload={"jurisdiction": "Scotland"},
-            label="🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
-        ),
-        cl.Action(
-            name="select_jurisdiction",
-            payload={"jurisdiction": "Northern Ireland"},
-            label="🇬🇧 Northern Ireland",
-        ),
-    ]
+    # Try to auto-detect jurisdiction from IP
+    detected = None
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{RAG_API_URL}/api/v1/detect-jurisdiction")
+            if resp.status_code == 200:
+                data = resp.json()
+                detected = data.get("jurisdiction")
+    except Exception:
+        pass  # Silently fall back to manual selection
 
-    await cl.Message(
-        content=(
-            "⚖️ **Welcome to AskAdil (عادل)**\n\n"
-            "I'm a free legal education assistant specialising in **UK discrimination law**, "
-            "particularly cases affecting British Muslims.\n\n"
-            "🇬🇧 **Please select your jurisdiction to get started:**"
-        ),
-        actions=actions,
-    ).send()
+    if detected:
+        # Show confirmation with detected jurisdiction highlighted
+        actions = [
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": detected},
+                label=f"✅ Yes, {detected}",
+            ),
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "England & Wales"},
+                label="🏴󠁧󠁢󠁥󠁮󠁧󠁿 England & Wales",
+            ),
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "Scotland"},
+                label="🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
+            ),
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "Northern Ireland"},
+                label="🇬🇧 Northern Ireland",
+            ),
+        ]
+        # Remove duplicate if detected matches one of the defaults
+        seen = set()
+        unique_actions = []
+        for a in actions:
+            jur = a.payload["jurisdiction"]
+            if jur not in seen:
+                seen.add(jur)
+                unique_actions.append(a)
+
+        await cl.Message(
+            content=(
+                "⚖️ **Welcome to AskAdil (عادل)**\n\n"
+                "I'm a free legal education assistant specialising in **UK discrimination law**, "
+                "particularly cases affecting British Muslims.\n\n"
+                f"📍 It looks like you're in **{detected}** — is that right?\n"
+            ),
+            actions=unique_actions,
+        ).send()
+    else:
+        # Fallback: manual jurisdiction selector (original behavior)
+        actions = [
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "England & Wales"},
+                label="🏴󠁧󠁢󠁥󠁮󠁧󠁿 England & Wales",
+            ),
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "Scotland"},
+                label="🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland",
+            ),
+            cl.Action(
+                name="select_jurisdiction",
+                payload={"jurisdiction": "Northern Ireland"},
+                label="🇬🇧 Northern Ireland",
+            ),
+        ]
+
+        await cl.Message(
+            content=(
+                "⚖️ **Welcome to AskAdil (عادل)**\n\n"
+                "I'm a free legal education assistant specialising in **UK discrimination law**, "
+                "particularly cases affecting British Muslims.\n\n"
+                "🇬🇧 **Please select your jurisdiction to get started:**"
+            ),
+            actions=actions,
+        ).send()
 
 
 @cl.action_callback("select_jurisdiction")
