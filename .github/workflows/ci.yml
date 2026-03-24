@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install ruff
+        run: pip install ruff>=0.8.0
+      - name: Ruff check
+        run: ruff check adil-rag-api/ adil-report-bridge/ adil-frontend/
+      - name: Ruff format check
+        run: ruff format --check adil-rag-api/ adil-report-bridge/ adil-frontend/
+
+  test-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          cd adil-rag-api
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: |
+          cd adil-rag-api
+          python -m pytest test_backend.py tests/ -v --tb=short
+        env:
+          ADIL_API_KEY: test-ci-key
+          GEMINI_API_KEY: ""
+
+  test-bridge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          cd adil-report-bridge
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx
+      - name: Run tests
+        run: |
+          cd adil-report-bridge
+          python -m pytest tests/ -v --tb=short
+        env:
+          BRIDGE_API_KEY: test-ci-key
