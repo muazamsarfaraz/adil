@@ -132,13 +132,21 @@
 | 2026-03-24 | Landing page WCAG 2.2 AA | 21 a11y fixes applied + accessibility statement published |
 | 2026-03-24 | Pre-commit hooks | ruff lint+format runs automatically before every commit |
 
-**Test counts after sprint:** adil-rag-api 214+, adil-report-bridge 22, adil-frontend 4 Playwright E2E = **240+ total**
+### 2026-03-25 — IP-based Jurisdiction Auto-Detection & Deploy Fix
+
+| Date | Task | Notes |
+|------|------|-------|
+| 2026-03-25 | IP-based jurisdiction auto-detection | New `geolocation.py` module in adil-rag-api. Uses ip-api.com to map IP to UK jurisdiction. New `GET /api/v1/detect-jurisdiction` public endpoint (no auth). |
+| 2026-03-25 | Frontend auto-detect UX | Frontend calls detect-jurisdiction on chat start, shows "It looks like you're in X — is that right?" with confirm/change buttons. Seamless fallback to manual selector. |
+| 2026-03-25 | Railway deploy fix | `startCommand` added to `adil-report-bridge/railway.toml`. CRITICAL: NEVER set `RAILWAY_DOCKERFILE_PATH` env var — it breaks Railway's auto-detection of Dockerfile. |
+
+**Test counts after sprint:** adil-rag-api 225+, adil-report-bridge 22, adil-frontend 4 Playwright E2E = **250+ total**
 
 ## In Progress
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Deploy 2026-03-24 sprint to Railway | 📋 Pending | Push all changes to production |
+| Deploy 2026-03-25 sprint to Railway | 📋 Pending | Push all changes to production |
 | Landing page custom domain | 📋 Pending | Assign `landing.askadil.org` or swap as main domain via Cloudflare |
 | Replace placeholder images | 📋 Pending | Commission real editorial photography from British Muslim photographer |
 | Solicitor firm outreach | 📋 Awaiting MCB | 24 firms identified, template email ready. MCB to lead outreach. |
@@ -161,4 +169,4 @@
 | Language Support | Low | Urdu, Arabic, Bengali LLM prompts |
 
 ---
-*Updated: 2026-03-24*
+*Updated: 2026-03-25*

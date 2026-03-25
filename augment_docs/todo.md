@@ -1,6 +1,6 @@
 # Todo — Project Ad'l (Active Checklist)
 
-## Current Sprint: Major Feature Sprint (2026-03-24)
+## Current Sprint: Major Feature Sprint (2026-03-25)
 
 ### Completed (2026-02-19 sprint)
 - [x] Multi-turn conversation memory — backend (`models.py`, `rag_service.py`, `app.py`)
@@ -52,6 +52,11 @@
 - [x] FST Corpus expansion — Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997, Scottish case law
 - [x] Landing page WCAG 2.2 AA — 21 a11y fixes + accessibility statement
 - [x] Pre-commit hooks — ruff lint+format
+
+### Completed (2026-03-25 sprint)
+- [x] IP-based jurisdiction auto-detection — `geolocation.py` module + `GET /api/v1/detect-jurisdiction` public endpoint
+- [x] Frontend auto-detect: "It looks like you're in X — is that right?" with confirm/change buttons
+- [x] Railway deploy fix — `startCommand` added to adil-report-bridge/railway.toml
 
 ### Remaining
 - [ ] Deploy backend + frontend changes to Railway + verify
@@ -122,6 +127,8 @@
 - [x] System prompt jurisdiction awareness (S7)
 - [x] Jurisdiction selector UI (3 clickable buttons at chat start)
 - [x] Jurisdiction stored in session + prepended to every query
+- [x] IP-based jurisdiction auto-detection (`geolocation.py` + `GET /api/v1/detect-jurisdiction`)
+- [x] Frontend auto-detect: "It looks like you're in X — is that right?" with confirm/change buttons
 - [x] Expand FST corpus: Scotland-specific legislation (Hate Crime Act 2021)
 - [x] Expand FST corpus: NI-specific orders (FETO 1998, NI Race Relations Order 1997)
 - [ ] Expand FST corpus: Wales-specific PSED regulations
@@ -184,5 +191,13 @@ See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details.
 - [ ] Language Support: Urdu, Arabic, Bengali LLM prompts for Tier 1 info-packets
 - [ ] FST Partition Strategy: Folder A (Statutory), Folder B (Precedent), Folder C (Guidelines), Folder D (Jurisdiction-Specific)
 
+## Deployment Notes (CRITICAL — Prevents Regressions)
+
+- **Deploy from subdirectory:** `cd adil-rag-api && railway up --service adil-rag-api`
+- **adil-report-bridge uses Dockerfile** (Playwright + Chromium) — NEVER set `RAILWAY_DOCKERFILE_PATH` env var; it breaks Railway's auto-detection
+- If Railway uses Railpack instead of Dockerfile for bridge, change builder in Dashboard > Settings > Build
+- All services have `railway.toml` with healthcheck config
+- `startCommand` is set in `adil-report-bridge/railway.toml` to ensure correct startup
+
 ---
-*Updated: 2026-03-24*
+*Updated: 2026-03-25*

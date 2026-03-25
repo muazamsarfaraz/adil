@@ -15,12 +15,18 @@
 │  Port: 8080         │  Port: $PORT         │  Port: $PORT              │
 │  Python 3.11-slim   │  Python 3.11-slim    │  Static HTML/CSS/JS       │
 │                     │                      │                           │
-│  Endpoints:         │  Handlers:           │  Serves:                  │
+│  Endpoints (13):    │  Handlers:           │  Serves:                  │
 │  GET  /health       │  @cl.on_chat_start   │  index.html               │
 │  POST /api/v1/query │  @cl.on_message      │  images/                  │
 │  POST /api/v1/analyze  (image uploads)     │  Quick Exit button        │
 │  POST /api/v1/query/image                  │                           │
+│  GET  /api/v1/detect-jurisdiction           │                           │
+│  + 8 more endpoints                        │                           │
 ├─────────────────────┴──────────────────────┴─────────────────────────┤
+│  Service D:                                                           │
+│  adil-report-bridge (FastAPI + Playwright)                            │
+│  Internal only — 5 browser targets + 2 email targets                  │
+├───────────────────────────────────────────────────────────────────────┤
 │  External:                                                            │
 │  - Gemini API (FST + generative)                                      │
 │  - Legislation.gov.uk (URL references)                                │
@@ -28,6 +34,9 @@
 │  - YouTube Transcript API + yt-dlp                                    │
 │  - FXTwitter API (Twitter/X)                                          │
 │  - yt-dlp (Facebook/Instagram/video)                                  │
+│  - ip-api.com (IP geolocation for jurisdiction auto-detection)        │
+│  - SendGrid (email adapter + email receipts)                          │
+│  - Postgres (anonymised conversation logs)                            │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -41,6 +50,11 @@
 | **RAG Service** | `rag_service.py` (~900 lines) | Gemini FST queries, citation extraction, UK legislation/case law databases, system prompt (Section 0: Integrity, Section 10: Actionable Next Steps, ~200 lines) |
 | **Content Extractor** | `content_extractor.py` (~900 lines) | URL detection, cascade extraction (Facebook, Twitter/X, Instagram, YouTube), yt-dlp, FXTwitter API, OG meta scrape |
 | **Models** | `models.py` (~320 lines) | Pydantic v2 models (ConversationTurn, ViabilityAssessment, etc.) |
+| **Report Generator** | `report_generator.py` | Prompt builders + section parser for 5 report types |
+| **Solicitor Directory** | `solicitor_directory.py` | Curated solicitor directory: 24 firms, filterable by jurisdiction/specialism/location |
+| **Geolocation** | `geolocation.py` | IP geolocation via ip-api.com, maps IP to UK jurisdiction (England & Wales / Scotland / NI) |
+| **Email Receipt** | `email_receipt.py` | SendGrid email receipt after successful report submission |
+| **Conversation Log** | `conversation_log.py` | Anonymised conversation metadata to Postgres (fire-and-forget) |
 | **Tests** | `test_backend.py` (~1460 lines) | 125 tests: models, API, extraction, system prompt, RAG service, SSRF, security |
 
 ### Key Data Structures (rag_service.py)
@@ -318,6 +332,57 @@ The project uses `google-genai` SDK directly. Multi-turn conversation is handled
 - **Amanah (Trust):** Sensitive legal data = Special Category Data under UK GDPR. Evidence Vault must use E2E encryption.
 - **Solicitor referral disclaimer:** AskAdil does not endorse or guarantee any solicitor. Clear disclaimer required on all referrals.
 
+## IP-Based Jurisdiction Auto-Detection Pattern
+
+```
+Chat Start → GET /api/v1/detect-jurisdiction
+                    │
+                    ▼
+        geolocation.py → ip-api.com (free, no key)
+                    │
+                    ▼
+        Map country/region to jurisdiction:
+          - England → "england_and_wales"
+          - Wales → "england_and_wales"
+          - Scotland → "scotland"
+          - Northern Ireland → "northern_ireland"
+          - Non-UK → null (fallback to manual selector)
+                    │
+                    ▼
+        Frontend shows: "It looks like you're in X — is that right?"
+          [Confirm] → set jurisdiction in session
+          [Change]  → show manual 3-button selector
+```
+
+Key design decisions:
+- Public endpoint (no auth) — called before user authenticates
+- Falls back gracefully to manual jurisdiction selector if geolocation fails or returns non-UK
+- ip-api.com free tier rate limit: 45 req/min (sufficient for expected traffic)
+- No PII stored — IP address used transiently for lookup, never logged
+
+## Viability Scoring Pattern (Structured Block Parsing)
+
+When viability assessment is requested (detected via keywords like "compensation", "claim", "tribunal"):
+
+```
+Gemini Response
+    │
+    ├─ VIABILITY_ASSESSMENT block ──► Regex parser ──► ViabilityAssessment model
+    │   score: 0-100
+    │   vento_band: "lower" | "middle" | "upper"
+    │   statutory_footing: "Equality Act 2010 s.13"
+    │   case_law_precedent: "Eweida v UK [2013]"
+    │   quantum_potential: "£900-£9,000"
+    │
+    ├─ EVIDENCE_CHECKLIST block ──► Regex parser ──► List[EvidenceItem]
+    │   3-6 tailored items per case
+    │   Each item: description + why_needed + priority
+    │
+    └─ Standard response text ──► Citation extraction + suggested questions
+```
+
+The system prompt instructs Gemini to emit these blocks in a specific format. Parsers use regex to extract structured data from the AI response, falling back gracefully if blocks are malformed.
+
 ---
-*Updated: 2026-03-07*
+*Updated: 2026-03-25*
 

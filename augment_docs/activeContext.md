@@ -2,9 +2,9 @@
 
 ## Current Sprint Focus
 
-**Major Feature Sprint** (2026-03-24)
+**Major Feature Sprint** (2026-03-25)
 
-19 features implemented across 17 commits. Git initialisation, CI/CD, viability scoring, evidence checklist, form guides, solicitor directory, analytics, WCAG fixes, corpus expansion, E2E tests, and pre-commit hooks.
+21 features implemented across 19+ commits. Git initialisation, CI/CD, viability scoring, evidence checklist, form guides, solicitor directory, analytics, WCAG fixes, corpus expansion, E2E tests, pre-commit hooks, IP-based jurisdiction auto-detection, and Railway deploy fixes.
 
 ### Completed this session (2026-03-24) — First batch:
 1. ✅ **Git initialisation** — `.gitignore`, initial commit of recovered codebase
@@ -30,6 +30,10 @@
 19. ✅ **Landing page WCAG 2.2 AA** — 21 a11y fixes + accessibility statement published
 20. ✅ **Pre-commit hooks** — ruff lint+format
 
+### Completed this session (2026-03-25):
+21. **IP-based jurisdiction auto-detection** — New `geolocation.py` module in adil-rag-api, new `GET /api/v1/detect-jurisdiction` public endpoint (no auth), frontend auto-detects and shows "It looks like you're in X — is that right?" with confirm/change buttons
+22. **Railway deploy fix** — `startCommand` added to `adil-report-bridge/railway.toml`. CRITICAL: Never set `RAILWAY_DOCKERFILE_PATH` env vars — they break auto-detection.
+
 ### Previous sprint: Image/Screenshot Support (2026-03-08)
 - ✅ Image upload support (PNG, JPG, GIF, WebP, max 5 files, 10MB each)
 - ✅ Gemini 3 Flash vision — `query_with_images()` in RAG service
@@ -48,6 +52,8 @@
 | 2026-03-24 | 5 report types in generate-report | incident_summary, solicitor_pack, police_uk_guide, tell_mama_guide, police_scotland_guide |
 | 2026-03-24 | WCAG 2.2 AA compliance for landing page | 21 a11y fixes applied + accessibility statement published |
 | 2026-03-24 | FST corpus expanded for devolved jurisdictions | Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997, Scottish case law |
+| 2026-03-25 | IP-based jurisdiction auto-detection | `geolocation.py` + `GET /api/v1/detect-jurisdiction` — auto-detects from IP, frontend shows confirm/change UI |
+| 2026-03-25 | NEVER set RAILWAY_DOCKERFILE_PATH env var | Breaks Railway's Dockerfile auto-detection for bridge service |
 | 2026-03-07 | Self-service vs solicitor path split | Hate crime reporting = self-service (Tell MAMA, IRU, Police); workplace discrimination = solicitor path (ACAS, ET1). Users should not self-file ET1 claims without legal advice. |
 | 2026-03-07 | 4-tier reporting integration strategy | Tier 1: incident summary generator (no partnership needed), Tier 2: smart form guides, Tier 3: referral partnerships (API/email), Tier 4: Third Party Reporting Centre status |
 | 2026-02-19 | No LangChain — direct `google-genai` SDK | Gemini FST not supported by LangChain wrappers |
@@ -62,7 +68,8 @@
 - **Pre-commit hooks:** ✅ ruff lint+format
 - **Multi-turn memory:** ✅ Backend + frontend complete
 - **Suggested questions:** ✅ Backend + frontend complete (Action buttons)
-- **Jurisdiction awareness:** ✅ System prompt + UI selector (3 buttons at chat start)
+- **Jurisdiction awareness:** ✅ System prompt + UI selector (3 buttons at chat start) + IP-based auto-detection with confirm/change UI
+- **Jurisdiction auto-detect:** ✅ `GET /api/v1/detect-jurisdiction` (public, no auth) — `geolocation.py` via ip-api.com
 - **Viability scoring:** ✅ Structured `ViabilityAssessment` model (score 0-100, Vento band, statutory_footing, case_law_precedent, quantum_potential)
 - **Evidence checklist:** ✅ Dynamic 3-6 tailored items from EVIDENCE_CHECKLIST block
 - **Report generation:** ✅ 5 types: incident_summary, solicitor_pack, police_uk_guide, tell_mama_guide, police_scotland_guide
@@ -75,7 +82,7 @@
 - **Security:** ✅ SSRF, input limits, prompt injection, TLS, error leakage, thread-safe stats, secrets audit clean
 - **Performance:** ✅ Async Gemini calls, parallel URL processing, persistent httpx client
 - **API Security:** ✅ API key auth, rate limiting, tightened CORS
-- **Test suite:** ✅ 240+ tests (214+ adil-rag-api, 22 adil-report-bridge, 4 Playwright E2E)
+- **Test suite:** ✅ 250+ tests (225+ adil-rag-api, 22 adil-report-bridge, 4 Playwright E2E)
 - **FST corpus:** ✅ Expanded with Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997, Scottish case law
 - **Landing page:** ✅ WCAG 2.2 AA compliant (21 fixes) + accessibility statement
 - **Reporting roadmap:** ✅ PRD written (`docs/plans/2026-03-07-reporting-integration-roadmap.md`)
@@ -88,6 +95,8 @@
 - Tier 3+ reporting integrations require partnership agreements with organisations.
 - Wales-specific PSED regulations not yet in FST corpus.
 - Placeholder hero images still need replacement with real editorial photography.
+- **CRITICAL Railway deployment caveat:** NEVER set `RAILWAY_DOCKERFILE_PATH` env var on adil-report-bridge — it breaks Railway's Dockerfile auto-detection. If Railway uses Railpack instead of Dockerfile, change builder in Dashboard > Settings > Build.
+- Deploy from subdirectory: `cd adil-rag-api && railway up --service adil-rag-api`
 
 ## Next Steps (Immediate)
 
@@ -101,4 +110,4 @@
 8. **Tier 3: Case summary generation** from conversation history for MCB referral
 
 ---
-*Updated: 2026-03-24*
+*Updated: 2026-03-25*

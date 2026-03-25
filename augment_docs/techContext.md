@@ -16,6 +16,7 @@
 | **Web Scraping** | BeautifulSoup4 | Content extraction (OG meta scrape, fallback in cascade) |
 | **YouTube** | youtube-transcript-api + yt-dlp | v1.2+ transcript extraction; Shorts/Live URL support; graceful manual-paste fallback |
 | **Content Extraction** | yt-dlp | v2025.1.0+ cascade extraction for Facebook, Instagram, Twitter/X video |
+| **Geolocation** | ip-api.com | Free IP geolocation API for jurisdiction auto-detection (no API key needed) |
 | **Twitter/X API** | FXTwitter | Free API for tweet metadata (text, media) — replaces Nitter |
 | **Landing Page** | nginx:alpine | Static HTML/CSS/JS, `envsubst` for `$PORT` |
 | **Image Generation** | Gemini | `gemini-3-pro-image-preview` for concept images |
@@ -139,7 +140,7 @@ ruff check .
 ruff format --check .
 mypy .
 
-# Run full test suite — adil-rag-api (214+ tests)
+# Run full test suite — adil-rag-api (225+ tests)
 cd adil-rag-api
 python -m pytest test_backend.py -v
 
@@ -160,7 +161,7 @@ python -m pytest tests/ -v
 pre-commit run --all-files
 ```
 
-**Total test count: 240+** (214+ adil-rag-api, 22 adil-report-bridge, 4 Playwright E2E)
+**Total test count: 250+** (225+ adil-rag-api, 22 adil-report-bridge, 4 Playwright E2E)
 
 ## Key Design Decisions
 
@@ -191,7 +192,8 @@ adil/
 │   ├── solicitor_directory.py    # Curated solicitor directory: 24 firms, filterable by jurisdiction/specialism/location
 │   ├── email_receipt.py          # SendGrid email receipt after successful report submission
 │   ├── conversation_log.py       # Anonymised conversation metadata → Postgres (fire-and-forget)
-│   ├── test_backend.py           # Full test suite — 214+ tests
+│   ├── geolocation.py            # IP geolocation via ip-api.com, jurisdiction mapping (England & Wales / Scotland / NI)
+│   ├── test_backend.py           # Full test suite — 225+ tests
 │   ├── Dockerfile
 │   ├── requirements.txt
 │   ├── requirements-dev.txt      # Test dependencies (pytest, pytest-asyncio, httpx)
@@ -247,6 +249,41 @@ adil/
 └── augment_docs/                 # Memory Bank (this directory)
 ```
 
+## Deployment Notes (CRITICAL — Prevents Regressions)
+
+1. **Deploy from subdirectory:** Always `cd` into the service directory before deploying.
+   ```bash
+   cd adil-rag-api && railway up --service adil-rag-api
+   ```
+
+2. **adil-report-bridge uses Dockerfile** (Playwright + Chromium):
+   - NEVER set `RAILWAY_DOCKERFILE_PATH` environment variable — it breaks Railway's auto-detection of the Dockerfile.
+   - If Railway uses Railpack instead of Dockerfile for the bridge service, change the builder in Dashboard > Settings > Build.
+   - `startCommand` is configured in `adil-report-bridge/railway.toml` to ensure correct startup.
+
+3. **All services have `railway.toml`** with healthcheck configuration.
+
+4. **External APIs:**
+   - ip-api.com — free tier, no API key needed, used by `geolocation.py` for jurisdiction auto-detection. Rate limit: 45 req/min.
+
+## All API Endpoints (13)
+
+| Endpoint | Method | Auth | Purpose |
+|----------|--------|------|---------|
+| `/` | GET | No | Service discovery |
+| `/health` | GET | No | Liveness probe |
+| `/stats` | GET | Yes | Runtime statistics |
+| `/api/v1/query` | POST | Yes | Multi-turn legal Q&A with viability scoring + evidence checklist |
+| `/api/v1/analyze` | POST | Yes | Content extraction + legal analysis |
+| `/api/v1/query/image` | POST | Yes | Image analysis (Gemini Flash vision) |
+| `/api/v1/generate-report` | POST | Yes | Report generation (5 types: incident_summary, solicitor_pack, police_uk_guide, tell_mama_guide, police_scotland_guide) |
+| `/api/v1/privacy-notice` | GET | No | Privacy policy JSON |
+| `/api/v1/report-targets` | GET | Yes | Available reporting targets |
+| `/api/v1/submit-report` | POST | Yes | Submit hate crime report via bridge |
+| `/api/v1/solicitors` | GET | Yes | Curated solicitor directory (24 firms, filterable) |
+| `/api/v1/analytics` | GET | Yes | Anonymised usage analytics |
+| `/api/v1/detect-jurisdiction` | GET | No | Auto-detect jurisdiction from IP (via ip-api.com) |
+
 ---
-*Updated: 2026-03-24*
+*Updated: 2026-03-25*
 

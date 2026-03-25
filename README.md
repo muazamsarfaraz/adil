@@ -20,6 +20,7 @@ AskAdil is **not a law firm**. It educates users about their rights, helps them 
 - Routes users to the right path: **self-service** for hate crime reporting, **solicitor referral** for workplace claims
 - Remembers conversation context for natural multi-turn dialogue
 - Covers all four UK jurisdictions: England & Wales, Scotland, Northern Ireland
+- **Jurisdiction auto-detection** — automatically detects user's UK jurisdiction from IP address with confirm/change UI
 - **Viability scoring** — structured assessment (0-100 score, Vento band, statutory footing, case law precedent, quantum potential)
 - **Dynamic evidence checklist** — 3-6 tailored items when viability is assessed
 - **Report generation** — incident summaries, solicitor consultation packs, and smart form guides
@@ -183,7 +184,7 @@ See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details in
 |----------|------|---------|
 | `GET /` | None | Service discovery |
 | `GET /health` | None | Liveness probe |
-| `GET /stats` | None | Runtime statistics |
+| `GET /stats` | Required | Runtime statistics |
 | `POST /api/v1/query` | Required | Multi-turn legal Q&A with viability scoring + evidence checklist |
 | `POST /api/v1/analyze` | Required | Content extraction + legal analysis |
 | `POST /api/v1/query/image` | Required | Image analysis (Gemini Flash vision) |
@@ -193,6 +194,7 @@ See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details in
 | `POST /api/v1/submit-report` | Required | Submit hate crime report; requires `consent_confirmed: true` |
 | `GET /api/v1/solicitors` | Required | Curated solicitor directory (24 firms, filterable by jurisdiction/specialism/location) |
 | `GET /api/v1/analytics` | Required | Usage analytics (aggregate stats from Postgres) |
+| `GET /api/v1/detect-jurisdiction` | None | Auto-detect jurisdiction from IP address (via ip-api.com) |
 
 ### Find a Muslim Solicitor
 
@@ -264,7 +266,7 @@ cd adil-frontend
 python -m pytest tests/ -v
 ```
 
-**Total: 240+ tests** across 3 services.
+**Total: 250+ tests** across 3 services.
 
 ---
 
@@ -299,6 +301,14 @@ railway up -d
 
 Custom domain `askadil.org` is managed via Cloudflare DNS (CNAME to Railway).
 
+### Deployment notes (CRITICAL)
+
+- **Deploy from subdirectory:** Always `cd` into the service directory before running `railway up`.
+- **adil-report-bridge uses Dockerfile** (Playwright + Chromium). NEVER set `RAILWAY_DOCKERFILE_PATH` environment variable — it breaks Railway's auto-detection of the Dockerfile.
+- If Railway uses Railpack instead of Dockerfile for the bridge service, change the builder in Dashboard > Settings > Build.
+- `startCommand` is configured in `adil-report-bridge/railway.toml` to ensure correct startup.
+- All services have `railway.toml` with healthcheck configuration.
+
 ---
 
 ## Project structure
@@ -311,7 +321,7 @@ adil/
 ├── pyproject.toml                    # Ruff + mypy configuration
 ├── .pre-commit-config.yaml           # Pre-commit hooks (ruff lint+format)
 ├── .github/workflows/                # GitHub Actions CI/CD (lint+test on PR)
-├── adil-rag-api/                     # Backend (FastAPI) — 214+ tests
+├── adil-rag-api/                     # Backend (FastAPI) — 225+ tests
 │   ├── app.py                        # Endpoints, auth, rate limiting, timing middleware
 │   ├── rag_service.py                # RAG logic, Gemini FST, system prompt, viability parser
 │   ├── content_extractor.py          # URL/content extraction
@@ -320,7 +330,8 @@ adil/
 │   ├── solicitor_directory.py        # Curated solicitor directory (24 firms)
 │   ├── email_receipt.py              # SendGrid email receipts
 │   ├── conversation_log.py           # Anonymised conversation logging to Postgres
-│   ├── test_backend.py               # 214+ tests
+│   ├── geolocation.py                # IP geolocation via ip-api.com, jurisdiction mapping
+│   ├── test_backend.py               # 225+ tests
 │   ├── requirements.txt
 │   ├── requirements-dev.txt          # Test dependencies
 │   ├── Dockerfile
@@ -372,6 +383,7 @@ adil/
 | Email | SendGrid (email adapter + email receipts) |
 | Data validation | Pydantic v2 |
 | Content extraction | yt-dlp, youtube-transcript-api, BeautifulSoup4, FXTwitter API |
+| Geolocation | ip-api.com (free, no API key — jurisdiction auto-detection) |
 | HTTP client | httpx (async, persistent connections) |
 | Rate limiting | slowapi |
 | Landing page | nginx (Alpine), static HTML/CSS/JS — WCAG 2.2 AA |
