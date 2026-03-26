@@ -5,6 +5,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+from app.config import settings
 from app.database import Base, get_db
 from app.main import app
 
@@ -46,3 +47,8 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def auth_headers() -> dict:
+    return {"X-API-Key": settings.api_key}
