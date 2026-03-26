@@ -1,7 +1,9 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from typing import Any
+
+from pydantic import BaseModel, Field, model_validator
 
 from app.models.contact import ContactStatus
 
@@ -47,6 +49,21 @@ class ContactResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="before")
+    @classmethod
+    def _map_metadata(cls, data: Any) -> Any:
+        """Map ORM metadata_ attribute to metadata for serialization."""
+        if hasattr(data, "metadata_"):
+            # ORM object: read metadata_ (the column) instead of metadata (SQLAlchemy MetaData)
+            obj_dict = {}
+            for field_name in cls.model_fields:
+                if field_name == "metadata":
+                    obj_dict["metadata"] = data.metadata_
+                else:
+                    obj_dict[field_name] = getattr(data, field_name, None)
+            return obj_dict
+        return data
 
 
 class ContactDetailResponse(ContactResponse):

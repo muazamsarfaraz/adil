@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 
 from app.config import settings
+from app.api.campaigns import router as campaigns_router
+from app.api.contacts import router as contacts_router
+from app.api.dashboard import router as dashboard_router
 
 app = FastAPI(
     title=settings.app_name,
@@ -8,6 +11,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+app.include_router(campaigns_router)
+app.include_router(contacts_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/")
