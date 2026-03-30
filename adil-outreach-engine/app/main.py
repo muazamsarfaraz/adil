@@ -12,11 +12,61 @@ from app.api.public import public_router
 from app.api.conversion_webhooks import conversion_webhooks_router
 from app.api.webhooks import router as webhooks_router
 
+tags_metadata = [
+    {
+        "name": "campaigns",
+        "description": "Campaign CRUD operations: create, list, update, delete, launch, and pause outreach campaigns.",
+    },
+    {
+        "name": "contacts",
+        "description": "Contact management: add, list, update, delete, and bulk-import contacts within a campaign.",
+    },
+    {
+        "name": "outreach",
+        "description": "Outreach pipeline triggers: research, draft, approve, and send emails for individual contacts.",
+    },
+    {
+        "name": "webhooks",
+        "description": "Inbound webhook handlers for SendGrid (email events), Stripe (payment events), and Cal.com (booking events).",
+    },
+    {
+        "name": "public",
+        "description": "Public conversion pages: branded signup, booking, and payment pages accessible without authentication.",
+    },
+    {
+        "name": "dashboard",
+        "description": "Campaign analytics: funnel metrics, conversion stats, and CSV data export.",
+    },
+]
+
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
+    title="AskAdil Outreach Engine API",
+    description=(
+        "AI-powered outreach and conversion platform for AskAdil by MCB. "
+        "Manages multi-step email campaigns with LLM-driven research, "
+        "personalised drafting, reply classification, and conversion tracking.\n\n"
+        "## Endpoint Groups\n\n"
+        "- **Campaigns** -- CRUD operations for outreach campaigns with launch/pause controls\n"
+        "- **Contacts** -- Contact management with bulk import and status tracking\n"
+        "- **Outreach** -- Pipeline step triggers (research, draft, approve, send) per contact\n"
+        "- **Webhooks** -- Inbound event processing from SendGrid, Stripe, and Cal.com\n"
+        "- **Public** -- Branded conversion pages (signup, booking, payment) per campaign\n"
+        "- **Dashboard** -- Funnel metrics, conversion analytics, and CSV export\n\n"
+        "## Authentication\n\n"
+        "All authenticated endpoints require an `X-API-Key` header. "
+        "Public and webhook endpoints are accessible without authentication."
+    ),
+    version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
+    openapi_tags=tags_metadata,
+    contact={
+        "name": "AskAdil Team",
+        "url": "https://askadil.org",
+    },
+    license_info={
+        "name": "Proprietary",
+    },
 )
 
 app.state.limiter = limiter

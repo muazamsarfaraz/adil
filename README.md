@@ -1,8 +1,12 @@
 # AskAdil | Educate First, Litigate Second
 
+![Services](https://img.shields.io/badge/services-5-blue)
+![Deploy](https://img.shields.io/badge/deploy-Railway-blueviolet)
+![License](https://img.shields.io/badge/license-Proprietary-red)
+
 **Free AI-powered UK discrimination law guidance for British Muslims**
 
-[askadil.org](https://askadil.org) | A Muslim Council of Britain Initiative | [GitHub](https://github.com/muazamsarfaraz/adil)
+[askadil.org](https://askadil.org) | A Muslim Council of Britain Initiative
 
 ---
 
@@ -20,20 +24,20 @@ AskAdil is **not a law firm**. It educates users about their rights, helps them 
 - Routes users to the right path: **self-service** for hate crime reporting, **solicitor referral** for workplace claims
 - Remembers conversation context for natural multi-turn dialogue
 - Covers all four UK jurisdictions: England & Wales, Scotland, Northern Ireland
-- **Jurisdiction auto-detection** — automatically detects user's UK jurisdiction from IP address with confirm/change UI
-- **Viability scoring** — structured assessment (0-100 score, Vento band, statutory footing, case law precedent, quantum potential)
-- **Dynamic evidence checklist** — 3-6 tailored items when viability is assessed
-- **Report generation** — incident summaries, solicitor consultation packs, and smart form guides
-- **Solicitor directory** — 24 curated firms filterable by jurisdiction, specialism, and location
-- **Image analysis** — upload screenshots and document photos for AI-powered legal analysis
-- **Analytics** — aggregate usage statistics from anonymised conversation data
+- **Jurisdiction auto-detection** -- automatically detects user's UK jurisdiction from IP address with confirm/change UI
+- **Viability scoring** -- structured assessment (0-100 score, Vento band, statutory footing, case law precedent, quantum potential)
+- **Dynamic evidence checklist** -- 3-6 tailored items when viability is assessed
+- **Report generation** -- incident summaries, solicitor consultation packs, and smart form guides
+- **Solicitor directory** -- 24 curated firms filterable by jurisdiction, specialism, and location
+- **Image analysis** -- upload screenshots and document photos for AI-powered legal analysis
+- **Analytics** -- aggregate usage statistics from anonymised conversation data
 
 ### Legal knowledge base
 
 - **Legislation:** Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, Crime and Disorder Act 1998, Human Rights Act 1998, Employment Rights Act 1996, Racial and Religious Hatred Act 2006, Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997
 - **Case law:** 9+ landmark cases including Scottish case law (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, Lee v IFoA, Grainger v Nicholson, Ladele v Islington, Chaplin v Royal Devon, Redfearn v UK, Vento v Chief Constable)
 - **Vento bands:** 2025-2026 compensation ranges for injury to feelings claims
-- **Jurisdictions:** England & Wales, Scotland, Northern Ireland — with jurisdiction-specific legislation and case law
+- **Jurisdictions:** England & Wales, Scotland, Northern Ireland -- with jurisdiction-specific legislation and case law
 
 ---
 
@@ -65,26 +69,42 @@ askadil.org (Cloudflare)
 +-------------------+  +-----------+              | - 2 email (SG)  |
                                                    +------------------+
                                                           |
-                                                   +------+------+
-                                                   |   Postgres  |
-                                                   | (anon logs) |
-                                                   +-------------+
++-------------------+                              +------+------+
+| adil-outreach-    |                              |   Postgres  |
+| engine            |                              | (anon logs) |
+| (FastAPI + arq +  |                              +-------------+
+| LangGraph)        |
+|                   |
+| - AI campaigns    |
+| - Email outreach  |
+| - Conversions     |
++-------------------+
 ```
 
-### Four services
+### Services
 
-| Service | Tech | Role |
-|---------|------|------|
-| **adil-rag-api** | FastAPI (Python 3.11) | Backend: RAG queries, content extraction, citation parsing, legal analysis, report submission orchestration |
-| **adil-frontend** | Chainlit | Frontend: conversational UI, session management, action buttons, PII collection flow |
-| **adil-report-bridge** | FastAPI + browser-use + Playwright | Internal bridge: AI-powered browser automation to submit reports to external portals; also sends email reports via SendGrid |
-| **Postgres** | Railway-managed | Anonymised conversation log (topic, jurisdiction, message count, response time, tokens — no PII) |
+| Service | Tech | Role | README |
+|---------|------|------|--------|
+| [**adil-frontend**](adil-frontend/) | Chainlit | Conversational UI, session management, action buttons, PII collection flow | [README](adil-frontend/README.md) |
+| [**adil-rag-api**](adil-rag-api/) | FastAPI (Python 3.11) | RAG queries, content extraction, citation parsing, legal analysis, report submission | [README](adil-rag-api/README.md) |
+| [**adil-outreach-engine**](adil-outreach-engine/) | FastAPI + arq + LangGraph | AI-powered outreach campaigns, email drafting, reply classification, conversion tracking | [README](adil-outreach-engine/README.md) |
+| [**adil-report-bridge**](adil-report-bridge/) | FastAPI + browser-use + Playwright | AI-powered browser automation to submit reports to external portals; email reports via SendGrid | -- |
+| **Postgres** | Railway-managed | Anonymised conversation logs + outreach data (no PII in chat logs) | -- |
 
-All four deploy as Docker containers on Railway. The report bridge has no public domain — it is reachable only by the RAG API via Railway internal networking.
+All services deploy as Docker containers on Railway. The report bridge has no public domain -- it is reachable only by the RAG API via Railway internal networking.
 
 ---
 
-## Key features
+## Live URLs
+
+| URL | Service |
+|-----|---------|
+| [askadil.org](https://askadil.org) | Frontend (Chat UI) |
+| [askadil.com](https://askadil.com) | Landing page |
+
+---
+
+## Key Features
 
 ### Automated report submission (7 targets)
 
@@ -102,39 +122,26 @@ AskAdil can submit hate crime reports to external portals on behalf of the user,
 
 On failure, the bridge falls back to a generated Tier 1 incident summary the user can submit manually.
 
-### Email receipts
+### AI outreach engine
 
-After a successful report submission, AskAdil sends the user a confirmation email from `noreply@mcbx.app` via SendGrid. The email includes the reference number, incident summary, next steps, and useful links. Skipped for anonymous targets (no email to send to).
+The outreach engine manages multi-step email campaigns with:
+- LLM-driven research and personalised email drafting
+- Configurable LLM per agent (Gemini, Claude, GPT)
+- Dry-run mode for testing without sending real emails
+- Reply classification and automated follow-ups
+- Conversion tracking via SendGrid, Stripe, and Cal.com webhooks
+- Campaign-as-config: define behaviour via configuration, not code
 
-### Anonymised conversation logging
+### Self-service vs Solicitor paths
 
-Every conversation logs anonymised metadata to Postgres: topic category, jurisdiction, message count, response time, and token usage. No PII is ever written. Fire-and-forget — never blocks responses.
-
-### Privacy notice
-
-A machine-readable privacy notice is available at `GET /api/v1/privacy-notice` (no auth required). The human-readable version is at `docs/privacy-notice.md`.
-
-### Actionable next steps
-
-Every response includes a "What You Can Do Now" section with 3-5 organisations selected by the AI based on:
-- **Topic:** hate crime, workplace, online, services
-- **Jurisdiction:** England/Wales, Scotland, NI
-- **Severity:** urgent situations lead with emergency numbers
-
-24 organisations across 7 categories including Tell MAMA, IRU, Police, EASS, ACAS, Citizens Advice, Law Society, Employment Tribunal, and jurisdiction-specific equivalents.
-
-### Content extraction
-
-Paste any URL and AskAdil extracts the content and analyses it for legal issues:
-- **YouTube** — transcripts via youtube-transcript-api, fallback to yt-dlp
-- **Facebook** — video metadata via yt-dlp, OG meta scrape fallback
-- **Twitter/X** — tweet text via FXTwitter API, video via yt-dlp
-- **Instagram** — OG meta scrape, yt-dlp fallback
-- **News articles** — full text extraction via BeautifulSoup4
-
-### Multi-turn conversation
-
-Conversation history is maintained per session. The AI remembers what you've told it and builds on previous context. Suggested follow-up questions appear as clickable buttons.
+| Scenario | Path | AskAdil role |
+|----------|------|-------------|
+| Hate crime / Islamophobia | Self-service | Generate report summary for Tell MAMA, IRU, Police |
+| Online hate speech | Self-service | Analyse content, generate report |
+| General discrimination enquiry | Self-service | Brief user, direct to EASS / Citizens Advice |
+| Workplace discrimination | Solicitor | Explain rights, generate consultation pack, find solicitor |
+| Compensation claims | Solicitor | Explain Vento bands, generate case summary, find solicitor |
+| Complex / multi-issue cases | Solicitor | Triage, generate case summary, find solicitor |
 
 ### Security
 
@@ -148,63 +155,7 @@ Conversation history is maintained per session. The AI remembers what you've tol
 
 ---
 
-## Self-service vs Solicitor paths
-
-AskAdil routes users to the appropriate action path:
-
-| Scenario | Path | AskAdil role |
-|----------|------|-------------|
-| Hate crime / Islamophobia | Self-service | Generate report summary for Tell MAMA, IRU, Police |
-| Online hate speech | Self-service | Analyse content, generate report |
-| General discrimination enquiry | Self-service | Brief user, direct to EASS / Citizens Advice |
-| Workplace discrimination | Solicitor | Explain rights, generate consultation pack, find solicitor |
-| Compensation claims | Solicitor | Explain Vento bands, generate case summary, find solicitor |
-| Complex / multi-issue cases | Solicitor | Triage, generate case summary, find solicitor |
-
-For solicitor-path cases, AskAdil generates a **Solicitor Consultation Pack** with the case summary, key dates, relevant legislation, and questions to ask at the first appointment.
-
----
-
-## Reporting integration roadmap
-
-A 4-tier phased approach to integrating with UK reporting portals:
-
-| Tier | Timeline | What | Partnership needed? |
-|------|----------|------|-------------------|
-| **1** | Immediate | Incident Summary Generator + Solicitor Consultation Pack | No |
-| **2** | 3-6 months | Smart Form Guides (step-by-step for each organisation's form) | No |
-| **3** | 6-12 months | Referral Partnerships (API/email submission with consent) | Yes |
-| **4** | 12-24 months | Third Party Reporting Centre status with Police Scotland / Tell MAMA | Yes |
-
-See `docs/plans/2026-03-07-reporting-integration-roadmap.md` for full details including form field analysis for IRU, Tell MAMA, Police Scotland, ACAS, ET1, and others.
-
-### API endpoints
-
-| Endpoint | Auth | Purpose |
-|----------|------|---------|
-| `GET /` | None | Service discovery |
-| `GET /health` | None | Liveness probe |
-| `GET /stats` | Required | Runtime statistics |
-| `POST /api/v1/query` | Required | Multi-turn legal Q&A with viability scoring + evidence checklist |
-| `POST /api/v1/analyze` | Required | Content extraction + legal analysis |
-| `POST /api/v1/query/image` | Required | Image analysis (Gemini Flash vision) |
-| `POST /api/v1/generate-report` | Required | Report generation (5 types: incident_summary, solicitor_pack, police_uk_guide, tell_mama_guide, police_scotland_guide) |
-| `GET /api/v1/privacy-notice` | None | Structured JSON privacy notice |
-| `GET /api/v1/report-targets` | Required | Available reporting targets; includes `pii_required: bool` per target |
-| `POST /api/v1/submit-report` | Required | Submit hate crime report; requires `consent_confirmed: true` |
-| `GET /api/v1/solicitors` | Required | Curated solicitor directory (24 firms, filterable by jurisdiction/specialism/location) |
-| `GET /api/v1/analytics` | Required | Usage analytics (aggregate stats from Postgres) |
-| `GET /api/v1/detect-jurisdiction` | None | Auto-detect jurisdiction from IP address (via ip-api.com) |
-
-### Find a Muslim Solicitor
-
-The `GET /api/v1/solicitors` endpoint provides a curated directory of 24 solicitor firms (8 Muslim-community-focus, 8 discrimination specialists, 5 Scotland, 3 NI), filterable by jurisdiction, specialism, and location. Powered by `solicitor_directory.py`.
-
-The underlying seed database is at `docs/plans/muslim-solicitors-seed-database.json` for outreach tracking.
-
----
-
-## Running locally
+## Running Locally
 
 ### Prerequisites
 
@@ -216,15 +167,9 @@ The underlying seed database is at `docs/plans/muslim-solicitors-seed-database.j
 
 ```bash
 cd adil-rag-api
-
-# Create .env
 cp .env.example .env
 # Edit .env: set GEMINI_API_KEY, FILE_SEARCH_STORE_ID, ADIL_API_KEY
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run
 uvicorn app:app --host 0.0.0.0 --port 8080
 ```
 
@@ -234,143 +179,104 @@ API docs available at `http://localhost:8080/docs`
 
 ```bash
 cd adil-frontend
-
-# Create .env
 cp .env.example .env
 # Edit .env: set RAG_API_URL=http://localhost:8080, ADIL_API_KEY
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Run
 chainlit run app.py --host 0.0.0.0 --port 8000
 ```
 
-### Running tests
+### Outreach Engine (adil-outreach-engine)
 
 ```bash
-cd adil-rag-api
-
-# Install test dependencies
-pip install -r requirements-dev.txt
-
-# Run all 214+ backend tests
-python -m pytest test_backend.py -v
-
-# Run report bridge tests (22 tests)
-cd adil-report-bridge
-python -m pytest tests/ -v
-
-# Run Playwright E2E tests (4 tests)
-cd adil-frontend
-python -m pytest tests/ -v
+cd adil-outreach-engine
+cp .env.example .env
+# Edit .env: set API keys for SendGrid, Stripe, Cal.com, LLM providers
+docker-compose up -d
 ```
 
-**Total: 250+ tests** across 3 services.
+See [adil-outreach-engine/RUNBOOK.md](adil-outreach-engine/RUNBOOK.md) for operational procedures.
+
+### Running Tests
+
+```bash
+# RAG API (225+ tests)
+cd adil-rag-api && python -m pytest test_backend.py -v
+
+# Outreach engine (222 tests)
+cd adil-outreach-engine && pytest
+
+# Report bridge (22 tests)
+cd adil-report-bridge && python -m pytest tests/ -v
+
+# Frontend E2E (4 tests)
+cd adil-frontend && python -m pytest tests/ -v
+```
+
+**Total: 470+ tests** across 4 services.
 
 ---
 
 ## Deployment
 
-All four services deploy to Railway as Docker containers:
+All services deploy to Railway as Docker containers:
 
-```bash
-# Backend
-cd adil-rag-api
-railway link --project <PROJECT_ID> --environment production --service adil-rag-api
-railway up -d
-
-# Frontend (Chat UI)
-cd adil-frontend
-railway link --project <PROJECT_ID> --environment production --service adil-frontend
-railway up -d
-
-# Landing page
-cd adil-landing
-railway link --project <PROJECT_ID> --environment production --service adil-landing
-railway up -d
-```
-
-### Domains
-
-| Service | Railway URL | Custom domain |
+| Service | Railway URL | Custom Domain |
 |---------|-------------|---------------|
-| **adil-rag-api** | `adil-rag-api-production.up.railway.app` | — |
 | **adil-frontend** | `adil-frontend-production.up.railway.app` | `askadil.org` |
-| **adil-landing** | `adil-landing-production.up.railway.app` | — (pending) |
+| **adil-rag-api** | `adil-rag-api-production.up.railway.app` | -- |
+| **adil-outreach-engine** | API + Worker (2 Railway services) | -- |
+| **adil-report-bridge** | Internal only | -- |
 
 Custom domain `askadil.org` is managed via Cloudflare DNS (CNAME to Railway).
 
-### Deployment notes (CRITICAL)
+### Deployment Notes
 
 - **Deploy from subdirectory:** Always `cd` into the service directory before running `railway up`.
-- **adil-report-bridge uses Dockerfile** (Playwright + Chromium). NEVER set `RAILWAY_DOCKERFILE_PATH` environment variable — it breaks Railway's auto-detection of the Dockerfile.
-- If Railway uses Railpack instead of Dockerfile for the bridge service, change the builder in Dashboard > Settings > Build.
-- `startCommand` is configured in `adil-report-bridge/railway.toml` to ensure correct startup.
+- **Never set `RAILWAY_DOCKERFILE_PATH`** as an env var -- it breaks Railway's auto-detection for subdirectory deploys.
 - All services have `railway.toml` with healthcheck configuration.
 
 ---
 
-## Project structure
+## Documentation
+
+| Document | Location |
+|----------|----------|
+| Business case & research | `docs/plans/` |
+| Outreach engine runbook | [adil-outreach-engine/RUNBOOK.md](adil-outreach-engine/RUNBOOK.md) |
+| Reporting integration roadmap | `adil-rag-api/docs/plans/2026-03-07-reporting-integration-roadmap.md` |
+| Outreach engine design | `adil-outreach-engine/docs/2026-03-26-outreach-engine-design.md` |
+| Privacy notice | `adil-rag-api/docs/privacy-notice.md` |
+
+---
+
+## Project Structure
 
 ```
 adil/
-├── README.md
-├── .env                              # API keys (DO NOT COMMIT)
-├── .gitignore
-├── pyproject.toml                    # Ruff + mypy configuration
-├── .pre-commit-config.yaml           # Pre-commit hooks (ruff lint+format)
-├── .github/workflows/                # GitHub Actions CI/CD (lint+test on PR)
-├── adil-rag-api/                     # Backend (FastAPI) — 225+ tests
-│   ├── app.py                        # Endpoints, auth, rate limiting, timing middleware
-│   ├── rag_service.py                # RAG logic, Gemini FST, system prompt, viability parser
-│   ├── content_extractor.py          # URL/content extraction
-│   ├── models.py                     # Pydantic models (including ReportType, ViabilityAssessment)
-│   ├── report_generator.py           # Report generation: 5 types (incident, solicitor, form guides)
-│   ├── solicitor_directory.py        # Curated solicitor directory (24 firms)
-│   ├── email_receipt.py              # SendGrid email receipts
-│   ├── conversation_log.py           # Anonymised conversation logging to Postgres
-│   ├── geolocation.py                # IP geolocation via ip-api.com, jurisdiction mapping
-│   ├── test_backend.py               # 225+ tests
-│   ├── requirements.txt
-│   ├── requirements-dev.txt          # Test dependencies
-│   ├── Dockerfile
-│   └── docs/plans/
-│       ├── 2026-03-07-actionable-next-steps-design.md
-│       ├── 2026-03-07-reporting-integration-roadmap.md
-│       └── muslim-solicitors-seed-database.json
-├── adil-frontend/                    # Frontend (Chainlit) — 4 E2E tests
-│   ├── app.py                        # Chat handlers, session management, jurisdiction selector
-│   ├── chainlit.md                   # Welcome page
-│   ├── tests/                        # Playwright E2E tests
-│   ├── Dockerfile
-│   └── public/                       # Theme, logos, branding
-├── adil-report-bridge/               # Report bridge (internal) — 22 tests
-│   ├── app.py                        # FastAPI: /submit, /health, /targets
-│   ├── browser_agent.py              # browser-use + Playwright form automation
-│   ├── email_adapter.py              # SendGrid email adapter
-│   ├── targets.py                    # 7 targets (5 browser, 2 email)
-│   ├── models.py                     # Pydantic models
-│   ├── Dockerfile                    # Python 3.11-slim + Playwright + Chromium
-│   └── tests/                        # 22 tests
-├── adil-landing/                     # Landing page (nginx) — WCAG 2.2 AA
-│   ├── index.html                    # Single-page landing (HTML/CSS/JS)
-│   ├── images/                       # Hero + story card images
-│   ├── nginx.conf.template           # nginx config with $PORT substitution
-│   ├── Dockerfile                    # nginx:alpine with envsubst
-│   └── railway.toml                  # Railway build/deploy config
-└── augment_docs/                     # Project documentation
-    ├── activeContext.md
-    ├── productContext.md
-    ├── progress.md
-    ├── systemPatterns.md
-    ├── techContext.md
-    └── todo.md
+├── README.md                         # This file (monorepo overview)
+├── adil-frontend/                    # Frontend (Chainlit) -- 4 E2E tests
+│   ├── app.py                        # Chat handlers, session management
+│   ├── public/                       # Theme, logos, branding
+│   └── README.md
+├── adil-rag-api/                     # Backend (FastAPI) -- 225+ tests
+│   ├── app.py                        # Endpoints, auth, rate limiting
+│   ├── rag_service.py                # RAG logic, Gemini FST
+│   ├── docs/plans/                   # Business docs, roadmaps
+│   └── README.md
+├── adil-outreach-engine/             # Outreach engine (FastAPI + arq) -- 222 tests
+│   ├── app/                          # API, agents, workers, services
+│   ├── RUNBOOK.md                    # Operational runbook
+│   └── README.md
+├── adil-report-bridge/               # Report bridge (internal) -- 22 tests
+│   ├── app.py                        # /submit, /health, /targets
+│   └── browser_agent.py              # browser-use + Playwright
+└── adil-landing/                     # Landing page (nginx) -- WCAG 2.2 AA
+    └── index.html                    # Single-page landing
 ```
 
 ---
 
-## Tech stack
+## Tech Stack
 
 | Component | Technology |
 |-----------|-----------|
@@ -378,27 +284,24 @@ adil/
 | Grounding | Gemini File Search Tool (FST) |
 | Backend | FastAPI, Python 3.11 |
 | Frontend | Chainlit v2.9.6 |
+| Outreach agents | LangGraph + arq (Gemini, Claude, GPT) |
 | Report bridge | FastAPI + browser-use + Playwright + Chromium |
-| Database | Postgres (Railway-managed, anonymised logs only) |
-| Email | SendGrid (email adapter + email receipts) |
+| Database | Postgres (Railway-managed) |
+| Email | SendGrid |
+| Payments | Stripe |
+| Bookings | Cal.com |
 | Data validation | Pydantic v2 |
 | Content extraction | yt-dlp, youtube-transcript-api, BeautifulSoup4, FXTwitter API |
-| Geolocation | ip-api.com (free, no API key — jurisdiction auto-detection) |
-| HTTP client | httpx (async, persistent connections) |
 | Rate limiting | slowapi |
-| Landing page | nginx (Alpine), static HTML/CSS/JS — WCAG 2.2 AA |
 | Deployment | Railway (Docker) |
 | DNS / CDN | Cloudflare |
 | CI/CD | GitHub Actions (lint+test on PR) |
 | Linting | Ruff (check + format) |
-| Type checking | mypy |
-| Pre-commit | ruff lint + format hooks |
-| E2E testing | Playwright (4 tests) |
-| Source control | Git — GitHub (`muazamsarfaraz/adil`, private) |
+| E2E testing | Playwright |
 
 ---
 
-## Legal disclaimer
+## Legal Disclaimer
 
 AskAdil is an educational tool, not a law firm. It does not provide legal advice, create solicitor-client relationships, or guarantee any legal outcomes. Users should always consult a qualified solicitor before taking legal action.
 

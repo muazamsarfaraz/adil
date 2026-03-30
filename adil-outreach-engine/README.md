@@ -1,21 +1,38 @@
 # adil-outreach-engine
 
-AI-powered outreach and conversion platform for AskAdil. Manages multi-step email campaigns with LLM-driven research, personalised drafting, reply classification, and conversion tracking.
+![Tests](https://img.shields.io/badge/tests-222%20passing-brightgreen)
+![Deploy](https://img.shields.io/badge/deploy-Railway-blueviolet)
+![Python](https://img.shields.io/badge/python-3.11+-blue)
+
+**AI-powered outreach and conversion platform for AskAdil by MCB (Muslim Council of Britain).**
+
+Manages multi-step email campaigns with LLM-driven research, personalised drafting, reply classification, and conversion tracking.
+
+---
 
 ## Architecture
 
-- **FastAPI** — async REST API (campaigns, contacts, dashboard, webhooks, public conversion pages)
-- **arq** — background task queue for research, compose, send, classify, and follow-up workers
-- **LangGraph** — agent pipeline orchestrating LLM calls (Gemini, Claude, GPT)
-- **PostgreSQL** — persistent storage (campaigns, contacts, outreach events, conversions)
-- **Redis** — task queue broker, rate limiting
-- **SendGrid** — transactional email with webhook tracking
+| Component | Role |
+|-----------|------|
+| **FastAPI** | Async REST API (campaigns, contacts, dashboard, webhooks, public conversion pages) |
+| **arq** | Background task queue for research, compose, send, classify, and follow-up workers |
+| **LangGraph** | Agent pipeline orchestrating LLM calls (Gemini, Claude, GPT) |
+| **PostgreSQL** | Persistent storage (campaigns, contacts, outreach events, conversions) |
+| **Redis** | Task queue broker, rate limiting |
+| **SendGrid** | Transactional email with webhook tracking |
+| **Stripe** | Payment conversion tracking |
+| **Cal.com** | Booking conversion tracking |
 
-## Prerequisites
+## Key Features
 
-- Python 3.11+
-- Docker & Docker Compose
-- API keys for SendGrid, Stripe, Cal.com, and at least one LLM provider
+- **Dry-run mode** -- test full pipeline without sending real emails
+- **Email preview** -- review and approve AI-drafted emails before sending
+- **Configurable LLM per agent** -- use Gemini for research, Claude for drafting, etc.
+- **Campaign-as-config** -- define campaign behaviour via configuration, not code
+- **Webhook-driven tracking** -- SendGrid, Stripe, and Cal.com events update contact status automatically
+- **Public conversion pages** -- branded signup, booking, and payment pages per campaign
+
+---
 
 ## Quick Start
 
@@ -34,7 +51,13 @@ curl http://localhost:8001/api/v1/outreach/health
 python scripts/seed_solicitor_campaign.py
 ```
 
-## API Overview
+For operational procedures, see [RUNBOOK.md](RUNBOOK.md).
+
+## API Documentation
+
+Interactive Swagger/OpenAPI docs are available at `/docs` when the service is running.
+
+### Endpoint Overview
 
 | Group | Endpoints | Description |
 |-------|-----------|-------------|
@@ -45,6 +68,8 @@ python scripts/seed_solicitor_campaign.py
 | Conversion | `GET /signup/{slug}`, `/book/{slug}`, `/pay/{slug}` | Public conversion pages |
 | Dashboard | `GET /api/v1/outreach/campaigns/{id}/stats\|export` | Funnel metrics, CSV export |
 | Health | `GET /api/v1/outreach/health` | Service health check |
+
+---
 
 ## Development
 
@@ -64,7 +89,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 arq app.workers.settings.WorkerSettings
 ```
 
-### Running tests
+### Running Tests
 
 ```bash
 pytest
@@ -72,62 +97,107 @@ pytest
 python -m pytest tests/ -v --tb=short
 ```
 
+222 tests passing across unit, integration, and E2E suites.
+
 ### Migrations
 
 ```bash
-# Apply migrations
-alembic upgrade head
-
-# Create a new migration
-alembic revision --autogenerate -m "description of changes"
-
-# Rollback one step
-alembic downgrade -1
+alembic upgrade head                                  # Apply migrations
+alembic revision --autogenerate -m "description"      # Create new migration
+alembic downgrade -1                                  # Rollback one step
 ```
 
-## First Campaign Quickstart
-
-1. **Seed the campaign** with the solicitor directory data:
-   ```bash
-   python scripts/seed_solicitor_campaign.py --api-url http://localhost:8001 --api-key YOUR_KEY
-   ```
-   This creates a campaign ("Solicitor Directory Outreach - Wave 1") and imports ~50 solicitor contacts.
-
-2. **Review contacts** — all start in `pending` status:
-   ```bash
-   curl -H "X-API-Key: KEY" http://localhost:8001/api/v1/outreach/campaigns/{id}/contacts
-   ```
-
-3. **Launch the campaign** to begin automated research and drafting:
-   ```bash
-   curl -X POST -H "X-API-Key: KEY" http://localhost:8001/api/v1/outreach/campaigns/{id}/launch
-   ```
-
-4. **Check stats**:
-   ```bash
-   curl -H "X-API-Key: KEY" http://localhost:8001/api/v1/outreach/campaigns/{id}/stats
-   ```
-
-5. **Export data** as CSV:
-   ```bash
-   curl -H "X-API-Key: KEY" -o export.csv http://localhost:8001/api/v1/outreach/campaigns/{id}/export
-   ```
+---
 
 ## Environment Variables
 
 See [`.env.example`](.env.example) for all configuration options with documentation.
 
+---
+
+## Project Structure
+
+```
+adil-outreach-engine/
+├── app/
+│   ├── main.py                  # FastAPI application entry point
+│   ├── config.py                # Pydantic settings
+│   ├── database.py              # Async SQLAlchemy engine
+│   ├── rate_limit.py            # slowapi rate limiter
+│   ├── api/                     # Route handlers
+│   │   ├── campaigns.py         # Campaign CRUD + launch/pause
+│   │   ├── contacts.py          # Contact management + bulk import
+│   │   ├── dashboard.py         # Stats + CSV export
+│   │   ├── outreach.py          # Pipeline step triggers
+│   │   ├── public.py            # Public conversion pages
+│   │   ├── webhooks.py          # SendGrid/Stripe/Cal webhooks
+│   │   └── conversion_webhooks.py
+│   ├── agents/                  # LangGraph agent pipeline
+│   │   ├── graph.py             # Pipeline graph definition
+│   │   ├── llm.py               # LLM provider factory
+│   │   ├── state.py             # Agent state schema
+│   │   ├── checkpoints.py       # Checkpoint persistence
+│   │   ├── nodes/               # Pipeline steps
+│   │   │   ├── research.py      # Web research + SRA lookup
+│   │   │   ├── compose.py       # Email drafting
+│   │   │   ├── send.py          # Email dispatch via SendGrid
+│   │   │   ├── classify.py      # Reply classification
+│   │   │   └── evaluate.py      # Goal evaluation
+│   │   └── tools/               # Agent tools
+│   │       ├── scraper.py       # Web scraping
+│   │       ├── sra.py           # SRA API lookup
+│   │       └── web_search.py    # Web search
+│   ├── auth/                    # API key + webhook verification
+│   ├── models/                  # SQLAlchemy models
+│   ├── schemas/                 # Pydantic request/response schemas
+│   ├── services/                # Business logic
+│   │   ├── email.py             # SendGrid email service
+│   │   ├── stripe.py            # Stripe integration
+│   │   ├── cal.py               # Cal.com integration
+│   │   ├── conversion.py        # Conversion tracking
+│   │   ├── bounce.py            # Bounce handling
+│   │   ├── events.py            # Event logging
+│   │   └── goal_evaluator.py    # Campaign goal evaluation
+│   └── workers/                 # arq background workers
+│       ├── settings.py          # Worker configuration
+│       ├── tasks.py             # Task definitions
+│       ├── locks.py             # Distributed locking
+│       └── rate_limiter.py      # Worker rate limiting
+├── alembic/                     # Database migrations
+├── tests/                       # 222 tests
+├── scripts/                     # Seed scripts + utilities
+├── docs/                        # Design docs + plans
+├── docker-compose.yml           # Local dev stack
+├── Dockerfile                   # API container
+├── Dockerfile.worker            # Worker container
+├── RUNBOOK.md                   # Operational runbook
+├── pyproject.toml               # Package + tool config
+└── railway.toml                 # Railway deploy config
+```
+
+---
+
 ## Deployment (Railway)
+
+The service deploys as two Railway services from the same repo:
+
+| Service | Start Command | Purpose |
+|---------|--------------|---------|
+| **API** | `uvicorn app.main:app` (auto-detected from Dockerfile) | REST API |
+| **Worker** | `arq app.workers.settings.WorkerSettings` | Background task processing |
+
+### Setup
 
 1. Create a new project on [Railway](https://railway.app)
 2. Add **PostgreSQL** and **Redis** plugins (Railway provides `DATABASE_URL` and `REDIS_URL` automatically)
 3. Connect this GitHub repo
 4. Set environment variables from `.env.example` (except `DATABASE_URL` and `REDIS_URL` which Railway provides)
-5. Deploy — Railway auto-detects the Dockerfile and builds
+5. Deploy -- Railway auto-detects the Dockerfile and builds
 
-**Worker service:** Create a second Railway service from the same repo with start command:
-```
-arq app.workers.settings.WorkerSettings
-```
+> **Note:** Do NOT set `RAILWAY_DOCKERFILE_PATH` as an env var -- it breaks Railway's auto-detection for subdirectory deploys.
 
-> **Note:** Do NOT set `RAILWAY_DOCKERFILE_PATH` as an env var — it breaks Railway's auto-detection for subdirectory deploys.
+---
+
+## License
+
+Copyright Muslim Council of Britain. All rights reserved.
