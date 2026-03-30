@@ -91,10 +91,24 @@ async def start_chat():
 
         await cl.Message(
             content=(
-                "⚖️ **Welcome to AskAdil (عادل)**\n\n"
-                "I'm a free legal education assistant specialising in **UK discrimination law**, "
-                "particularly cases affecting British Muslims.\n\n"
-                f"📍 It looks like you're in **{detected}** — is that right?\n"
+                "⚖️ **Welcome to AskAdil (عادل)** — *Educate First, Litigate Second*\n\n"
+                "I'm a **free AI legal education tool** by the Muslim Council of Britain, "
+                "specialising in **UK discrimination law** for British Muslims.\n\n"
+                f"📍 It looks like you're in **{detected}** — is that right?\n\n"
+                "---\n\n"
+                "**What I can help with:**\n"
+                "- 🏢 **Workplace** — hijab policies, prayer time, Eid leave, unfair dismissal\n"
+                "- 🏠 **Services** — de-banking, venue denial, school discrimination\n"
+                "- 💬 **Online** — hate speech, platform complaints, reporting content\n"
+                "- 📸 **Image analysis** — upload screenshots of messages, letters, or documents\n"
+                "- 📺 **Media analysis** — paste a YouTube, Twitter/X, or news URL for analysis\n"
+                "- 🚨 **Report hate crime** — type **report** and I'll submit forms for you\n\n"
+                "**What you can share with me:**\n"
+                "- 📎 **Images** — screenshots, photos of letters, workplace notices (up to 5, max 10MB each)\n"
+                "- 🔗 **URLs** — YouTube, Facebook, Twitter/X, Instagram, news articles\n"
+                "- 📝 **Text** — emails, policies, messages you want analysed for legal issues\n\n"
+                "> ⚠️ **AskAdil is an educational tool, not a law firm.** Always consult a qualified "
+                "solicitor before taking legal action."
             ),
             actions=unique_actions,
         ).send()
@@ -120,10 +134,24 @@ async def start_chat():
 
         await cl.Message(
             content=(
-                "⚖️ **Welcome to AskAdil (عادل)**\n\n"
-                "I'm a free legal education assistant specialising in **UK discrimination law**, "
-                "particularly cases affecting British Muslims.\n\n"
-                "🇬🇧 **Please select your jurisdiction to get started:**"
+                "⚖️ **Welcome to AskAdil (عادل)** — *Educate First, Litigate Second*\n\n"
+                "I'm a **free AI legal education tool** by the Muslim Council of Britain, "
+                "specialising in **UK discrimination law** for British Muslims.\n\n"
+                "🇬🇧 **Please select your jurisdiction to get started:**\n\n"
+                "---\n\n"
+                "**What I can help with:**\n"
+                "- 🏢 **Workplace** — hijab policies, prayer time, Eid leave, unfair dismissal\n"
+                "- 🏠 **Services** — de-banking, venue denial, school discrimination\n"
+                "- 💬 **Online** — hate speech, platform complaints, reporting content\n"
+                "- 📸 **Image analysis** — upload screenshots of messages, letters, or documents\n"
+                "- 📺 **Media analysis** — paste a YouTube, Twitter/X, or news URL for analysis\n"
+                "- 🚨 **Report hate crime** — type **report** and I'll submit forms for you\n\n"
+                "**What you can share with me:**\n"
+                "- 📎 **Images** — screenshots, photos of letters, workplace notices (up to 5, max 10MB each)\n"
+                "- 🔗 **URLs** — YouTube, Facebook, Twitter/X, Instagram, news articles\n"
+                "- 📝 **Text** — emails, policies, messages you want analysed for legal issues\n\n"
+                "> ⚠️ **AskAdil is an educational tool, not a law firm.** Always consult a qualified "
+                "solicitor before taking legal action."
             ),
             actions=actions,
         ).send()

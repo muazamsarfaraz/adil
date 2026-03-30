@@ -15,8 +15,8 @@ cot = "hidden"
 # Default theme
 default_theme = "light"
 
-# Don't show readme/chainlit splash on load
-show_readme_as_default = false
+# Show the readme/welcome message on load
+show_readme_as_default = true
 
 # Hide Chainlit watermark
 hide_cot = true
