@@ -19,6 +19,11 @@ dependencies = [
     "langchain-anthropic>=0.3.0",
     "langchain-openai>=0.3.0",
     "beautifulsoup4>=4.12.0",
+    "stripe>=8.0.0",
+    "slowapi>=0.1.9",
+    "arq>=0.26.0",
+    "redis>=5.0.0",
+    "sendgrid>=6.11.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +34,7 @@ dev = [
     "aiosqlite>=0.20.0",
     "ruff>=0.8.0",
     "respx>=0.22.0",
+    "fakeredis>=2.21.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -37,6 +43,10 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "integration: marks tests that require real infrastructure (Postgres, LLM APIs, network)",
+    "timeout: set a timeout in seconds for a test (requires pytest-timeout or used as metadata)",
+]
 
 [tool.ruff]
 target-version = "py312"

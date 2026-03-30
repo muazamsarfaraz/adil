@@ -18,6 +18,7 @@ from app.schemas.campaign import (
     CampaignWithStats,
 )
 from app.schemas.stats import CampaignStats
+from app.workers.settings import get_arq_pool
 
 router = APIRouter(prefix="/api/v1/outreach/campaigns", tags=["campaigns"], dependencies=[Depends(require_api_key)])
 
@@ -62,7 +63,7 @@ async def get_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get_db
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    stats = await _compute_campaign_stats(campaign_id, db)
+    stats = await _compute_campaign_stats(campaign_id, db, campaign=campaign)
 
     campaign_data = CampaignResponse.model_validate(campaign).model_dump()
     campaign_data["stats"] = stats
@@ -99,8 +100,9 @@ async def delete_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get
     await db.commit()
 
 
-@router.post("/{campaign_id}/launch", response_model=CampaignResponse)
+@router.post("/{campaign_id}/launch", status_code=202)
 async def launch_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+    """Activate campaign and enqueue all pending contacts for outreach."""
     campaign = await db.get(Campaign, campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -109,10 +111,26 @@ async def launch_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get
     if campaign.status not in (CampaignStatus.draft, CampaignStatus.paused):
         raise HTTPException(status_code=409, detail=f"Cannot launch campaign with status '{campaign.status.value}'")
 
+    # Set status to active immediately so signup forms work
     campaign.status = CampaignStatus.active
     await db.commit()
     await db.refresh(campaign)
-    return campaign
+
+    # Enqueue the launch task — staggered contact enqueue happens in worker
+    job_id = None
+    try:
+        pool = await get_arq_pool()
+        job = await pool.enqueue_job("launch_campaign", str(campaign_id))
+        job_id = job.job_id if job else None
+    except Exception:
+        pass  # Worker not running is OK — campaign is still active
+
+    return {
+        "message": "Campaign launched",
+        "campaign_id": str(campaign_id),
+        "status": "active",
+        "job_id": job_id,
+    }
 
 
 @router.post("/{campaign_id}/pause", response_model=CampaignResponse)
@@ -129,8 +147,13 @@ async def pause_campaign(campaign_id: uuid.UUID, db: AsyncSession = Depends(get_
     return campaign
 
 
-async def _compute_campaign_stats(campaign_id: uuid.UUID, db: AsyncSession) -> CampaignStats:
+async def _compute_campaign_stats(
+    campaign_id: uuid.UUID, db: AsyncSession, campaign: Campaign | None = None
+) -> CampaignStats:
     """Compute aggregate stats for a campaign by counting contact statuses."""
+    if campaign is None:
+        campaign = await db.get(Campaign, campaign_id)
+
     result = await db.execute(
         select(Contact.status, func.count(Contact.id))
         .where(Contact.campaign_id == campaign_id)
@@ -149,6 +172,14 @@ async def _compute_campaign_stats(campaign_id: uuid.UUID, db: AsyncSession) -> C
     )
     open_count = open_count_result.scalar() or 0
 
+    # Last activity timestamp
+    last_activity_result = await db.execute(
+        select(func.max(OutreachEvent.created_at))
+        .join(Contact, OutreachEvent.contact_id == Contact.id)
+        .where(Contact.campaign_id == campaign_id)
+    )
+    last_activity = last_activity_result.scalar()
+
     emailed = status_counts.get(ContactStatus.emailed, 0)
     replied = status_counts.get(ContactStatus.replied, 0)
     converted = status_counts.get(ContactStatus.converted, 0)
@@ -163,18 +194,23 @@ async def _compute_campaign_stats(campaign_id: uuid.UUID, db: AsyncSession) -> C
     )
 
     return CampaignStats(
+        campaign_id=campaign_id,
+        campaign_name=campaign.name if campaign else "",
+        campaign_status=campaign.status.value if campaign else "draft",
         total_contacts=total,
         pending=status_counts.get(ContactStatus.pending, 0),
         researching=status_counts.get(ContactStatus.researching, 0),
         ready=status_counts.get(ContactStatus.ready, 0),
         draft_pending=status_counts.get(ContactStatus.draft_pending, 0),
         emailed=emailed,
+        opened=open_count,
         replied=replied,
         converted=converted,
         declined=status_counts.get(ContactStatus.declined, 0),
         unresponsive=status_counts.get(ContactStatus.unresponsive, 0),
         bounced=status_counts.get(ContactStatus.bounced, 0),
-        open_rate=round(open_count / sent_total, 2) if sent_total > 0 else 0.0,
-        reply_rate=round(replied / sent_total, 2) if sent_total > 0 else 0.0,
-        conversion_rate=round(converted / sent_total, 2) if sent_total > 0 else 0.0,
+        open_rate=round(open_count / sent_total, 4) if sent_total > 0 else 0.0,
+        reply_rate=round(replied / sent_total, 4) if sent_total > 0 else 0.0,
+        conversion_rate=round(converted / total, 4) if total > 0 else 0.0,
+        last_activity=last_activity,
     )

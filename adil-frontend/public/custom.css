@@ -1,3 +1,25 @@
+/* AskAdil — Hide Chainlit branding on initial load */
+
+/* Hide Chainlit logo/watermark */
+a[href*="chainlit"],
+a[href*="github.com/Chainlit"],
+[class*="watermark"],
+img[src*="chainlit"],
+svg[class*="chainlit"],
+div[class*="watermark"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+/* Hide "Built with Chainlit" or "Powered by" footer text */
+footer a[href*="chainlit"],
+p:has(a[href*="chainlit"]),
+span:has(a[href*="chainlit"]) {
+    display: none !important;
+}
+
 /* AskAdil — Custom action button styling */
 /* Chainlit 2.x renders actions as buttons inside a flex container below messages */
 

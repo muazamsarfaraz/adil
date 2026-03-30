@@ -55,3 +55,19 @@ class Contact(Base):
     checkpoints = relationship("AgentCheckpoint", back_populates="contact", cascade="all, delete-orphan")
 
     __table_args__ = (Index("ix_contacts_campaign_status", "campaign_id", "status"),)
+
+    def to_dict(self) -> dict:
+        """Serialize to dict for use in OutreachState."""
+        return {
+            "id": str(self.id),
+            "campaign_id": str(self.campaign_id),
+            "name": self.name,
+            "email": self.email,
+            "phone": self.phone,
+            "firm_name": self.firm_name,
+            "website": self.website,
+            "metadata": self.metadata_,
+            "research_data": self.research_data,
+            "status": self.status.value if isinstance(self.status, ContactStatus) else self.status,
+            "current_cadence_step": self.current_cadence_step,
+        }

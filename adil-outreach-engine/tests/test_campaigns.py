@@ -123,40 +123,65 @@ async def test_delete_campaign(client: AsyncClient, auth_headers: dict):
 
 @pytest.mark.asyncio
 async def test_launch_campaign(client: AsyncClient, auth_headers: dict):
+    from unittest.mock import AsyncMock, patch, MagicMock
+
     create_resp = await client.post(
         "/api/v1/outreach/campaigns",
         json={"name": "Launch Campaign", "slug": "launch-camp", "goal": "signup"},
         headers=auth_headers,
     )
     campaign_id = create_resp.json()["id"]
-    response = await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/launch", headers=auth_headers)
-    assert response.status_code == 200
-    assert response.json()["status"] == "active"
+
+    mock_pool = AsyncMock()
+    mock_job = MagicMock()
+    mock_job.job_id = "test-job-id"
+    mock_pool.enqueue_job = AsyncMock(return_value=mock_job)
+
+    with patch("app.api.campaigns.get_arq_pool", return_value=mock_pool):
+        response = await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/launch", headers=auth_headers)
+    assert response.status_code == 202
+    assert response.json()["message"] == "Campaign launched"
+    assert response.json()["campaign_id"] == campaign_id
 
 
 @pytest.mark.asyncio
-async def test_launch_already_active_campaign(client: AsyncClient, auth_headers: dict):
+async def test_launch_already_active_campaign(client: AsyncClient, auth_headers: dict, db_session):
     create_resp = await client.post(
         "/api/v1/outreach/campaigns",
         json={"name": "Already Active", "slug": "already-active", "goal": "signup"},
         headers=auth_headers,
     )
     campaign_id = create_resp.json()["id"]
-    await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/launch", headers=auth_headers)
+
+    # Manually set campaign to active (simulating a prior launch)
+    from app.models.campaign import Campaign
+    import uuid as _uuid
+
+    campaign = await db_session.get(Campaign, _uuid.UUID(campaign_id))
+    campaign.status = "active"
+    await db_session.commit()
+
     response = await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/launch", headers=auth_headers)
     assert response.status_code == 409
 
 
 @pytest.mark.asyncio
-async def test_pause_campaign(client: AsyncClient, auth_headers: dict):
+async def test_pause_campaign(client: AsyncClient, auth_headers: dict, db_session):
+    from app.models.campaign import Campaign
+    import uuid as _uuid
+
     create_resp = await client.post(
         "/api/v1/outreach/campaigns",
         json={"name": "Pause Campaign", "slug": "pause-camp", "goal": "signup"},
         headers=auth_headers,
     )
     campaign_id = create_resp.json()["id"]
-    # Launch first
-    await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/launch", headers=auth_headers)
+
+    # Manually set campaign to active
+    campaign = await db_session.get(Campaign, _uuid.UUID(campaign_id))
+    campaign.status = "active"
+    await db_session.commit()
+
     # Then pause
     response = await client.post(f"/api/v1/outreach/campaigns/{campaign_id}/pause", headers=auth_headers)
     assert response.status_code == 200

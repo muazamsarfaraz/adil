@@ -80,14 +80,61 @@ class TestScrapeWebsite:
 
     @respx.mock
     async def test_scrape_truncates_long_content(self):
-        """scrape_website truncates output to 4000 chars."""
+        """scrape_website truncates output to 6000 chars."""
         long_text = "A" * 10000
         html = f"<html><head><title>Test</title></head><body><p>{long_text}</p></body></html>"
         respx.get("https://long.example.com/").mock(return_value=httpx.Response(200, text=html))
 
         result = await scrape_website.ainvoke({"url": "https://long.example.com/"})
 
-        assert len(result) <= 4100  # 4000 + truncation message
+        assert len(result) <= 6100  # 6000 + truncation message
+
+    @respx.mock
+    async def test_scrape_handles_list_text_from_bs4(self):
+        """scrape_website handles BeautifulSoup returning list instead of string.
+
+        Some malformed HTML can cause get_text() to return a list in certain
+        BeautifulSoup edge cases. The scraper should coerce to string safely
+        rather than raising 'expected string or bytes-like object, got list'.
+        """
+        html = """
+        <html>
+        <head><title>Edge Case Firm</title></head>
+        <body>
+            <p>Contact us at edge@example.com</p>
+            <p>Phone: 0161 234 5678</p>
+        </body>
+        </html>
+        """
+        respx.get("https://edgecase.example.com/").mock(return_value=httpx.Response(200, text=html))
+
+        # Patch get_text on the body element to return a list (simulating the bug)
+        _original_ainvoke = scrape_website.ainvoke
+
+        from unittest.mock import patch as _patch
+        from bs4 import Tag
+
+        _original_get_text = Tag.get_text
+
+        call_count = 0
+
+        def patched_get_text(self, *args, **kwargs):
+            nonlocal call_count
+            result = _original_get_text(self, *args, **kwargs)
+            # Only patch the body's get_text call (the one with separator kwarg)
+            if self.name == "body" and "separator" in kwargs:
+                call_count += 1
+                if call_count == 1:
+                    # Return a list to simulate the bug
+                    return ["Contact us at edge@example.com", "Phone: 0161 234 5678"]
+            return result
+
+        with _patch.object(Tag, "get_text", patched_get_text):
+            result = await scrape_website.ainvoke({"url": "https://edgecase.example.com/"})
+
+        # Should not raise — should return valid content
+        assert "Title: Edge Case Firm" in result
+        assert "Error" not in result
 
 
 # ---------------------------------------------------------------------------

@@ -18,6 +18,7 @@ class CampaignCreate(BaseModel):
     classify_instructions: str | None = None
     conversion_config: dict | None = None
     auto_send: bool = False
+    dry_run: bool = False
     sender_name: str | None = None
     sender_email: str | None = Field(None, pattern=r"^[^@]+@[^@]+\.[^@]+$")
     reply_to: str | None = Field(None, pattern=r"^[^@]+@[^@]+\.[^@]+$")
@@ -36,6 +37,7 @@ class CampaignUpdate(BaseModel):
     classify_instructions: str | None = None
     conversion_config: dict | None = None
     auto_send: bool | None = None
+    dry_run: bool | None = None
     sender_name: str | None = None
     sender_email: str | None = Field(None, pattern=r"^[^@]+@[^@]+\.[^@]+$")
     reply_to: str | None = Field(None, pattern=r"^[^@]+@[^@]+\.[^@]+$")
@@ -56,6 +58,7 @@ class CampaignResponse(BaseModel):
     classify_instructions: str | None
     conversion_config: dict | None
     auto_send: bool
+    dry_run: bool
     sender_name: str | None
     sender_email: str | None
     reply_to: str | None

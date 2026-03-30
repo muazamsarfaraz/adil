@@ -21,7 +21,7 @@ _PHONE_RE = re.compile(
     r"|(?:\+\d{1,3}\s?)?\(?\d{2,4}\)?[\s.\-]?\d{3,4}[\s.\-]?\d{3,4}"  # international
 )
 
-_MAX_OUTPUT_CHARS = 4000
+_MAX_OUTPUT_CHARS = 6000
 
 
 @tool
@@ -50,13 +50,52 @@ async def scrape_website(url: str) -> str:
 
         # Extract title
         title_tag = soup.find("title")
-        title = title_tag.get_text(strip=True) if title_tag else "No title"
+        title_text = title_tag.get_text(strip=True) if title_tag else "No title"
+        title = str(title_text) if not isinstance(title_text, str) else title_text
 
         # Extract meta description
         meta_desc = ""
         meta_tag = soup.find("meta", attrs={"name": "description"})
         if meta_tag and meta_tag.get("content"):
-            meta_desc = meta_tag["content"]
+            content = meta_tag["content"]
+            meta_desc = " ".join(content) if isinstance(content, list) else str(content)
+
+        # Extract OG description as fallback (often contains specialisms)
+        if not meta_desc:
+            og_tag = soup.find("meta", attrs={"property": "og:description"})
+            if og_tag and og_tag.get("content"):
+                content = og_tag["content"]
+                meta_desc = " ".join(content) if isinstance(content, list) else str(content)
+
+        # Extract H1 and H2 headings (often list practice areas and specialisms)
+        headings = []
+        for tag_name in ("h1", "h2"):
+            for heading in soup.find_all(tag_name):
+                heading_text = heading.get_text(strip=True)
+                if heading_text and len(heading_text) < 200:
+                    headings.append(heading_text)
+
+        # Extract internal links to key pages (About, Team, Services, Practice Areas)
+        key_pages = []
+        _KEY_PAGE_PATTERNS = re.compile(
+            r"(about|team|people|solicitor|lawyer|staff|practice|service|speciali|area.*law|"
+            r"expertise|sector|department|accreditation|award|testimonial)",
+            re.IGNORECASE,
+        )
+        base_domain = re.sub(r"https?://", "", url).split("/")[0]
+        for link in soup.find_all("a", href=True):
+            href = link["href"]
+            link_text = link.get_text(strip=True)
+            # Match by link text or href path
+            if _KEY_PAGE_PATTERNS.search(link_text) or _KEY_PAGE_PATTERNS.search(href):
+                # Resolve relative URLs
+                if href.startswith("/"):
+                    href = f"https://{base_domain}{href}"
+                elif not href.startswith("http"):
+                    href = f"https://{base_domain}/{href}"
+                # Only include links on the same domain
+                if base_domain in href and href not in key_pages:
+                    key_pages.append(href)
 
         # Strip unwanted tags
         for tag_name in _STRIP_TAGS:
@@ -69,6 +108,12 @@ async def scrape_website(url: str) -> str:
             text = body.get_text(separator="\n", strip=True)
         else:
             text = soup.get_text(separator="\n", strip=True)
+
+        # Ensure text is a string — BeautifulSoup can return lists in edge cases
+        if isinstance(text, list):
+            text = "\n".join(str(item) for item in text)
+        elif not isinstance(text, str):
+            text = str(text)
 
         # Clean up whitespace — collapse multiple blank lines
         lines = [line.strip() for line in text.splitlines() if line.strip()]
@@ -86,8 +131,25 @@ async def scrape_website(url: str) -> str:
             contact_parts.append(f"Phones: {', '.join(phones[:5])}")
         contact_section = "; ".join(contact_parts) if contact_parts else "No contact details found"
 
+        # Build headings section
+        headings_section = ""
+        if headings:
+            headings_section = "Headings: " + " | ".join(headings[:15])
+
+        # Build key pages section
+        key_pages_section = ""
+        if key_pages:
+            key_pages_section = "Key pages found: " + ", ".join(key_pages[:8])
+
         # Build output
-        output = f"Title: {title}\n" f"Description: {meta_desc}\n" f"Contact: {contact_section}\n" f"Content: {text}"
+        output = (
+            f"Title: {title}\n"
+            f"Description: {meta_desc}\n"
+            f"{headings_section + chr(10) if headings_section else ''}"
+            f"Contact: {contact_section}\n"
+            f"{key_pages_section + chr(10) if key_pages_section else ''}"
+            f"Content: {text}"
+        )
 
         # Truncate to stay within LLM context limits
         if len(output) > _MAX_OUTPUT_CHARS:

@@ -1,0 +1,230 @@
+================================================================================
+SOLICITORCONNECT.CO.UK - ISLAMIC / SHARIA LAW RESEARCH
+Extracted: 2026-03-25
+================================================================================
+
+PLATFORM OVERVIEW
+-----------------
+- Company: We Serve You Limited T/A SolicitorConnect
+- Address: Prospect House, Featherstall Road South, Oldham, OL9 6HT
+- Email: hello@solicitorconnect.co.uk
+- Model: Lead-generation / matching platform (not a law firm itself)
+- Claims: 2,500+ verified solicitors, 50+ practice areas, UK-wide coverage
+- How it works: Users submit enquiry -> matched with 2-4 solicitors -> compare quotes -> choose
+- All solicitors are SRA-regulated
+- Free service for consumers; 2-4 hour average response time
+
+================================================================================
+ISLAMIC & SHARIA LAW SERVICES ON SOLICITORCONNECT
+================================================================================
+
+The platform lists Islamic & Sharia Law as a practice area (practice_area ID: 182)
+with 5 sub-categories:
+
+1. ISLAMIC WILLS & SUCCESSION (practice_area: 183)
+   - Sharia-compliant wills following Faraid principles
+   - Islamic inheritance law and UK compliance
+   - Faraid calculations
+   - Islamic trust structures
+
+2. SHARIA-COMPLIANT FINANCE (practice_area: 184)
+   - Halal mortgages / Islamic mortgage advice
+   - Islamic banking solutions
+   - Business finance structuring
+   - Property purchase guidance
+   - Sukuk (Islamic bonds - Ijara Sukuk, Murabaha Sukuk)
+   - Murabaha, Ijara structures
+
+3. ISLAMIC FAMILY LAW (practice_area: 185)
+   - Nikah & Marriage Contracts (Islamic marriage + UK legal registration)
+   - Mahr & Dower Rights
+   - Islamic Divorce (Talaq / Khula / Mubarat)
+   - Child Custody & Access
+   - Polygamous Marriage Issues
+   - International Family Disputes
+   - Religious Tribunal Support
+   - Conversion & Family Conflicts
+
+4. HALAL BUSINESS STRUCTURING (practice_area: 186)
+   - Islamic-compliant company formation
+   - Partnerships and commercial arrangements
+   - Musharaka agreements (profit/loss sharing partnerships)
+   - Mudarabah structures
+
+5. RELIGIOUS TRIBUNAL REPRESENTATION (practice_area: 187)
+   - Muslim Arbitration Tribunal (MAT) - est. 2007, operates under Arbitration Act 1996
+   - Islamic Shura Council - mediation and arbitration
+   - Local Mosque Committees - informal community mediation
+
+Also covers:
+   - Islamic Inheritance Disputes
+   - Charity & Waqf Administration
+   - Nikah & Marriage Registration
+
+================================================================================
+PRICING GUIDANCE (from SolicitorConnect)
+================================================================================
+
+Islamic Wills & Succession:
+  - Sharia-compliant will: GBP 200-500
+  - Complex inheritance planning: GBP 500-1,500
+  - Faraid calculations: GBP 150-300
+  - Islamic trust structures: GBP 800-2,000
+
+Sharia-Compliant Finance:
+  - Islamic mortgage advice: GBP 300-800
+  - Business finance structuring: GBP 1,000-3,000
+  - Property purchase guidance: GBP 500-1,200
+
+Family Law Matters:
+  - Marriage contract review: GBP 200-500
+  - Islamic divorce proceedings: GBP 1,000-3,000
+  - Custody arrangements: GBP 800-2,500
+
+Many solicitors offer fixed fees and free initial consultations.
+
+================================================================================
+LISTED FIRMS ON SOLICITORCONNECT (all firms on the platform)
+================================================================================
+NOTE: SolicitorConnect does NOT list specific firms under Islamic/Sharia law
+pages. The platform operates as a matching service - users submit enquiries
+and are matched with appropriate solicitors. The firms below are ALL firms
+currently visible on the reviews/directory pages. None explicitly list
+"Islamic & Sharia Law" as a tagged specialism on their profiles, though
+several cover related areas (family law, wills & probate).
+
+1. AMIN HAQUE LIMITED
+   - Location: Oldham, OL9 6HT
+   - Established: 2018
+   - Status: Verified Profile, SRA Regulated
+   - Rating: 5.0/5 (6 reviews)
+   - Specialisms: Family Law, Divorce Solicitors, Child Custody & Contact,
+     Domestic Violence, Financial Settlements
+   - Profile: https://www.solicitorconnect.co.uk/firms/amin-haque-limited/
+
+2. THOMPSON & CO SOLICITORS LTD
+   - Location: London
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (3 reviews)
+   - Specialisms: Family Law
+   - Profile: https://www.solicitorconnect.co.uk/firms/thompson-co-solicitors-ltd/
+
+3. NMK LAW CHAMBERS LIMITED
+   - Location: Manchester
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (1 review)
+   - Specialisms: Family Law
+   - Profile: https://www.solicitorconnect.co.uk/firms/nmk-law-chambers-limited/
+
+4. ATA & CO
+   - Location: Harrow
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (1 review)
+   - Specialisms: Wills & Probate
+   - Profile: https://www.solicitorconnect.co.uk/firms/ata-co/
+
+5. A S SOLICITORS
+   - Location: London
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (1 review)
+   - Specialisms: Family Law, Wills & Probate
+   - Profile: https://www.solicitorconnect.co.uk/firms/a-s-solicitors/
+
+6. LEGAL EAGLES SOLICITORS
+   - Location: London, EC1A 1BB
+   - Status: Verified Profile, SRA Regulated
+   - Rating: 5.0/5 (2 reviews)
+   - Specialisms: Criminal Law, Immigration Law
+   - Named Staff: John Smith (Partner, SRA: SOL123456) - appears to be test data
+   - Note: Reviews appear to be test reviews by "Nurul Haque"
+   - Profile: https://www.solicitorconnect.co.uk/firms/legal-eagles/
+
+7. LIBERTY LEGAL SOLICITORS LLP
+   - Location: Ilford, IG1
+   - Status: SRA Regulated
+   - Rating: 1.0/5 (2 reviews)
+   - Specialisms: Family Law, Wills & Probate, Immigration Law,
+     Visa Applications, Spouse Partner Visas
+   - Profile: https://www.solicitorconnect.co.uk/firms/liberty-legal-solicitors-llp/
+
+8. GOLD JENNINGS LTD
+   - Location: London
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (1 review)
+   - Specialisms: Not specified on profile
+   - Profile: https://www.solicitorconnect.co.uk/firms/gold-jennings-ltd/
+
+9. KNIGHTSWOOD SOLICITORS LTD
+   - Location: Smethwick
+   - Status: SRA Regulated
+   - Rating: 5.0/5 (1 review)
+   - Specialisms: Not specified on profile
+   - Profile: https://www.solicitorconnect.co.uk/firms/knightswood-solicitors-ltd/
+
+10. NSK SOLICITORS LLP
+    - Location: London
+    - Status: SRA Regulated
+    - Rating: 5.0/5 (1 review)
+    - Specialisms: Not specified on profile
+    - Profile: https://www.solicitorconnect.co.uk/firms/nsk-solicitors-llp/
+
+11. WHALEBONE ASSOCIATES LTD
+    - Location: Ilford
+    - Status: SRA Regulated
+    - Rating: 5.0/5 (1 review)
+    - Specialisms: Not specified on profile
+    - Profile: https://www.solicitorconnect.co.uk/firms/whalebone-associates-ltd/
+
+================================================================================
+COMMON ISLAMIC LAW CHALLENGES ADDRESSED
+================================================================================
+- Inheritance Conflicts: Balancing Faraid with UK legal requirements
+- Property Purchase: Avoiding interest-based (riba) mortgages
+- Business Formation: Creating Halal business structures
+- Family Disputes: Conflicts spanning religious and civil law
+- International Issues: Cross-border Islamic law matters
+- Documentation: Ensuring religious documents have UK legal validity
+
+================================================================================
+KEY OBSERVATIONS
+================================================================================
+1. SolicitorConnect is a MATCHING PLATFORM, not a directory of named Islamic
+   law specialists. No individual solicitor names specialising in Islamic/Sharia
+   law are publicly listed.
+
+2. The Islamic & Sharia Law service pages are SEO/content-marketing pages
+   describing the practice area in detail but do NOT list specific solicitors
+   or firms that handle this work.
+
+3. The platform claims "500+ Islamic & Sharia Law Specialists" but these are
+   not publicly browsable - users must submit an enquiry to be matched.
+
+4. The 11 firms visible on the reviews page are the ONLY publicly listed
+   firms. Most have minimal profiles. Several appear to be test/early-stage
+   listings (e.g., Legal Eagles with test reviews).
+
+5. The platform is relatively new (owned by We Serve You Limited, based in
+   Oldham - same location as Amin Haque Limited, suggesting a connection).
+
+6. No direct phone numbers or email addresses for individual solicitors
+   are provided. All contact is routed through the SolicitorConnect platform.
+
+7. Geographic coverage is UK-wide according to the platform.
+
+8. Related services cross-linked: Family Law, Wills & Probate,
+   Debt & Insolvency, Consumer Rights, Commercial Property, Corporate Law.
+
+================================================================================
+URLS VISITED
+================================================================================
+- https://www.solicitorconnect.co.uk/
+- https://www.solicitorconnect.co.uk/legal-services/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/islamic-wills-succession/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/sharia-compliant-finance/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/islamic-family-law/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/halal-business-structuring/
+- https://www.solicitorconnect.co.uk/legal-services/islamic-sharia-law/religious-tribunal-representation/
+- https://www.solicitorconnect.co.uk/how-it-works/
+- https://www.solicitorconnect.co.uk/reviews/review-solicitors/
+- https://www.solicitorconnect.co.uk/firms/[all 11 firm slugs]/

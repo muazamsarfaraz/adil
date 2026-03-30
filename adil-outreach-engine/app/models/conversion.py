@@ -13,6 +13,7 @@ class ConversionType(str, enum.Enum):
     signup = "signup"
     booking = "booking"
     payment = "payment"
+    custom = "custom"
 
 
 class Conversion(Base):

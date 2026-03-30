@@ -1,0 +1,44 @@
+[project]
+# AskAdil - UK Discrimination Law Assistant
+enable_telemetry = false
+
+[UI]
+# App name - displayed in browser tab and header
+name = "AskAdil — UK Discrimination Law Assistant"
+
+# Description - used for HTML meta tags
+description = "AskAdil — Free AI-powered UK discrimination law guidance for British Muslims. Educate First, Litigate Second."
+
+# Chain of thought display mode - hide internal processing
+cot = "hidden"
+
+# Default theme
+default_theme = "light"
+
+# Don't show readme/chainlit splash on load
+show_readme_as_default = false
+
+# Hide Chainlit watermark
+hide_cot = true
+
+# Hide the default GitHub link - point to MCB website instead
+github = "https://mcb.org.uk"
+
+# Custom meta image - point to MCB logo
+custom_meta_image_url = "https://mcb.org.uk/wp-content/uploads/2020/03/mcb-logo.png"
+
+# Custom JavaScript to override remaining Chainlit references
+custom_js = "/public/custom.js"
+custom_css = "/public/custom.css"
+
+# Theme customisation now uses public/theme.json (Chainlit 2.x)
+
+[features.spontaneous_file_upload]
+    enabled = true
+    accept = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+    max_files = 5
+    max_size_mb = 10
+
+[meta]
+generated_by = "AskAdil - askadil.org - Muslim Council of Britain"
+
