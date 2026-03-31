@@ -69,6 +69,33 @@ def test_police_scotland_target_exists():
     assert t["coverage"] == "Scotland"
 
 
+def test_british_muslim_trust_target_exists():
+    assert "british-muslim-trust" in TARGETS
+    t = TARGETS["british-muslim-trust"]
+    assert "britishmuslimtrust.co.uk/report-hate" in t["url"]
+    assert t["adapter_type"] == "browser"
+    assert t["coverage"] == "United Kingdom"
+    assert "instructions" in t
+    assert "city" in t["required_fields"]
+
+
+def test_muslim_safety_net_target_exists():
+    assert "muslim-safety-net" in TARGETS
+    t = TARGETS["muslim-safety-net"]
+    assert "muslimsafetynet.org.uk/report" in t["url"]
+    assert t["adapter_type"] == "browser"
+    assert t["coverage"] == "United Kingdom"
+
+
+def test_prevent_watch_target_exists():
+    assert "prevent-watch" in TARGETS
+    t = TARGETS["prevent-watch"]
+    assert "preventwatch.org" in t["url"]
+    assert t["adapter_type"] == "email"
+    assert t["email_to"] == "contact@preventwatch.org"
+    assert t["coverage"] == "United Kingdom"
+
+
 def test_all_targets_have_required_keys():
     common_keys = {"name", "url", "required_fields", "optional_fields", "coverage", "adapter_type"}
     for tid, tcfg in TARGETS.items():
@@ -78,10 +105,12 @@ def test_all_targets_have_required_keys():
             assert "instructions" in tcfg, f"Browser target '{tid}' missing 'instructions'"
         elif tcfg["adapter_type"] == "email":
             assert "email_to" in tcfg, f"Email target '{tid}' missing 'email_to'"
+        else:
+            raise AssertionError(f"Target '{tid}' has unknown adapter_type '{tcfg['adapter_type']!r}'")
 
 
 def test_email_targets_have_recipients():
     email_targets = {tid: t for tid, t in TARGETS.items() if t.get("adapter_type") == "email"}
-    assert len(email_targets) >= 2
+    assert len(email_targets) >= 3
     for tid, t in email_targets.items():
         assert "@" in t["email_to"], f"Email target '{tid}' has invalid email_to"

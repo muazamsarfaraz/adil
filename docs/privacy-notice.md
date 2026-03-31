@@ -54,13 +54,16 @@ For data relating to religion (a special category), our basis is:
 
 | Recipient | When | What they receive |
 |-----------|------|-------------------|
+| **British Muslim Trust** (britishmuslimtrust.co.uk) | Only if you submit a report to British Muslim Trust | Your name, gender, ethnicity, contact details, and incident description |
 | **Police UK** (police.uk) | Only if you submit a report to Police UK | Your name, DOB, gender, contact details, and incident description |
-| **Tell MAMA** | Only if you submit a report to Tell MAMA | Your name, contact details, and incident description |
 | **Police Scotland** | Only if you submit a report to Police Scotland | Your name, DOB, gender, contact details, and incident description |
-| **IRU** (Internet Referral Unit) | Only if you submit a report to IRU | Your name, contact details, and incident description |
+| **IRU** (Islamophobia Response Unit) | Only if you submit a report to IRU | Your name, contact details, and incident description |
+| **Muslim Safety Net** | Only if you submit a report to Muslim Safety Net | Your name, contact details, and incident description |
+| **Tell MAMA** | Only if you submit a report to Tell MAMA | Your name, contact details, and incident description |
+| **Islamophobia UK** | Only if you submit an anonymous report to Islamophobia UK | Incident description only — no personal details |
+| **Prevent Watch** | Only if you submit a support request to Prevent Watch | Your name, contact details, and incident description (sent via email) |
 | **EASS** (Equality Advisory Support Service) | Only if you submit a report to EASS | Your name, contact details, and incident description (sent via email) |
 | **Stop Hate UK** | Only if you submit a report to Stop Hate UK | Your name, contact details, and incident description (sent via email) |
-| **Islamophobia UK** | Only if you submit an anonymous report to Islamophobia UK | Incident description only — no personal details |
 | **SendGrid** (email delivery) | When you submit a report to an email-based target, or when an email receipt is sent | Incident report content (for email targets) or your email address and reference number (for receipts). SendGrid is a data processor acting on our behalf and does not use this data for its own purposes. |
 | **Google (Gemini AI)** | Every conversation | Your messages (anonymised — no personal details are sent unless you include them in your message) |
 | **Railway** (hosting provider) | Always | Technical data (IP address, request logs). Railway does not access message content. |

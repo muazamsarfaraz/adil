@@ -89,13 +89,18 @@ Type **report** in the chat to submit a hate crime report directly — AskAdil w
 Every response includes personalised links to relevant organisations based on your situation. Here are some key resources:
 
 **Report Islamophobia / Hate Crime:**
-- [Tell MAMA](https://tellmamauk.org/submit-a-report-to-us/) — Report anti-Muslim hate incidents
+- [British Muslim Trust](https://britishmuslimtrust.co.uk/report-hate) — Government-appointed reporting partner. Phone/WhatsApp: 0808 172 3524
 - [IRU](https://theiru.org.uk/report-islamophobia/) — Islamophobia Response Unit (020 3904 6555)
+- [Muslim Safety Net](https://muslimsafetynet.org.uk/report) — Confidential support (WhatsApp: 07311 876378)
+- [Stop Hate UK](https://stophateuk.org/report-hate-crime/) — 24/7 helpline: 0800 138 1625
 - [True Vision](https://report-it.org.uk/) — Online hate crime reporting to police
-- [Stop Hate UK](https://stophateuk.org/) — 24/7 helpline: 0800 138 1625
+- [Tell MAMA](https://tellmamauk.org/submit-a-report-to-us/) — Report anti-Muslim hate incidents
+
+**Prevent Duty Support:**
+- [Prevent Watch](https://preventwatch.org/get-support/) — Support for Prevent referrals (0333 344 3396)
 
 **Free Legal Advice:**
-- [EASS](https://equalityadvisoryservice.com/) — Equality Advisory Support Service (0808 800 0082)
+- [EASS](https://www.equalityadvisoryservice.com/) — Equality Advisory Support Service (0808 800 0082)
 - [Citizens Advice](https://citizensadvice.org.uk/) — Free legal guidance
 - [ACAS](https://acas.org.uk/) — Workplace disputes & early conciliation
 - [Find a Solicitor](https://solicitors.lawsociety.org.uk/) — Law Society directory

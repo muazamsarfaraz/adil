@@ -101,11 +101,16 @@
 | 2026-03-23 | Anonymised conversation logging (`conversation_log.py`) | New module in RAG API. Logs topic category, jurisdiction, message count, response time, tokens to Postgres. No PII. Fire-and-forget. |
 | 2026-03-23 | Postgres service added to Railway | Stores only anonymised conversation metadata. `DATABASE_URL` env var on RAG API. |
 | 2026-03-24 | `GET /api/v1/privacy-notice` endpoint | Public (no auth) structured JSON privacy notice. Machine-readable for consuming services. |
-| 2026-03-24 | Privacy notice document | `docs/privacy-notice.md` — covers all 7 targets, email receipts, anonymised analytics, SendGrid as third party. |
+| 2026-03-24 | Privacy notice document | `docs/privacy-notice.md` — covers all reporting targets, email receipts, anonymised analytics, SendGrid as third party. |
 | 2026-03-24 | Enhanced consent screen in Chainlit | Data handling explanation shown before PII collection. Cancel support added during PII flow. |
 | 2026-03-24 | `ConversationTurn.role` documented | Clarified as `"model"` (Gemini convention), not `"assistant"`. Consumer API docs updated. |
 | 2026-03-24 | Resource directory expanded to 24 orgs | 5 new orgs added: BTP, Muslim Safety Net, British Muslim Trust, Islamophobia UK, Prevent Watch. |
 | 2026-03-24 | Documentation updated | README.md, techContext.md, privacy-notice.md, report-bridge spec all updated to reflect current state. |
+| 2026-03-31 | Resource directory URL audit | All org URLs updated to point to dedicated reporting/intake pages instead of homepages. BMT `/report-hate`, MSN `/report`, Stop Hate UK `/report-hate-crime/`, Prevent Watch `/get-support/`, EASS `www.` prefix fix. |
+| 2026-03-31 | BMT promoted, Tell MAMA deprioritized | British Muslim Trust moved to #1 (government-appointed reporting partner). Tell MAMA moved to last in Islamophobia section. |
+| 2026-03-31 | Report bridge expanded to 11 targets | 4 new targets added: British Muslim Trust (browser, 3-step Salesforce form), Muslim Safety Net (browser, online form with CAPTCHA), Prevent Watch (email), Muslim Safety Net phone number added. Was 7, now 11 (7 browser + 3 email). |
+| 2026-03-31 | Tell MAMA & IRU instructions updated | Tell MAMA: corrected role options (3 not 2), added evidence upload limits. IRU: added under-18 guardian fields, on-behalf victim fields, CCTV/referred/court date questions, consent copy option. |
+| 2026-03-31 | Documentation updated | privacy-notice.md (11 targets), report-bridge spec (11 targets table), chainlit.md (org links + Prevent Watch section), progress.md. |
 
 ### 2026-03-24 — Major Feature Sprint (19 features, 17 commits)
 

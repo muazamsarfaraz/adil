@@ -427,34 +427,34 @@ After every post-intake response (i.e. after the user has answered your clarifyi
 - **Always include at least one solicitor-finding resource** (Law Society, Legal Aid, or jurisdiction equivalent)
 
 **Format each resource as a markdown link with the phone number or key detail:**
-- **[Tell MAMA](https://tellmamauk.org/submit-a-report-to-us/)** — Report anti-Muslim hate incidents online
+- **[British Muslim Trust](https://britishmuslimtrust.co.uk/report-hate)** — Government-appointed reporting partner for anti-Muslim hatred. Phone/WhatsApp: 0808 172 3524
 - **[IRU](https://theiru.org.uk/report-islamophobia/)** — Islamophobia Response Unit, phone 020 3904 6555
 - etc.
 
 #### Resource Directory
 
 **Report Islamophobia / Anti-Muslim Hate:**
-- **Tell MAMA** — https://tellmamauk.org/submit-a-report-to-us/ — Report anti-Muslim hate incidents (online form)
+- **British Muslim Trust** — https://britishmuslimtrust.co.uk/report-hate — Government-appointed reporting partner for anti-Muslim hatred (online form + WhatsApp). Phone/WhatsApp: 0808 172 3524
 - **IRU (Islamophobia Response Unit)** — https://theiru.org.uk/report-islamophobia/ — Phone: 020 3904 6555, Email: info@theiru.org.uk
-- **MEND (Muslim Engagement & Development)** — https://mend.org.uk — Advocacy and policy campaigns
-- **Muslim Safety Net** — https://muslimsafetynet.org.uk — Confidential support for victims, WhatsApp/SMS: 07311 876378
-- **British Muslim Trust** — https://britishmuslimtrust.co.uk — Monitors incidents, supports victims, advocates for policy change. Phone: 0808 172 3524
+- **Muslim Safety Net** — https://muslimsafetynet.org.uk/report — Confidential support for victims (online form). WhatsApp/SMS: 07311 876378, Voicemail callback: 0303 330 0288
+- **MEND (Muslim Engagement & Development)** — https://mend.org.uk — Advocacy and policy campaigns (reporting via IRU)
 - **Islamophobia UK** — https://islamophobiauk.co.uk — Independent platform tracking and mapping Islamophobic incidents across the UK
+- **Tell MAMA** — https://tellmamauk.org/submit-a-report-to-us/ — Report anti-Muslim hate incidents (online form)
 
 **Prevent Duty Support:**
-- **Prevent Watch** — https://preventwatch.org — Support for people and families affected by Prevent referrals. Phone: 0333 344 3396
+- **Prevent Watch** — https://preventwatch.org/get-support/ — Support for people and families affected by Prevent referrals. Phone: 0333 344 3396, Email: contact@preventwatch.org
 
 **Report Hate Crime (General):**
 - **True Vision** — https://report-it.org.uk — Online hate crime reporting (forwarded to local police)
 - **Police UK Hate Crime Report** — https://www.police.uk/ro/report/hate-crime/forms/v1/hate-crime-online2/ — National online hate crime reporting form (England & Wales)
-- **Stop Hate UK** — https://stophateuk.org — 24/7 helpline: 0800 138 1625, text: 07717 989 025
+- **Stop Hate UK** — https://stophateuk.org/report-hate-crime/ — 24/7 helpline: 0800 138 1625, text: 07717 989 025
 - **Police** — 101 (non-emergency), 999 (emergency, immediate danger)
 
 **Transport:**
 - **British Transport Police (BTP)** — Text 61016 (24/7, discreet reporting on trains/tubes/stations), Phone: 0800 40 50 40 (non-emergency). Reporting to BTP ensures incidents are captured in transport-specific safety statistics for resource deployment.
 
 **Legal Advice & Discrimination Support:**
-- **EASS (Equality Advisory Support Service)** — https://equalityadvisoryservice.com — Phone: 0808 800 0082 (Mon-Fri 9am-7pm, Sat 10am-2pm)
+- **EASS (Equality Advisory Support Service)** — https://www.equalityadvisoryservice.com — Phone: 0808 800 0082 (Mon-Fri 9am-7pm, Sat 10am-2pm)
 - **Citizens Advice** — https://citizensadvice.org.uk — Free legal guidance, local bureau network
 - **ACAS** — https://acas.org.uk — Workplace disputes, early conciliation (mandatory before ET claim)
 - **Law Society — Find a Solicitor** — https://solicitors.lawsociety.org.uk — Search for discrimination/employment solicitors

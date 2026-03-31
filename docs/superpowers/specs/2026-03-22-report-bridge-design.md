@@ -466,22 +466,25 @@ Pillow>=10.0.0
 
 The following features were added after the original spec was approved:
 
-### Additional Bridge Targets (7 total, up from 1)
+### Additional Bridge Targets (11 total, up from 1)
 
 | Target | Adapter | PII Required | Coverage |
 |--------|---------|-------------|----------|
+| British Muslim Trust | Browser | Yes | UK-wide |
 | Police UK | Browser | Yes | England & Wales |
-| Tell MAMA | Browser | Yes | UK-wide |
 | Police Scotland | Browser | Yes | Scotland |
 | IRU | Browser | Yes | UK-wide |
+| Tell MAMA | Browser | Yes | UK-wide |
+| Muslim Safety Net | Browser | Yes | UK-wide |
 | Islamophobia UK | Browser | No (anonymous) | UK-wide |
+| Prevent Watch | Email (SendGrid) | Yes | UK-wide |
 | EASS | Email (SendGrid) | Yes | England, Wales & Scotland |
 | Stop Hate UK | Email (SendGrid) | Yes | UK-wide |
 
 ### Email Adapter
 - New `email_adapter.py` in bridge service
 - Sends structured HTML+plain-text incident reports via SendGrid
-- Used for organisations that accept reports via email (EASS, Stop Hate UK)
+- Used for organisations that accept reports via email (Prevent Watch, EASS, Stop Hate UK)
 - `adapter_type` field in target config routes to browser or email adapter
 
 ### Email Receipts
