@@ -6,13 +6,13 @@
 
 ## Purpose
 
-A FastAPI microservice that fetches UK case law from The National Archives (TNA) Case Law API, stores judgment metadata in Postgres for dedup and audit, and uploads clean judgment text to the existing Gemini File Search Tool Store — expanding AskAdil's legal knowledge base.
+A FastAPI microservice that fetches UK case law from The National Archives (TNA) Case Law API, stores judgment metadata in Postgres for deduplication and audit, and uploads clean judgment text to the existing Gemini File Search Tool (FST) Store — expanding AskAdil's legal knowledge base.
 
 ## Constraints
 
 - **Single Gemini FST Store** — always append to the existing `FILE_SEARCH_STORE_ID`, never create new stores.
 - **No bulk computational licence yet** — prototype operates within standard Open Justice Licence (individual searches, <1,000 req/5 min). Will apply for bulk licence separately.
-- **Employment Tribunal gap** — TNA does not host first-instance ET decisions (they're on gov.uk). Out of scope for v1.
+- **Employment Tribunal (ET) gap** — TNA does not host first-instance ET decisions (they're on gov.uk). Out of scope for v1.
 - **Railway deployment** — follows the monorepo microservice pattern with `railway.toml`.
 
 ## Architecture
@@ -42,10 +42,10 @@ TNA Atom API  ──fetch──>  Postgres (judgments)  ──upload──>  Gem
 1. Worker iterates predefined search queries against `GET https://caselaw.nationalarchives.gov.uk/atom.xml`
 2. Follow `rel="next"` pagination links until results exhausted or rate limit approached
 3. For each Atom entry, check if `neutral_citation` exists in Postgres
-3. If new: fetch full judgment via `GET /{tna_uri}/data.xml`
-4. Parse Akoma Ntoso XML → extract clean text, parties, date, court
-5. Insert into DB with status `pending`
-6. Rate limiting: simple async semaphore, max 200 req/min (well under 1,000/5min)
+4. If new: fetch full judgment via `GET /{tna_uri}/data.xml`
+5. Parse Akoma Ntoso XML → extract clean plain text (strip XML tags, preserve paragraph structure), parties, date, court
+6. Insert into DB with status `pending`
+7. Rate limiting: async semaphore, max 150 req/min (safe buffer under the 1,000/5min TNA limit)
 
 **Upload cycle** (runs after fetch):
 1. Query judgments with status `pending`
@@ -61,7 +61,7 @@ TNA Atom API  ──fetch──>  Postgres (judgments)  ──upload──>  Gem
    ```
 3. Upload to Gemini FST Store via `genai.Client.files.upload()` + associate with store
 4. On success: set status `uploaded`, store `gemini_file_id`
-5. On failure: set status `failed`, log error, retry on next cycle
+5. On failure: set status `failed`, store reason in `error_message` column, retry on next cycle
 
 ## Search Domains
 
@@ -96,6 +96,7 @@ Queries are stored as config in `app/config.py`, not hard-coded in tasks — eas
 | `clean_text` | TEXT | Extracted plain text |
 | `status` | ENUM | `pending`, `uploaded`, `skipped`, `failed` |
 | `gemini_file_id` | VARCHAR(200) | Set after successful upload |
+| `error_message` | TEXT | Last error reason (for failed fetches/uploads) |
 | `fetched_at` | TIMESTAMP | When we downloaded from TNA |
 | `uploaded_at` | TIMESTAMP | When we pushed to Gemini |
 | `created_at` | TIMESTAMP | Row creation |
