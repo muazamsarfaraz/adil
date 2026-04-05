@@ -3,15 +3,5 @@ builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-
-# Environment variables set in Railway dashboard:
-# - GEMINI_API_KEY (secret)
-# - FILE_SEARCH_STORE_ID
-# - DATABASE_URL (from Railway Postgres plugin)
-# - REDIS_URL (from Railway Redis plugin)
-# - ADMIN_API_KEY (secret)
-# - SERVICE_ROLE=api (or "worker" for the worker service)
