@@ -42,6 +42,9 @@ legislation_downloads/
 # ===== Node =====
 node_modules/
 
+# ===== AI Tooling Context =====
+augment_docs/
+
 # ===== IDE & OS =====
 .vscode/
 .idea/
