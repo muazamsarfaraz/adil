@@ -146,5 +146,5 @@ I **cannot** and **do not**:
 
 ---
 
-*Powered by Gemini AI & UK Legal Knowledge Base · [askadil.org](https://askadil.org) · A Muslim Council of Britain Initiative*
+*Powered by Gemini AI & UK Legal Knowledge Base · [askadil.org](https://askadil.org) · A Muslim Council of Britain Initiative · Updated April 2026*
 
