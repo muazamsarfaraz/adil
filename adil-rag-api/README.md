@@ -11,7 +11,7 @@ Part of [AskAdil by MCB](https://askadil.org) (Muslim Council of Britain).
 
 ## What It Does
 
-The RAG API is the backend intelligence layer for AskAdil. It uses Google Gemini with File Search Tool (FST) grounded in a UK legislation corpus to provide accurate, citation-backed legal education. The service handles multi-turn conversations, content analysis, viability assessments, report generation, and solicitor directory lookups.
+The RAG API is the backend intelligence layer for AskAdil. It uses Google Gemini with File Search Tool (FST) grounded in UK legislation and 1,000+ court judgments (sourced daily from The National Archives by `adil-document-uploader`) to provide accurate, citation-backed legal education. The service handles multi-turn conversations, content analysis, viability assessments, report generation, and solicitor directory lookups.
 
 ## Features
 
@@ -22,7 +22,7 @@ The RAG API is the backend intelligence layer for AskAdil. It uses Google Gemini
 | **Viability assessment** | Structured scoring (0-100) with Vento bands and case law precedent |
 | **Content analysis** | Extract and analyse content from YouTube, Twitter/X, Facebook, Instagram, and news URLs |
 | **Image analysis** | Gemini Flash vision for screenshots and document photos |
-| **Report generation** | 5 report types: incident summary, solicitor pack, police/Tell MAMA/Police Scotland guides |
+| **Report generation** | 5 report types: incident summary, solicitor pack, police/BMT/Police Scotland guides |
 | **Hate crime reporting** | Orchestrates report submission via adil-report-bridge (7 UK targets) |
 | **Solicitor directory** | 24 curated firms filterable by jurisdiction, specialism, and location |
 | **Jurisdiction detection** | Auto-detect UK jurisdiction from IP via ip-api.com |
@@ -70,7 +70,7 @@ uvicorn app:app --host 0.0.0.0 --port 8080
 
 - Python 3.11+
 - Google Gemini API key
-- Gemini File Search Tool store with UK legal corpus
+- Gemini File Search Tool store with UK legal corpus (legislation + 1,000+ case law judgments from TNA)
 - PostgreSQL (for anonymised conversation logging)
 - SendGrid API key (for email receipts)
 

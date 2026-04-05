@@ -11,7 +11,7 @@ Part of [AskAdil by MCB](https://askadil.org) (Muslim Council of Britain).
 
 ## What It Does
 
-AskAdil is a conversational AI interface that helps British Muslims understand their rights under UK discrimination and hate crime law. It provides accessible, culturally-sensitive legal education grounded in UK legislation and case law.
+AskAdil is a conversational AI interface that helps British Muslims understand their rights under UK discrimination and hate crime law. It provides accessible, culturally-sensitive legal education grounded in UK legislation and 1,000+ court judgments from The National Archives.
 
 **This is not a law firm.** AskAdil educates users about their rights, helps them gather evidence, and connects them with the right organisations and solicitors when professional help is needed.
 
@@ -22,7 +22,7 @@ AskAdil is a conversational AI interface that helps British Muslims understand t
 | **Multi-turn chat** | Contextual conversation with memory across turns |
 | **Image analysis** | Upload screenshots and document photos for AI-powered legal analysis |
 | **Media URL analysis** | Paste YouTube, Twitter/X, Facebook, Instagram, or news URLs for content extraction and legal analysis |
-| **Hate crime reporting** | Guided PII collection and consent flow to submit reports to 7 UK targets (Police UK, Tell MAMA, IRU, etc.) |
+| **Hate crime reporting** | Guided PII collection and consent flow to submit reports to 8 UK targets (Police UK, BMT, IRU, Tell MAMA, etc.) |
 | **Legislation lookup** | Specific section citations with links to legislation.gov.uk |
 | **Viability scoring** | Structured assessment (0-100 score, Vento band, statutory footing, case law precedent) |
 | **Solicitor directory** | 24 curated firms filterable by jurisdiction, specialism, and location |
