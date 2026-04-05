@@ -1,5 +1,5 @@
 #!/bin/bash
-# Entrypoint for Chainlit frontend
+# Entrypoint for Chainlit frontend — v2 (case law expansion)
 
 # Use PORT from environment (Railway injects this) or default to 8080
 PORT=${PORT:-8080}
