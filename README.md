@@ -1,6 +1,6 @@
 # AskAdil | Educate First, Litigate Second
 
-![Services](https://img.shields.io/badge/services-5-blue)
+![Services](https://img.shields.io/badge/services-6-blue)
 ![Deploy](https://img.shields.io/badge/deploy-Railway-blueviolet)
 ![License](https://img.shields.io/badge/license-Proprietary-red)
 
@@ -35,7 +35,7 @@ AskAdil is **not a law firm**. It educates users about their rights, helps them 
 ### Legal knowledge base
 
 - **Legislation:** Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, Crime and Disorder Act 1998, Human Rights Act 1998, Employment Rights Act 1996, Racial and Religious Hatred Act 2006, Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997
-- **Case law:** 9+ landmark cases including Scottish case law (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, Lee v IFoA, Grainger v Nicholson, Ladele v Islington, Chaplin v Royal Devon, Redfearn v UK, Vento v Chief Constable)
+- **Case law:** 1,000+ court judgments sourced daily from [The National Archives](https://caselaw.nationalarchives.gov.uk/) via `adil-document-uploader`, covering EAT, Court of Appeal, High Court, Supreme Court, and Crown Court — plus 9 landmark cases hard-coded (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, etc.)
 - **Vento bands:** 2025-2026 compensation ranges for injury to feelings claims
 - **Jurisdictions:** England & Wales, Scotland, Northern Ireland -- with jurisdiction-specific legislation and case law
 
@@ -74,11 +74,16 @@ askadil.org (Cloudflare)
 | engine            |                              | (anon logs) |
 | (FastAPI + arq +  |                              +-------------+
 | LangGraph)        |
-|                   |
-| - AI campaigns    |
-| - Email outreach  |
-| - Conversions     |
-+-------------------+
+|                   |       +-------------------+
+| - AI campaigns    |       | adil-document-    |
+| - Email outreach  |       | uploader          |-----> Google Gemini
+| - Conversions     |       | (FastAPI + arq)   |       FST Store
++-------------------+       |                   |
+                            | - TNA case law    |
+                            |   fetch (daily)   |
+                            | - 1000+ judgments  |
+                            | - Postgres dedup  |
+                            +-------------------+
 ```
 
 ### Services
@@ -88,8 +93,9 @@ askadil.org (Cloudflare)
 | [**adil-frontend**](adil-frontend/) | Chainlit | Conversational UI, session management, action buttons, PII collection flow | [README](adil-frontend/README.md) |
 | [**adil-rag-api**](adil-rag-api/) | FastAPI (Python 3.11) | RAG queries, content extraction, citation parsing, legal analysis, report submission | [README](adil-rag-api/README.md) |
 | [**adil-outreach-engine**](adil-outreach-engine/) | FastAPI + arq + LangGraph | AI-powered outreach campaigns, email drafting, reply classification, conversion tracking | [README](adil-outreach-engine/README.md) |
+| [**adil-document-uploader**](adil-document-uploader/) | FastAPI + arq | Fetches UK case law from The National Archives, deduplicates, uploads to Gemini FST store (daily) | [README](adil-document-uploader/README.md) |
 | [**adil-report-bridge**](adil-report-bridge/) | FastAPI + browser-use + Playwright | AI-powered browser automation to submit reports to external portals; email reports via SendGrid | -- |
-| **Postgres** | Railway-managed | Anonymised conversation logs + outreach data (no PII in chat logs) | -- |
+| **Postgres** | Railway-managed | Anonymised conversation logs + outreach data + case law judgments (no PII in chat logs) | -- |
 
 All services deploy as Docker containers on Railway. The report bridge has no public domain -- it is reachable only by the RAG API via Railway internal networking.
 
@@ -225,6 +231,7 @@ All services deploy to Railway as Docker containers:
 | **adil-frontend** | `adil-frontend-production.up.railway.app` | `askadil.org` |
 | **adil-rag-api** | `adil-rag-api-production.up.railway.app` | -- |
 | **adil-outreach-engine** | API + Worker (2 Railway services) | -- |
+| **adil-document-uploader** | `adil-document-uploader-production.up.railway.app` + Worker | -- |
 | **adil-report-bridge** | Internal only | -- |
 
 Custom domain `askadil.org` is managed via Cloudflare DNS (CNAME to Railway).
@@ -266,6 +273,9 @@ adil/
 ├── adil-outreach-engine/             # Outreach engine (FastAPI + arq) -- 222 tests
 │   ├── app/                          # API, agents, workers, services
 │   ├── RUNBOOK.md                    # Operational runbook
+│   └── README.md
+├── adil-document-uploader/            # Case law fetcher (FastAPI + arq) -- 18 tests
+│   ├── app/                          # API, services, workers, models
 │   └── README.md
 ├── adil-report-bridge/               # Report bridge (internal) -- 22 tests
 │   ├── app.py                        # /submit, /health, /targets
