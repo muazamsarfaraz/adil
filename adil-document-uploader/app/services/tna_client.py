@@ -11,6 +11,7 @@ from lxml import etree
 logger = logging.getLogger(__name__)
 
 ATOM_NS = "http://www.w3.org/2005/Atom"
+TNA_NS = "https://caselaw.nationalarchives.gov.uk"
 
 
 @dataclass
@@ -48,17 +49,20 @@ class TNAClient:
 
         for entry_el in root.findall(f"{{{ATOM_NS}}}entry"):
             title = entry_el.findtext(f"{{{ATOM_NS}}}title", default="")
-            summary = entry_el.findtext(f"{{{ATOM_NS}}}summary", default="")
             link_el = entry_el.find(f'{{{ATOM_NS}}}link[@rel="alternate"]')
             href = link_el.get("href", "") if link_el is not None else ""
             updated = entry_el.findtext(f"{{{ATOM_NS}}}updated", default="")
+
+            # Neutral citation is in <tna:identifier type="ukncn">
+            citation_el = entry_el.find(f'{{{TNA_NS}}}identifier[@type="ukncn"]')
+            neutral_citation = citation_el.text.strip() if citation_el is not None and citation_el.text else ""
 
             parsed = urlparse(href)
             tna_uri = parsed.path.strip("/")
 
             entries.append(
                 AtomEntry(
-                    neutral_citation=summary.strip(),
+                    neutral_citation=neutral_citation,
                     case_name=title.strip(),
                     tna_uri=tna_uri,
                     tna_url=href,

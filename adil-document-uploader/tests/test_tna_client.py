@@ -5,21 +5,23 @@ import respx
 from app.services.tna_client import TNAClient
 
 SAMPLE_ATOM_FEED = """<?xml version="1.0" encoding="UTF-8"?>
-<feed xmlns="http://www.w3.org/2005/Atom">
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:tna="https://caselaw.nationalarchives.gov.uk">
   <title>Search results</title>
   <entry>
     <id>https://caselaw.nationalarchives.gov.uk/id/eat/2023/45</id>
     <title>Smith v Employer Ltd</title>
     <link rel="alternate" href="https://caselaw.nationalarchives.gov.uk/eat/2023/45"/>
     <updated>2023-06-15T00:00:00Z</updated>
-    <summary>[2023] EAT 45</summary>
+    <summary type="html"/>
+    <tna:identifier type="ukncn">[2023] EAT 45</tna:identifier>
   </entry>
   <entry>
     <id>https://caselaw.nationalarchives.gov.uk/id/ewca/civ/2022/100</id>
     <title>Jones v Council</title>
     <link rel="alternate" href="https://caselaw.nationalarchives.gov.uk/ewca/civ/2022/100"/>
     <updated>2022-03-10T00:00:00Z</updated>
-    <summary>[2022] EWCA Civ 100</summary>
+    <summary type="html"/>
+    <tna:identifier type="ukncn">[2022] EWCA Civ 100</tna:identifier>
   </entry>
 </feed>"""
 
@@ -46,24 +48,26 @@ async def test_search_returns_entries(tna_client):
 @pytest.mark.asyncio
 async def test_search_follows_pagination(tna_client):
     page1 = """<?xml version="1.0" encoding="UTF-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom" xmlns:tna="https://caselaw.nationalarchives.gov.uk">
       <link rel="next" href="https://caselaw.nationalarchives.gov.uk/atom.xml?query=test&amp;page=2"/>
       <entry>
         <id>https://caselaw.nationalarchives.gov.uk/id/eat/2023/1</id>
         <title>Case One</title>
         <link rel="alternate" href="https://caselaw.nationalarchives.gov.uk/eat/2023/1"/>
         <updated>2023-01-01T00:00:00Z</updated>
-        <summary>[2023] EAT 1</summary>
+        <summary type="html"/>
+        <tna:identifier type="ukncn">[2023] EAT 1</tna:identifier>
       </entry>
     </feed>"""
     page2 = """<?xml version="1.0" encoding="UTF-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom" xmlns:tna="https://caselaw.nationalarchives.gov.uk">
       <entry>
         <id>https://caselaw.nationalarchives.gov.uk/id/eat/2023/2</id>
         <title>Case Two</title>
         <link rel="alternate" href="https://caselaw.nationalarchives.gov.uk/eat/2023/2"/>
         <updated>2023-02-01T00:00:00Z</updated>
-        <summary>[2023] EAT 2</summary>
+        <summary type="html"/>
+        <tna:identifier type="ukncn">[2023] EAT 2</tna:identifier>
       </entry>
     </feed>"""
     respx.get("https://caselaw.nationalarchives.gov.uk/atom.xml?query=test&page=2").mock(
