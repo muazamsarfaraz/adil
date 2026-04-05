@@ -67,12 +67,13 @@ Type **report** in the chat to submit a hate crime report directly — AskAdil w
 | # | Organisation | Coverage |
 |---|-------------|----------|
 | 1 | 🚔 **Police UK** | National hate crime report (England & Wales) |
-| 2 | 🕌 **Tell MAMA** | Anti-Muslim hate incidents (UK-wide) |
+| 2 | 🕌 **British Muslim Trust** | Government-appointed anti-Muslim hatred reporting partner (UK-wide) |
 | 3 | 🏴󠁧󠁢󠁳󠁣󠁴󠁿 **Police Scotland** | Hate crime report (Scotland) |
 | 4 | 🛡️ **IRU** | Islamophobia Response Unit (UK-wide) |
 | 5 | 📍 **Islamophobia UK** | Anonymous incident tracker (UK-wide, no personal details needed) |
 | 6 | 📧 **EASS** | Equality Advisory Support Service (email report) |
 | 7 | 📧 **Stop Hate UK** | 24/7 hate crime support (email report) |
+| 8 | 🕌 **Tell MAMA** | Anti-Muslim hate incidents (UK-wide) |
 
 **How it works:**
 1. Type **report** and choose where to submit
