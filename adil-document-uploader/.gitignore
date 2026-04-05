@@ -1,0 +1,4 @@
+dev.db
+test.db
+test_workers.db
+*.db
