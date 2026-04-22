@@ -6,9 +6,12 @@ from datetime import date, datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+import httpx
+
 from app.config import SEARCH_DOMAINS, SearchDomain, get_settings
 from app.models.judgment import Judgment, JudgmentStatus
 from app.services.gemini_uploader import GeminiUploader
+from app.services.telegram import TelegramNotifier
 from app.services.tna_client import TNAClient
 from app.services.xml_parser import build_upload_text, parse_judgment_xml
 
@@ -139,3 +142,135 @@ async def upload_pending(ctx: dict) -> dict:
 
     logger.info("Upload complete: %d uploaded, %d failed", uploaded, failed)
     return {"uploaded": uploaded, "failed": failed}
+
+
+def _parse_targets(spec: str) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for pair in spec.split(","):
+        pair = pair.strip()
+        if "=" in pair:
+            name, url = pair.split("=", 1)
+            out[name.strip()] = url.strip()
+    return out
+
+
+async def _check_service_health(targets: dict[str, str]) -> dict[str, tuple[bool, str]]:
+    """Check each target URL. Returns {name: (ok, status_str)}."""
+    results: dict[str, tuple[bool, str]] = {}
+    async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+        for name, url in targets.items():
+            try:
+                resp = await client.get(url)
+                ok = 200 <= resp.status_code < 400
+                results[name] = (ok, f"HTTP {resp.status_code}")
+            except Exception as exc:
+                results[name] = (False, f"{type(exc).__name__}")
+    return results
+
+
+async def _keep_alive_fst() -> tuple[bool, str]:
+    """Trivial query to keep Gemini FST store active. Returns (ok, detail)."""
+    from google import genai
+
+    settings = get_settings()
+    try:
+        client = genai.Client(api_key=settings.gemini_api_key)
+        resp = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents="ping",
+            config={
+                "tools": [{"file_search": {"file_search_store_names": [settings.file_search_store_id]}}],
+            },
+        )
+        tokens = getattr(getattr(resp, "usage_metadata", None), "total_token_count", 0)
+        return True, f"{tokens} tokens"
+    except Exception as exc:
+        logger.exception("FST keep-alive failed")
+        return False, f"{type(exc).__name__}: {str(exc)[:80]}"
+
+
+async def _get_judgment_stats(session_factory) -> dict[str, int]:
+    """Get judgment counts by status."""
+    from sqlalchemy import func
+
+    try:
+        async with session_factory() as session:
+            rows = await session.execute(select(Judgment.status, func.count(Judgment.id)).group_by(Judgment.status))
+            return {row[0].value: row[1] for row in rows}
+    except Exception as exc:
+        logger.exception("Failed to get judgment stats")
+        return {"error": str(exc)[:80]}
+
+
+def _format_heartbeat(
+    service_results: dict[str, tuple[bool, str]],
+    fst_ok: bool,
+    fst_detail: str,
+    judgment_stats: dict[str, int],
+) -> tuple[str, bool]:
+    """Format Telegram message. Returns (text, all_healthy)."""
+    lines = ["*AskAdil Heartbeat*", ""]
+
+    all_healthy = True
+    lines.append("*Services:*")
+    for name, (ok, detail) in service_results.items():
+        icon = "✅" if ok else "❌"
+        lines.append(f"{icon} `{name}` — {detail}")
+        if not ok:
+            all_healthy = False
+
+    lines.append("")
+    icon = "✅" if fst_ok else "❌"
+    lines.append(f"*Gemini FST:* {icon} {fst_detail}")
+    if not fst_ok:
+        all_healthy = False
+
+    lines.append("")
+    lines.append("*Case law judgments:*")
+    if judgment_stats:
+        for status, count in sorted(judgment_stats.items()):
+            lines.append(f"  {status}: {count}")
+    else:
+        lines.append("  _no data_")
+
+    lines.append("")
+    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    lines.append(f"_Checked {timestamp}_")
+
+    return "\n".join(lines), all_healthy
+
+
+async def heartbeat(ctx: dict) -> dict:
+    """arq task: check service health, keep FST alive, send Telegram heartbeat."""
+    settings = get_settings()
+
+    from app.database import async_session
+
+    targets = _parse_targets(settings.heartbeat_targets)
+    service_results = await _check_service_health(targets)
+    fst_ok, fst_detail = await _keep_alive_fst()
+    stats = await _get_judgment_stats(async_session)
+
+    msg, all_healthy = _format_heartbeat(service_results, fst_ok, fst_detail, stats)
+
+    sent = False
+    if settings.telegram_bot_token and settings.telegram_chat_id:
+        # Only send on failure OR every scheduled run. Use context flag to distinguish.
+        alert_only = ctx.get("alert_only", False)
+        if all_healthy and alert_only:
+            logger.info("All healthy; alert_only=True, skipping Telegram send")
+        else:
+            notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+            sent = await notifier.send(msg)
+    else:
+        logger.info("Telegram not configured; skipping send")
+
+    logger.info("Heartbeat: all_healthy=%s sent=%s", all_healthy, sent)
+    return {"all_healthy": all_healthy, "sent": sent, "services": {k: v[0] for k, v in service_results.items()}}
+
+
+async def heartbeat_alert_only(ctx: dict) -> dict:
+    """Hourly alert-only check (only sends on failure)."""
+    ctx = dict(ctx)
+    ctx["alert_only"] = True
+    return await heartbeat(ctx)

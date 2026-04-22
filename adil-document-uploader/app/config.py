@@ -60,6 +60,18 @@ class Settings(BaseSettings):
     # Auth
     admin_api_key: str
 
+    # Telegram heartbeat (optional — heartbeat disabled if unset)
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
+
+    # Health check targets (comma-separated name=url pairs)
+    heartbeat_targets: str = (
+        "rag-api=https://adil-rag-api-production.up.railway.app/health,"
+        "frontend=https://askadil.org,"
+        "doc-uploader=https://adil-document-uploader-production.up.railway.app/health,"
+        "outreach-engine=https://adil-outreach-engine-production.up.railway.app/"
+    )
+
     # Service
     port: int = 8002
 
