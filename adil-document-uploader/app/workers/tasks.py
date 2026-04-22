@@ -169,23 +169,35 @@ async def _check_service_health(targets: dict[str, str]) -> dict[str, tuple[bool
 
 
 async def _keep_alive_fst() -> tuple[bool, str]:
-    """Trivial query to keep Gemini FST store active. Returns (ok, detail)."""
-    from google import genai
+    """End-to-end keep-alive query through the RAG API.
 
+    Sends a real legal question to adil-rag-api which exercises the full
+    pipeline: FastAPI endpoint -> RAGService -> Gemini FST store retrieval.
+    This both keeps the FST store active AND verifies the RAG service works.
+    Returns (ok, detail).
+    """
     settings = get_settings()
+    if not settings.rag_api_key:
+        return False, "RAG_API_KEY not configured"
+
+    payload = {
+        "query": "Briefly: what is indirect religious discrimination under the Equality Act 2010?",
+        "max_sources": 1,
+        "include_viability_score": False,
+    }
+    headers = {"X-API-Key": settings.rag_api_key, "Content-Type": "application/json"}
+
     try:
-        client = genai.Client(api_key=settings.gemini_api_key)
-        resp = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents="ping",
-            config={
-                "tools": [{"file_search": {"file_search_store_names": [settings.file_search_store_id]}}],
-            },
-        )
-        tokens = getattr(getattr(resp, "usage_metadata", None), "total_token_count", 0)
-        return True, f"{tokens} tokens"
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(f"{settings.rag_api_url}/api/v1/query", json=payload, headers=headers)
+        if resp.status_code != 200:
+            return False, f"HTTP {resp.status_code}: {resp.text[:80]}"
+        data = resp.json()
+        answer_len = len(data.get("answer", ""))
+        sources = len(data.get("sources") or [])
+        return True, f"{answer_len} chars, {sources} sources"
     except Exception as exc:
-        logger.exception("FST keep-alive failed")
+        logger.exception("RAG API keep-alive failed")
         return False, f"{type(exc).__name__}: {str(exc)[:80]}"
 
 
@@ -221,7 +233,7 @@ def _format_heartbeat(
 
     lines.append("")
     icon = "✅" if fst_ok else "❌"
-    lines.append(f"*Gemini FST:* {icon} {fst_detail}")
+    lines.append(f"*RAG pipeline (end-to-end):* {icon} {fst_detail}")
     if not fst_ok:
         all_healthy = False
 

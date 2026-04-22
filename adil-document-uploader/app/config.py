@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str | None = None
     telegram_chat_id: str | None = None
 
+    # RAG API (for full-pipeline keep-alive query)
+    rag_api_url: str = "https://adil-rag-api-production.up.railway.app"
+    rag_api_key: str | None = None
+
     # Health check targets (comma-separated name=url pairs)
     heartbeat_targets: str = (
         "rag-api=https://adil-rag-api-production.up.railway.app/health,"
