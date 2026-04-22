@@ -18,7 +18,8 @@ Replace the existing Chainlit chat interface at `askadil.org` with a Next.js 16 
 - **Report flow B + final modal (Q6):** inline conversational collection, final review/consent step as a modal. Report state is separate from chat state (no PII in LLM context).
 - **Persistence:** v1 is session-only; localStorage-backed saved conversations is v2.
 - **Postgres-first:** rate-limit counters, upload metadata, and any future caching live in Postgres. Redis is retained only for arq worker queues (outreach + document-uploader).
-- **Storage:** image bytes live on a Railway persistent volume (not S3). Metadata in Postgres, files on disk.
+- **Storage:** image bytes live in **Cloudflare R2** (S3-compatible). Client uploads directly via short-lived presigned URL; lifecycle rule deletes objects after 24h. Frontend and backend remain horizontally scalable.
+- **Bot protection:** **Cloudflare Turnstile** guards the final report submit step (v1). Prevents hate-crime report spam from rotating IPs.
 
 ## Architecture
 
@@ -48,7 +49,7 @@ adil-rag-api
 (Postgres + Gemini)
 ```
 
-**The Next.js service is entirely DB-free and stateless.** It holds no `DATABASE_URL`, no rate-limit logic, no upload metadata writes. Its only jobs are: render UI, proxy to backend with the API key attached, and hold image bytes on the Railway volume temporarily.
+**The Next.js service is entirely DB-free and stateless.** It holds no `DATABASE_URL`, no rate-limit logic, no upload metadata writes, and no local file storage. Its only jobs are: render UI, proxy to backend with the API key attached, and mint short-lived R2 presigned PUT URLs for the client.
 
 **Rate limiting lives on the backend** (`adil-rag-api`). To prevent all traffic bucketing under Next.js's single container IP, every proxy request includes an `X-AskAdil-Client-IP` header derived from `x-forwarded-for`. The backend only trusts this header when the request carries a valid `X-API-Key` (i.e. from our frontend).
 
@@ -172,6 +173,13 @@ app/
 2. Resends the last user message (same conversation_id, same jurisdiction)
 3. Fresh stream attempt begins from scratch
 
+**Retry backoff discipline (to prevent retry storms):**
+- Automatic retry **only** on network errors or HTTP 5xx
+- On HTTP 429: respect `Retry-After` header; no automatic retry, surface to user
+- On HTTP 4xx (except 429): no retry; surface error
+- Exponential backoff with jitter: `min(baseMs * 2^attempt, 30000) + random(0, 1000)`; base = 500ms; max 3 attempts
+- Retries are client-initiated only — no silent auto-retry without user click
+
 ## Message flow — report
 
 **Critical: no PII ever enters `messages[]` or `conversation_history`.** Report state lives in a separate `reportFlow` object.
@@ -184,11 +192,12 @@ app/
    - Visually reads like a conversation (labels as "questions") but data lives in form state
    - `messages[]` shows neutral placeholders like "Collecting incident details…" — never the actual values
 4. User completes fields → clicks "Review" → **`ReportModal`** opens
-5. Modal shows structured summary (editable), consent checkbox, Cloudflare Turnstile challenge (optional v1, rate-limit-first) — Submit / Cancel
-6. Submit → `POST /api/report` → route handler:
-   - Zod-validates payload
-   - Rate-limits strictly (3/hour/IP — enforces anti-spam)
-   - Forwards to `adil-rag-api POST /api/v1/report/submit`
+5. Modal shows structured summary (editable), consent checkbox, and a **Cloudflare Turnstile widget** (v1 requirement) — Submit / Cancel
+6. Submit → client sends `{payload, turnstile_token}` to `/api/report`:
+   - Zod-validates payload shape
+   - Verifies Turnstile token server-side via `https://challenges.cloudflare.com/turnstile/v0/siteverify` with the server secret; rejects with 403 if invalid
+   - Attaches `X-AskAdil-Client-IP` and forwards to `adil-rag-api POST /api/v1/report/submit`
+   - Backend applies rate limit (3/hour/IP) as a belt-and-braces layer
    - Returns reference ID + confirmation
 7. On success: modal closes, chat shows "Report submitted — ref XYZ. Confirmation email sent."
 8. On failure: modal stays open, shows error, "Retry" / "Cancel".
@@ -244,19 +253,24 @@ data: {"message":"…","code":"RATE_LIMIT|AUTH|INTERNAL"}
 
 **Location:** all rate-limiting logic lives in `adil-rag-api` (Spec 1). Next.js does not touch the rate-limit table — it only passes the client IP.
 
-### Client IP propagation
+### Client IP propagation (CF-Connecting-IP, not X-Forwarded-For)
+
+`X-Forwarded-For` is trivially spoofable from the left. Cloudflare sits in front of both services and sets a non-spoofable header: `CF-Connecting-IP`. Use that.
 
 Every Next.js route handler:
 
-1. Reads `x-forwarded-for` (Railway/Cloudflare-provided)
-2. Takes the left-most IP (the real client)
-3. Falls back to `x-real-ip` or the socket address
-4. Sends it to the backend as `X-AskAdil-Client-IP: <ip>`
+1. **Preferred:** `CF-Connecting-IP` header (Cloudflare-set, cannot be forged by the client)
+2. **Fallback:** parse `X-Forwarded-For` from the **right-most** entry (last trusted proxy)
+3. **Last resort:** the socket peer address
+
+Forwards to the backend as `X-AskAdil-Client-IP: <ip>`.
 
 The backend:
-- Rejects the header unless the request carries a valid `X-API-Key` (i.e. the request came from our frontend)
+- **Rejects any request without `X-API-Key` with HTTP 401** — no socket-IP fallback, no anonymous path
+- Only trusts `X-AskAdil-Client-IP` when the request carries a valid `X-API-Key`
 - Uses this IP as the rate-limit bucket key
-- Falls back to the socket IP for non-proxied direct calls
+
+All direct-to-backend access is blocked at the Railway network level (internal private network). The backend is not exposed to the public internet.
 
 ### Table and limits (Spec 1 scope — documented here for completeness)
 
@@ -281,15 +295,23 @@ CREATE INDEX rate_limit_counters_bucket_start_idx ON rate_limit_counters (bucket
 
 Fixed-window counter; cleanup runs hourly (48h retention).
 
-## Image upload (Railway volume + backend metadata)
+## Image upload (Cloudflare R2 with presigned URLs)
 
-**Security posture:** ignore all client-provided MIME types, filenames, and extensions. Detect file type from **magic bytes** (`file-type` npm package). Store under a server-generated filename. Do not serve uploaded bytes back to the browser in v1 (prevents IDOR on sensitive evidence).
+**Security posture:**
+- Client-provided MIME types, filenames, and extensions are untrusted and ignored
+- Validation happens on the **presign** request, before any URL is issued
+- Object keys are server-generated UUIDs, never user-controlled
+- Files are never read by path from a user-supplied string (no LFI vector)
+- R2 lifecycle rule deletes objects 24 hours after creation — no manual cleanup job needed
 
-### Volume
+### R2 setup
 
-- Railway persistent volume mounted at `/data` on `adil-frontend-next`
-- Uploads written to `/data/uploads/<uuid>.<ext>` where `<ext>` is derived **only from detected magic bytes** (`.png` / `.jpg` / `.webp`)
-- Hourly cleanup removes files where the backend's `uploads` table says `expires_at < now()`
+- Bucket: `adil-uploads-prod` (private, no public reads)
+- Lifecycle rule: `Expiration.Days = 1`
+- Object key pattern: `uploads/<conversation-id>/<server-generated-uuid>.<ext>`
+- Credentials:
+  - **Frontend** (`R2_FRONTEND_ACCESS_KEY_ID` / `..._SECRET`): scoped to `PutObject` on the upload prefix only (used to sign PUT URLs)
+  - **Backend** (`R2_BACKEND_ACCESS_KEY_ID` / `..._SECRET`): `GetObject` + `DeleteObject` (for Gemini vision calls)
 
 ### Upload table (lives on `adil-rag-api`'s Postgres — Spec 1)
 
@@ -297,40 +319,49 @@ Fixed-window counter; cleanup runs hourly (48h retention).
 CREATE TABLE uploads (
   id              UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   conversation_id UUID         NOT NULL,
-  filename        TEXT         NOT NULL,          -- relative path on volume
-  content_type    TEXT         NOT NULL,          -- detected via magic bytes only
+  object_key      TEXT         NOT NULL,          -- R2 key: "uploads/<conv>/<uuid>.<ext>"
+  content_type    TEXT         NOT NULL,          -- validated against enum
   size_bytes      INT          NOT NULL,
-  storage_host    TEXT         NOT NULL,          -- "adil-frontend-next" in v1
   created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
   expires_at      TIMESTAMPTZ  NOT NULL DEFAULT (now() + interval '24 hours')
 );
+CREATE INDEX uploads_conversation_id_idx ON uploads (conversation_id);
 ```
 
-Next.js **does not** write to this table. It POSTs metadata to a new backend endpoint `POST /api/v1/uploads/record` (Spec 1 scope).
+Next.js does not write directly to Postgres. Metadata records are created by the backend on `POST /api/v1/uploads/record`.
 
-### Upload request path (60MB max total per request)
+### Upload flow (client → R2 direct, no Next.js body parsing)
 
-1. Browser → `POST /api/upload` (multipart) → Next.js route handler
-2. Handler:
-   - Reads each file's first 4096 bytes, runs `file-type` detection
-   - Rejects unless `image/png`, `image/jpeg`, `image/webp`
-   - Rejects if size > 10MB per file or > 5 files
-   - Generates `<server-uuid>.<detected-ext>`
-   - Writes bytes to `/data/uploads/<uuid>.<detected-ext>`
-   - Calls backend `POST /api/v1/uploads/record` with `{conversation_id, filename, content_type, size_bytes}` (Zod-validated server-side too)
-   - Returns `[{upload_id, thumb_token?}]` — no public URL, no GET endpoint exposed
-3. Browser keeps local `URL.createObjectURL(file)` for preview thumbnails in the chat transcript (no server fetch needed for display)
+1. Client → `POST /api/upload/presign` with `{conversation_id, content_type, size_bytes}`
+2. Next.js handler:
+   - Zod-validates: `conversation_id` is UUID, `content_type` ∈ {`image/png`, `image/jpeg`, `image/webp`}, `size_bytes` ≤ 10MB
+   - Generates server-side `upload_id` (UUID) and derives `ext` from validated `content_type`
+   - Builds object key `uploads/<conversation_id>/<upload_id>.<ext>`
+   - Calls backend `POST /api/v1/uploads/record` with metadata (backend validates + inserts into Postgres)
+   - Mints R2 presigned PUT URL via `@aws-sdk/s3-request-presigner` (expires in 5 min, `Content-Type` + `Content-Length` pinned to match the client's stated values)
+   - Returns `{upload_id, presigned_url, expires_at}`
+3. Client PUTs the file bytes directly to R2 using the presigned URL — **no bytes pass through Next.js**
+4. Client displays local blob thumbnail (`URL.createObjectURL(file)`) in the chat transcript
+
+**Body size constraint:** because all uploads go directly to R2, Next.js never parses image bytes. The default 4MB API route body limit stays in force for all other endpoints. No global override needed.
 
 ### Vision call
 
 When the user sends a message with attached uploads:
-1. Client POSTs `{query, upload_ids: [...], conversation_id}` to `/api/chat/image`
-2. Next.js reads bytes from `/data/uploads/<upload_id>.<ext>`, bundles as multipart, forwards to `adil-rag-api POST /api/v1/query/image` with the API key
-3. Backend verifies the upload records exist for this conversation, processes Gemini vision call, returns response
+1. Client POSTs `{query, upload_ids: [uuid1, uuid2, …], conversation_id}` to `/api/chat/image`
+2. Next.js handler:
+   - Zod-validates: every `upload_id` is `z.string().uuid()`, `conversation_id` is UUID
+   - Forwards `{query, upload_ids, conversation_id}` to `adil-rag-api POST /api/v1/query/image` — no file paths constructed from user input
+3. Backend:
+   - Looks up each `upload_id` in the `uploads` table, verifies `conversation_id` matches (prevents cross-conversation attach attacks)
+   - Rejects the request if any upload is missing or doesn't belong to the conversation
+   - Fetches bytes from R2 using its credentials
+   - Runs Gemini vision call
+   - Returns response
 
-### Why no GET endpoint
+### Why no client-facing GET on uploads
 
-Hate crime evidence is sensitive. Serving uploaded files back over HTTP — even at unguessable UUIDs — leaks via Referer, screen-sharing, proxy logs. v1 prevents this entirely: images are displayed client-side from the original `File` blob URL, never re-fetched. If we later need to re-display uploads across refreshes, v2 will add short-lived signed tokens bound to the session cookie.
+Hate crime evidence is sensitive. Serving uploaded files back over HTTP — even at unguessable UUIDs — leaks via Referer, screen-sharing, proxy logs. v1 displays uploads from the client-side blob URL only; no server GET exists. If later required (e.g. to re-display across refreshes), v2 will issue short-lived R2 signed GET URLs bound to the session cookie.
 
 ### `next.config.ts` body size override
 
@@ -359,16 +390,28 @@ All URL previews go through the backend. Client paste event → `POST /api/extra
 ## Environment variables
 
 ```
-# Frontend service (stateless — no DATABASE_URL)
-NEXT_PUBLIC_RAG_API_URL=https://adil-rag-api-production.up.railway.app
-RAG_API_KEY=<server-side only, used in app/api/**/route.ts only>
-UPLOAD_DIR=/data/uploads
+# Backend connection (server-side only)
+NEXT_PUBLIC_RAG_API_URL=https://adil-rag-api-production.up.railway.app   # internal private URL in prod
+RAG_API_KEY=<server-side only, app/api/**/route.ts only>
+
+# Cloudflare R2 (server-side only — PutObject scope)
+R2_ACCOUNT_ID=<cloudflare account>
+R2_BUCKET=adil-uploads-prod
+R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+R2_FRONTEND_ACCESS_KEY_ID=<presign-scoped>
+R2_FRONTEND_SECRET_ACCESS_KEY=<presign-scoped>
+
+# Cloudflare Turnstile (report submit)
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<public site key>
+TURNSTILE_SECRET=<server-side only>
+
 NODE_ENV=production
 ```
 
 **CI validation rules:**
-- Grep for `RAG_API_KEY` in Client Components — any match fails the build. `RAG_API_KEY` must only appear in `app/api/**` route handlers.
+- Grep for `RAG_API_KEY`, `TURNSTILE_SECRET`, `R2_FRONTEND_SECRET_ACCESS_KEY` in Client Components — any match fails the build. Secrets must only appear in `app/api/**` route handlers.
 - Grep for `DATABASE_URL`, `pg`, `postgres` imports — any match in frontend source fails the build. The frontend is DB-free.
+- Grep for `process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY` outside client components — warn (site key is public but should stay client-only for clarity).
 
 ## File structure
 
@@ -380,14 +423,14 @@ adil-frontend-next/
 │   ├── globals.css
 │   ├── chat/[id]/page.tsx          # "use client" — main chat
 │   ├── privacy/page.tsx
-│   └── api/                        # Stateless proxies — no DB access
+│   └── api/                        # Stateless proxies — no DB access, no file storage
 │       ├── health/route.ts
 │       ├── chat/stream/route.ts    # SSE proxy, attaches X-AskAdil-Client-IP
 │       ├── chat/route.ts           # non-streaming fallback
-│       ├── chat/image/route.ts     # reads bytes from /data volume, forwards multipart
+│       ├── chat/image/route.ts     # forwards {query, upload_ids} — no byte handling
 │       ├── extract-url/route.ts
-│       ├── report/route.ts
-│       ├── upload/route.ts         # multipart → Railway volume + backend metadata record
+│       ├── report/route.ts         # Turnstile verify + backend proxy
+│       ├── upload/presign/route.ts # mints R2 presigned PUT URL; records metadata via backend
 │       ├── jurisdiction/route.ts
 │       └── solicitors/route.ts
 ├── components/
@@ -410,12 +453,12 @@ adil-frontend-next/
 │       └── report-modal.tsx        # final confirmation
 ├── lib/
 │   ├── api.ts                      # client-side fetch helpers (same-origin only)
-│   ├── stream.ts                   # fetchEventSource wrapper with error/retry
+│   ├── stream.ts                   # fetchEventSource wrapper + exponential backoff (respects Retry-After)
 │   ├── types.ts                    # Zod schemas + TS types
-│   ├── file-type.ts                # magic-byte detection for uploads
-│   ├── uploads.ts                  # Railway volume file writer
+│   ├── r2.ts                       # R2 S3 client + presigned URL minter
+│   ├── turnstile.ts                # server-side Turnstile token verifier
 │   ├── proxy.ts                    # shared fetch helper (attaches API key + X-AskAdil-Client-IP)
-│   ├── client-ip.ts                # extract client IP from request headers
+│   ├── client-ip.ts                # extract client IP: CF-Connecting-IP → rightmost XFF → socket
 │   ├── jurisdiction.ts             # cookie reader/writer
 │   └── sanitize.ts                 # rehype-sanitize config (rel="noopener noreferrer")
 ├── tests/
@@ -450,7 +493,9 @@ adil-frontend-next/
 | Builder | `DOCKERFILE` (monorepo convention) |
 | Port | `${PORT}` |
 | Healthcheck | `/api/health` via `railway.toml` |
-| Volume | `/data` (persistent, for uploads) |
+| Volume | None (stateless — uploads go to Cloudflare R2) |
+| Storage | Cloudflare R2 bucket `adil-uploads-prod` (24h lifecycle) |
+| Bot protection | Cloudflare Turnstile on `/api/report` |
 | Preview domain | `next.askadil.org` |
 | Shared Postgres | `adil-rag-api`'s database (tables: `rate_limit_counters`, `uploads`) |
 
@@ -484,12 +529,13 @@ adil-frontend-next/
 ## Out of scope (v2 backlog)
 
 - **Conversation persistence** (localStorage-backed saved chats)
+- Server-side image display (signed R2 GET URLs bound to session)
+- PII detection / redaction in free-text chat
 - Account login / SSO
 - Multi-language (Arabic, Urdu)
 - Push notifications for report status
 - Offline mode
 - Mobile-native wrapper
-- Cloudflare Turnstile on report submit (currently rate-limit only — add Turnstile if we see abuse post-launch)
 
 ## Risks
 
@@ -497,22 +543,28 @@ adil-frontend-next/
 |------|------------|
 | Streaming endpoint delivery slips | Frontend falls back to non-streaming `/api/v1/query` |
 | Feature parity gap at cutover | 1-week preview + manual QA checklist; Chainlit stays as rollback |
-| Report spam abuse | Strict rate-limit (3/hour/IP); Turnstile on roadmap if abuse observed |
-| DoW via streaming endpoint | Backend Postgres rate limits (30/min, 200/hour per IP) |
-| Rate limits bucket under single Next.js IP | X-AskAdil-Client-IP header from x-forwarded-for; backend trusts only with valid API key |
+| Report spam / drowning attack | Cloudflare Turnstile on report submit + backend rate-limit (3/hour/IP) + Turnstile token verified server-side |
+| DoW via streaming endpoint | Backend Postgres rate limits (30/min, 200/hour per IP); Cloudflare WAF as front line if sustained DDoS |
+| Rate-limit bypass via XFF spoofing | Use `CF-Connecting-IP` (Cloudflare non-spoofable); XFF parsed right-to-left as fallback only |
+| Rate limits bucket under single Next.js IP | `X-AskAdil-Client-IP` header; backend trusts only with valid API key |
+| LFI via upload_ids in chat/image | Every upload_id Zod-validated as UUID; no file path construction from user input; backend fetches from R2 by validated object key |
 | PII in LLM context (form flow) | `reportFlow` state isolated from `messages[]`; unit test asserts separation |
 | PII pasted directly into chat | Accepted v1 risk; privacy notice warns users; PII detection is v2 scope |
-| RAG_API_KEY leak | CI grep for key in client bundles; ESLint rule |
+| Gemini retains PII for training | **Launch prerequisite:** Gemini API key configured for zero-data-retention (ZDR) per Google Cloud agreement. Documented in privacy notice. |
+| RAG_API_KEY / TURNSTILE_SECRET / R2 credential leak | CI grep bans secrets in client bundles |
 | Mid-stream parse failure | React ErrorBoundary + per-event try/catch |
+| SSE retry storms | Exponential backoff + jitter; respect `Retry-After`; no auto-retry on 4xx except 429 |
 | SSRF via URL extraction (backend) | Spec 1 prerequisite: `ssrf-req-filter` blocks RFC1918 + 169.254/16 in adil-rag-api |
 | XSS via markdown | `rehype-sanitize` strips dangerous schemes/HTML |
 | Tabnabbing on citation links | `rel="noopener noreferrer"` forced on all external anchors |
 | Jurisdiction enum bypass | Zod schema in every route handler |
 | Hydration mismatch | Jurisdiction via cookie (SSR-readable), no localStorage in initial render |
 | SessionStorage cross-tab | Replaced with URL query params for all deep-link flows |
-| Malicious file upload / path traversal | Magic-byte detection (`file-type`); ignore client filename/MIME; server-generated filenames only |
-| IDOR on uploaded evidence | No server-side GET endpoint for uploads in v1; displayed via client-side blob URLs only |
-| Volume fills up | 24h TTL on uploads + hourly cleanup cron (backend-driven) |
-| Volume growth beyond Railway quota | Monitor volume size in heartbeat; v2 migration path to R2 if >50GB/month sustained |
-| Frontend accidentally becomes stateful | CI grep bans `DATABASE_URL`, `pg`, `postgres` in frontend source |
+| Malicious file upload | Presign validates content_type enum + size; object key server-generated; Turnstile on report submit catches automated abuse |
+| IDOR on uploaded evidence | No client-facing GET on uploads in v1; displayed via client-side blob URLs only; backend-only R2 reads |
+| Polyglot file confuses Gemini vision | Graceful fallback: if Gemini rejects, show "Image could not be analysed" instead of crashing |
+| Global body size DoS | Per-route limits: default 4MB; uploads go direct to R2 (no body parsing); no global override |
+| Frontend accidentally becomes stateful | CI grep bans `DATABASE_URL`, `pg`, `postgres`, local file writes in frontend source |
+| Backend exposed to public internet | Railway internal network only; backend returns 401 on any request lacking valid `X-API-Key` (no socket-IP fallback) |
+| R2 credential scope too wide | Frontend creds scoped to `PutObject` only; backend creds scoped to `GetObject`+`DeleteObject` |
 | Cloudflare cutover mistake | Rehearse on `next.askadil.org` first; rollback command prepared |

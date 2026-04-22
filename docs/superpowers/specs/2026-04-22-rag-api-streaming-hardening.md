@@ -93,25 +93,65 @@ Reject with HTTP 429 + `Retry-After` header when count exceeds the bucket's limi
 
 **Cleanup:** hourly cron (via existing `adil-document-uploader` arq worker) runs `DELETE FROM rate_limit_counters WHERE bucket_start < now() - interval '48 hours'`.
 
-### 3. Client IP trust header
+### 3. Authentication and client IP trust
 
-Add a dependency that resolves the "real" client IP for rate-limit bucketing:
+**Reject all requests without a valid `X-API-Key` — no anonymous fallback.**
 
-- If request carries valid `X-API-Key` AND `X-AskAdil-Client-IP` header → use that header value (the frontend proxy is trusted)
-- Else → use the socket peer address (direct calls)
-- Log + metric for "header trusted" vs "direct" so we can observe misconfigurations
+The backend runs on Railway's internal private network (not exposed to public internet). Every request must carry a valid `X-API-Key`. Requests without it return HTTP 401 immediately; there is no socket-IP rate-limit fallback.
 
-### 4. Upload metadata endpoint
+Client IP resolution (used only after `X-API-Key` is verified):
+- Trust `X-AskAdil-Client-IP` header from the frontend proxy
+- Metric: count requests with and without the header so we can observe misconfigurations
+- If missing: log a warning and use the socket peer address (should only happen during debugging)
+
+### 4. Upload metadata endpoint + R2 integration
 
 ```
 POST /api/v1/uploads/record
-Body: {conversation_id, filename, content_type, size_bytes, storage_host}
+Body: {conversation_id, upload_id, object_key, content_type, size_bytes}
 → 201 {upload_id}
 ```
 
-Writes to the new `uploads` table defined in Spec 2. Rate-limited under `upload:ip:<addr>`.
+Validates payload (Zod), inserts into the `uploads` table:
 
-The `/api/v1/query/image` handler must verify the referenced upload_ids exist in this table and belong to the request's `conversation_id` (prevents cross-conversation attach attacks).
+```sql
+CREATE TABLE uploads (
+  id              UUID         PRIMARY KEY,
+  conversation_id UUID         NOT NULL,
+  object_key      TEXT         NOT NULL,          -- R2 key
+  content_type    TEXT         NOT NULL CHECK (content_type IN ('image/png','image/jpeg','image/webp')),
+  size_bytes      INT          NOT NULL CHECK (size_bytes BETWEEN 1 AND 10485760),
+  created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  expires_at      TIMESTAMPTZ  NOT NULL DEFAULT (now() + interval '24 hours')
+);
+CREATE INDEX uploads_conversation_id_idx ON uploads (conversation_id);
+```
+
+Rate-limited under `upload:ip:<addr>`.
+
+**Cleanup:** R2 lifecycle rule deletes objects after 24h. Postgres row cleanup runs hourly:
+
+```sql
+DELETE FROM uploads WHERE expires_at < now();
+```
+
+(No external file-delete call required — R2 handles bytes, Postgres handles metadata.)
+
+**`/api/v1/query/image` handler:**
+- Zod-validates each `upload_id` as UUID
+- Looks up rows by `(id, conversation_id)` — rejects with 403 if any row is missing or belongs to a different conversation
+- Fetches object from R2 using backend credentials (`@aws-sdk/client-s3 GetObjectCommand`)
+- Streams bytes to Gemini vision API
+- On polyglot / rejected by Gemini: returns a structured error so the frontend can show "Image could not be analysed"
+
+**Backend R2 env vars:**
+```
+R2_ACCOUNT_ID=<cloudflare account>
+R2_BUCKET=adil-uploads-prod
+R2_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+R2_BACKEND_ACCESS_KEY_ID=<GetObject+DeleteObject scope>
+R2_BACKEND_SECRET_ACCESS_KEY=<…>
+```
 
 ### 5. SSRF egress filter for URL extraction
 
@@ -133,23 +173,28 @@ Make the streaming event `data` payloads explicit in `rag_service.py` docstrings
 - `viability.data` schema: `{score, vento_band, statutory_footing, case_law_precedent, quantum_potential, evidence_checklist}`
 - `error.data.code` enum: `RATE_LIMIT | AUTH | INTERNAL | VALIDATION | UPSTREAM`
 
-### 7. CORS tightening
+### 7. Remove CORS (backend is internal-only)
 
-Current `adil-rag-api` has `allow_origins=["*"]`. Tighten to:
-- `https://askadil.org`
-- `https://next.askadil.org`
-- `http://localhost:3000` (dev)
+Current `adil-rag-api` has `allow_origins=["*"]`. Since the frontend proxies all traffic (no browser ever hits the backend directly), CORS headers are unnecessary.
 
-All other origins receive CORS errors on preflight.
+- **Production:** backend runs on Railway's internal private network. Public endpoint removed. CORS middleware disabled.
+- **Development:** `allow_origins=["http://localhost:3000"]` is permitted in dev via env-gated config (`ENABLE_DEV_CORS=true`). Default is off.
+
+### 8. Gemini zero-data-retention prerequisite
+
+**Launch blocker, documented here:** the Gemini API project used by AskAdil must be configured for **zero-data-retention (ZDR)** with Google Cloud. This ensures pasted PII (despite our UX separation of the report flow) is not retained by Google for training or human review. Without ZDR, users pasting PII into the chat is a GDPR/UK DPA violation.
+
+Action: confirm ZDR status with Google before deploying the Next.js frontend publicly. Document in the privacy notice.
 
 ## Testing
 
 - Unit tests for the rate-limit SQL helper (SQLite via aiosqlite)
-- Integration test for `/api/v1/query/stream` using `httpx.AsyncClient` — asserts SSE events arrive in expected order
-- Integration test for rate-limit 429 response + `Retry-After`
-- Unit test: SSRF filter rejects each blocked CIDR range
-- Integration test: `/api/v1/uploads/record` + `/api/v1/query/image` ownership check (attempting to reference an upload from another conversation → 403)
-- Integration test: `X-AskAdil-Client-IP` header trusted only with valid API key
+- Integration test for `/api/v1/query/stream` using `httpx.AsyncClient` — asserts SSE events arrive in expected order and `Retry-After` is present on 429
+- Integration test: rate-limit 429 response + `Retry-After` header
+- Unit test: SSRF filter rejects each blocked CIDR range (IPv4 + IPv6)
+- Integration test: `/api/v1/uploads/record` + `/api/v1/query/image` ownership check — cross-conversation reference returns 403
+- Integration test: any request without `X-API-Key` returns 401 (no socket-IP fallback)
+- Integration test: R2 GetObject path (mocked with moto / minio) returns bytes to Gemini
 
 ## Success criteria
 
