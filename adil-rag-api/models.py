@@ -16,7 +16,9 @@ Input validation enforces max_length constraints on all user-supplied strings.
 All models include OpenAPI examples for comprehensive Swagger documentation.
 """
 
+import uuid
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -637,3 +639,26 @@ class GenerateReportResponse(BaseModel):
         description="ISO 8601 timestamp of generation.",
     )
     jurisdiction: str | None = Field(None, description="Jurisdiction used.")
+
+
+# ============================================================================
+# Upload Record Models
+# ============================================================================
+
+
+class UploadRecordRequest(BaseModel):
+    """Metadata for a file just uploaded to R2.
+
+    The actual bytes are in R2 under `object_key`; this endpoint only records
+    metadata for ownership verification during vision queries.
+    """
+
+    id: uuid.UUID
+    conversation_id: uuid.UUID
+    object_key: str = Field(..., min_length=1, max_length=512)
+    content_type: Literal["image/png", "image/jpeg", "image/webp"]
+    size_bytes: int = Field(..., ge=1, le=10_485_760)  # 1 byte to 10MB
+
+
+class UploadRecordResponse(BaseModel):
+    id: uuid.UUID

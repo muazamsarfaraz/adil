@@ -32,6 +32,7 @@ import re
 import time
 from contextlib import asynccontextmanager
 
+import asyncpg
 import httpx
 from auth import verify_api_key  # noqa: E402
 from db_migrate import run_migrations
@@ -65,6 +66,8 @@ from models import (
     StatsResponse,
     SubmitReportRequest,
     SubmitReportResponse,
+    UploadRecordRequest,
+    UploadRecordResponse,
 )
 from rag_service import RAGService
 from report_generator import get_report_prompt, parse_report_sections
@@ -321,6 +324,10 @@ tags_metadata = [
     {
         "name": "Solicitor Directory",
         "description": "Curated directory of solicitors with discrimination law expertise. Filterable by jurisdiction, specialism, and location.",
+    },
+    {
+        "name": "Uploads",
+        "description": "Upload metadata registration. The frontend mints R2 presigned URLs; this endpoint records the metadata for ownership verification.",
     },
 ]
 
@@ -1291,6 +1298,61 @@ async def list_solicitors(
         "total": len(results),
         "disclaimer": SOLICITOR_DISCLAIMER,
     }
+
+
+# =============================================================================
+# UPLOAD RECORD ENDPOINT
+# =============================================================================
+
+
+@app.post(
+    "/api/v1/uploads/record",
+    response_model=UploadRecordResponse,
+    status_code=201,
+    tags=["Uploads"],
+    summary="Record R2 upload metadata",
+    responses={
+        201: {"description": "Upload metadata recorded"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+        422: {"description": "Invalid content type or size"},
+        500: {"description": "DATABASE_URL not configured"},
+    },
+)
+async def record_upload(
+    body: UploadRecordRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Record metadata for a file already uploaded to R2.
+
+    The frontend mints presigned URLs locally and uploads directly to R2.
+    After a successful upload the frontend calls this endpoint to register
+    the object key, content type, size, and conversation ownership so that
+    vision query endpoints can verify access.
+
+    🔐 **Requires `X-API-Key` header.**
+    """
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        await conn.execute(
+            """
+            INSERT INTO uploads (id, conversation_id, object_key, content_type, size_bytes)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            body.id,
+            body.conversation_id,
+            body.object_key,
+            body.content_type,
+            body.size_bytes,
+        )
+    finally:
+        await conn.close()
+
+    return UploadRecordResponse(id=body.id)
 
 
 if __name__ == "__main__":
