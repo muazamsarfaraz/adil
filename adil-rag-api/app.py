@@ -734,6 +734,74 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
 
 
 @app.post(
+    "/api/v1/query/stream",
+    tags=["Query"],
+    summary="Query UK discrimination law with Server-Sent Events streaming",
+    responses={
+        200: {"description": "SSE stream of token/source/viability/done events"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+        429: {"description": "Rate limit exceeded"},
+        503: {"description": "RAG service not initialised"},
+    },
+    dependencies=[Depends(enforce(CHAT_LIMITS))],
+)
+async def query_stream(
+    request: Request,  # noqa: ARG001  # kept for symmetry with /api/v1/query
+    body: QueryRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Streaming counterpart of ``/api/v1/query``.
+
+    Emits ``text/event-stream`` frames as Gemini produces tokens. Event types:
+
+    - ``token`` — incremental answer text (JSON-encoded string)
+    - ``source`` — statute or case-law reference (one per source)
+    - ``viability`` — optional viability assessment (only if requested)
+    - ``done`` — final summary with ``conversation_id``, ``sources_count``,
+      ``tokens_used``
+    - ``error`` — emitted if the stream aborts mid-flight
+    """
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not initialized")
+
+    # Convert conversation history to dicts (RAGService expects dicts)
+    history_dicts = None
+    if body.conversation_history:
+        history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
+
+    async def event_source():
+        try:
+            async for event in rag_service.stream_query(
+                query_text=body.query,
+                conversation_history=history_dicts,
+                max_sources=body.max_sources,
+                include_viability_score=body.include_viability_score,
+                conversation_id=getattr(body, "conversation_id", None),
+            ):
+                data = event["data"]
+                data_json = _json.dumps(data, default=str)
+                yield f"event: {event['event']}\ndata: {data_json}\n\n"
+        except Exception as exc:
+            logger.exception("query_stream error")
+            err_payload = _json.dumps({"code": "INTERNAL", "message": str(exc)[:200]})
+            yield f"event: error\ndata: {err_payload}\n\n"
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post(
     "/api/v1/analyze",
     response_model=AnalyzeContentResponse,
     tags=["Content Analysis"],
