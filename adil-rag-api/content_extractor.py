@@ -26,6 +26,7 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, Field
+from ssrf_filter import resolve_and_check
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +246,19 @@ class ContentExtractor:
         Returns:
             ExtractedContent with extracted text and metadata
         """
-        # SSRF protection: reject private/internal URLs
+        # SSRF protection: async DNS-level check (raises ValueError on blocked host)
+        try:
+            await resolve_and_check(url)
+        except ValueError as ssrf_exc:
+            return ExtractedContent(
+                url=url,
+                content_type=ContentType.UNKNOWN,
+                text="",
+                success=False,
+                error_message=f"URL rejected: {ssrf_exc}",
+            )
+
+        # SSRF protection: reject private/internal URLs (sync fallback check)
         if not _is_safe_url(url):
             return ExtractedContent(
                 url=url,
