@@ -1,16 +1,9 @@
-import { cookies } from "next/headers";
 import { JurisdictionEnum, type Jurisdiction } from "./types";
 
 const COOKIE = "askadil_jurisdiction";
 const MAX_AGE_S = 60 * 60 * 24 * 365;
 
-export async function readJurisdiction(): Promise<Jurisdiction | null> {
-  const store = await cookies();
-  const v = store.get(COOKIE)?.value;
-  if (!v) return null;
-  const parsed = JurisdictionEnum.safeParse(v);
-  return parsed.success ? parsed.data : null;
-}
+// Server-side cookie reader lives in jurisdiction.server.ts (not yet needed — v1 reads client-side only).
 
 export function readJurisdictionClient(): Jurisdiction | null {
   if (typeof document === "undefined") return null;
