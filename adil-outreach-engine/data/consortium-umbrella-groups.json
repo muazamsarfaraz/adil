@@ -1,0 +1,86 @@
+[
+  {
+    "id": "aml-uk",
+    "name": "Association of Muslim Lawyers (AML)",
+    "type": "network",
+    "website": "https://www.aml.org.uk/",
+    "description": "Established UK network of Muslim lawyers (solicitors + barristers). Member-led, not-for-profit. Private member directory.",
+    "target_role": "Executive Committee / Chair",
+    "contact_email_guess": "info@aml.org.uk",
+    "contact_url": "https://www.aml.org.uk/contact",
+    "estimated_members": "200+",
+    "rationale": "Largest & longest-established Muslim lawyer network in the UK. Critical anchor for consortium."
+  },
+  {
+    "id": "mlag",
+    "name": "Muslim Lawyers Action Group (MLAG)",
+    "type": "network",
+    "website": "https://www.mlag.org.uk/",
+    "description": "Activist-oriented Muslim lawyer network focused on civil liberties and Prevent-related casework. Private membership.",
+    "target_role": "Chair / Spokesperson",
+    "contact_email_guess": "contact@mlag.org.uk",
+    "contact_url": "https://www.mlag.org.uk/contact",
+    "estimated_members": "unknown (active)",
+    "rationale": "Complements AML — strong on civil-liberties casework relevant to AskAdil's hate-crime track."
+  },
+  {
+    "id": "muslim-lawyers-hub",
+    "name": "Muslim Lawyers' Hub",
+    "type": "network",
+    "website": "https://muslimlawyershub.co.uk/",
+    "description": "Newer networking & mentoring hub founded ~2022 by Farzana Abdullah. Focus on junior lawyers, diversity, career pathways.",
+    "target_role": "Founder (Farzana Abdullah)",
+    "contact_email_guess": "info@muslimlawyershub.co.uk",
+    "contact_url": "https://muslimlawyershub.co.uk/contact",
+    "estimated_members": "growing (100+)",
+    "rationale": "Younger lawyers, cultural competence, strong LinkedIn presence — good for consortium's next-gen strand."
+  },
+  {
+    "id": "iamla",
+    "name": "International Ahmadiyya Muslim Lawyers Association (IAMLA)",
+    "type": "network",
+    "website": "https://iamla.info/",
+    "description": "Global Ahmadiyya Muslim lawyers association. UK chapter active.",
+    "target_role": "UK Chapter Chair",
+    "contact_email_guess": "info@iamla.info",
+    "contact_url": "https://iamla.info/contact",
+    "estimated_members": "unknown",
+    "rationale": "Broadens community representation — Ahmadiyya community often faces distinct legal issues (religious persecution cases)."
+  },
+  {
+    "id": "sal",
+    "name": "Society of Asian Lawyers (SAL)",
+    "type": "network",
+    "website": "https://societyofasianlawyers.co.uk/",
+    "description": "Pan-Asian network (includes many Muslim lawyers) — long-established, broad professional network.",
+    "target_role": "Executive Committee",
+    "contact_email_guess": "info@societyofasianlawyers.co.uk",
+    "contact_url": "https://societyofasianlawyers.co.uk/contact",
+    "estimated_members": "significant",
+    "rationale": "Not exclusively Muslim but major overlap — expands consortium reach without diluting focus."
+  },
+  {
+    "id": "muslim-lawyer-uk",
+    "name": "Muslim Lawyer UK / Muslim Solicitors",
+    "type": "network",
+    "website": "https://muslimlawyer.co.uk/",
+    "description": "Referral network pairing Muslim clients with 'partner lawyers within 20 minutes of their home or business'. Public-facing; membership not published.",
+    "target_role": "Operations / Partnerships Lead",
+    "contact_email_guess": "info@muslimlawyer.co.uk",
+    "contact_url": "https://muslimlawyer.co.uk/contact",
+    "estimated_members": "unknown (referral model)",
+    "rationale": "Already operating as a consumer referral network — most direct analogue to what AskAdil does."
+  },
+  {
+    "id": "solicitor-connect-islamic",
+    "name": "SolicitorConnect — Islamic & Sharia Law",
+    "type": "network",
+    "website": "https://solicitorconnect.co.uk/",
+    "description": "General solicitor directory with an Islamic/Sharia law category. Commercial listings.",
+    "target_role": "Commercial / Partnerships",
+    "contact_email_guess": "info@solicitorconnect.co.uk",
+    "contact_url": "https://solicitorconnect.co.uk/contact",
+    "estimated_members": "directory-only",
+    "rationale": "Less strategic — listing rather than community. Include to cover completeness; lower priority."
+  }
+]
