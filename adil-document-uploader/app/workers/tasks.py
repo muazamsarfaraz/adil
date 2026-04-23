@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import date, datetime, timezone
 
 from sqlalchemy import select
@@ -286,3 +287,49 @@ async def heartbeat_alert_only(ctx: dict) -> dict:
     ctx = dict(ctx)
     ctx["alert_only"] = True
     return await heartbeat(ctx)
+
+
+async def rate_limit_cleanup(ctx: dict) -> dict:
+    """Remove rate-limit counter rows older than 48 hours and expired upload rows.
+
+    Runs against the adil-rag-api Postgres database. Uses RAG_API_DATABASE_URL
+    (new env var) so production can point at the backend's DB even when the
+    document-uploader has its own DB for case law storage. Falls back to
+    DATABASE_URL if the new var is unset (single-DB local dev).
+    """
+    import asyncpg
+
+    rag_db_url = os.getenv("RAG_API_DATABASE_URL") or os.getenv("DATABASE_URL")
+    if not rag_db_url:
+        logger.warning("No DB URL for rate_limit_cleanup; skipping")
+        return {"deleted_counters": 0, "deleted_uploads": 0}
+
+    conn = await asyncpg.connect(rag_db_url)
+    try:
+        deleted_c = await conn.fetchval(
+            """
+            WITH d AS (
+              DELETE FROM rate_limit_counters
+              WHERE bucket_start < now() - interval '48 hours'
+              RETURNING 1
+            )
+            SELECT count(*) FROM d
+            """
+        )
+        deleted_u = await conn.fetchval(
+            """
+            WITH d AS (
+              DELETE FROM uploads WHERE expires_at < now() RETURNING 1
+            )
+            SELECT count(*) FROM d
+            """
+        )
+    finally:
+        await conn.close()
+
+    logger.info(
+        "rate_limit_cleanup: removed %s counters, %s uploads",
+        deleted_c,
+        deleted_u,
+    )
+    return {"deleted_counters": int(deleted_c or 0), "deleted_uploads": int(deleted_u or 0)}

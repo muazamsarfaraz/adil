@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import time
+import uuid  # noqa: F401  # used in stream_query type hints
 
 from google import genai
 
@@ -1185,3 +1186,110 @@ class RAGService:
             text,
             flags=re.DOTALL,
         ).strip()
+
+    async def stream_query(
+        self,
+        query_text: str,
+        conversation_history: list[dict[str, str]] | None = None,
+        max_sources: int = 10,
+        include_viability_score: bool = True,
+        conversation_id: str | uuid.UUID | None = None,
+        system_instruction: str | None = None,  # reserved for future overrides
+    ):
+        """Yield SSE-shaped events from a Gemini streaming call.
+
+        Each yielded item is ``{"event": str, "data": Any}``.
+        Mirrors the non-streaming :meth:`query` method — builds the same
+        ``contents`` and post-processes sources + viability the same way —
+        but streams tokens as they arrive from Gemini via
+        ``generate_content_stream`` (the synchronous streaming API, wrapped
+        with ``asyncio.to_thread`` so we don't block the event loop).
+        """
+        # Prepend viability trigger so Gemini includes the structured block
+        effective_query = query_text
+        if include_viability_score:
+            effective_query = "INCLUDE VIABILITY ASSESSMENT. " + query_text
+
+        contents = self._build_contents(effective_query, conversation_history)
+
+        config = {
+            "system_instruction": system_instruction or SYSTEM_INSTRUCTION,
+            "tools": [{"file_search": {"file_search_store_names": [self.file_search_store_id]}}],
+        }
+
+        # Kick off the synchronous streaming iterator inside a worker thread.
+        def _start_stream():
+            return self.client.models.generate_content_stream(
+                model=self.model_name,
+                contents=contents,
+                config=config,
+            )
+
+        try:
+            stream = await asyncio.to_thread(_start_stream)
+        except Exception as e:
+            logger.error(f"Gemini streaming API error: {e}")
+            raise RuntimeError("Failed to start streaming response from AI model") from e
+
+        full_text = ""
+        usage_metadata = None
+
+        # Pull one chunk at a time off the synchronous iterator via to_thread
+        def _next_chunk(it):
+            try:
+                return next(it)
+            except StopIteration:
+                return None
+
+        it = iter(stream)
+        while True:
+            chunk = await asyncio.to_thread(_next_chunk, it)
+            if chunk is None:
+                break
+            text = getattr(chunk, "text", None)
+            if text:
+                full_text += text
+                yield {"event": "token", "data": text}
+            um = getattr(chunk, "usage_metadata", None)
+            if um is not None:
+                usage_metadata = um
+
+        # Parse and strip evidence checklist + viability block BEFORE source
+        # extraction so the source extractor operates on clean prose.
+        evidence_checklist: list[str] = []
+        viability = None
+        answer = full_text
+        if include_viability_score:
+            evidence_checklist = self._parse_evidence_checklist(answer)
+            answer = self._strip_evidence_checklist(answer)
+            viability = self._parse_viability(answer)
+            answer = self._strip_viability_block(answer)
+
+        # Post-process: emit sources extracted from the accumulated answer
+        sources = self._extract_sources_from_answer(answer, max_sources)
+        for s in sources:
+            data = s.model_dump(mode="json") if hasattr(s, "model_dump") else dict(s)
+            yield {"event": "source", "data": data}
+
+        # Emit viability (with checklist merged in) if present
+        if viability is not None:
+            data = viability.model_dump(mode="json") if hasattr(viability, "model_dump") else dict(viability)
+            if evidence_checklist and not data.get("evidence_checklist"):
+                data["evidence_checklist"] = evidence_checklist
+            yield {"event": "viability", "data": data}
+
+        tokens_used = 0
+        if usage_metadata is not None:
+            prompt = getattr(usage_metadata, "prompt_token_count", 0) or 0
+            completion = getattr(usage_metadata, "candidates_token_count", 0) or 0
+            total = getattr(usage_metadata, "total_token_count", None)
+            tokens_used = int(total) if total else int(prompt + completion)
+
+        yield {
+            "event": "done",
+            "data": {
+                "conversation_id": str(conversation_id) if conversation_id else None,
+                "sources_count": len(sources),
+                "tokens_used": tokens_used,
+            },
+        }

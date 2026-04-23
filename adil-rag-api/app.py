@@ -29,18 +29,24 @@ import binascii
 import logging
 import os
 import re
-import secrets
 import time
+import uuid
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
+import asyncpg
 import httpx
+from auth import resolve_client_ip, verify_api_key  # noqa: E402
+from db_migrate import run_migrations
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyHeader
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
+from r2_client import R2Client
+from rate_limit import Limit, check_limits
+from rate_limit import RateLimitExceeded as PgRateLimitExceeded
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -59,12 +65,15 @@ from models import (
     GenerateReportRequest,
     GenerateReportResponse,
     HealthResponse,
+    ImageData,
     ImageQueryRequest,
     QueryRequest,
     QueryResponse,
     StatsResponse,
     SubmitReportRequest,
     SubmitReportResponse,
+    UploadRecordRequest,
+    UploadRecordResponse,
 )
 from rag_service import RAGService
 from report_generator import get_report_prompt, parse_report_sections
@@ -196,32 +205,69 @@ are included in all responses.
 """
 API_VERSION = "1.3.0"
 
-# --- Security Configuration ---
+# --- API Key (module-level for testability) ---
 API_KEY = os.getenv("ADIL_API_KEY")
-api_key_header = APIKeyHeader(
-    name="X-API-Key",
-    description="API key for authentication. Required for all protected endpoints.",
-    auto_error=False,
-)
 
 # --- Rate Limiting ---
 RATE_LIMIT_QUERY = os.getenv("RATE_LIMIT_QUERY", "30/minute")
 RATE_LIMIT_GENERAL = os.getenv("RATE_LIMIT_GENERAL", "60/minute")
 limiter = Limiter(key_func=get_remote_address)
 
-# --- CORS Configuration ---
-DEFAULT_ORIGINS = [
-    "https://askadil.org",
-    "https://www.askadil.org",
-    "https://adil-frontend-production.up.railway.app",
-    "http://localhost:8000",
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:8080",
+# --- Postgres-backed rate limits ---
+_db_pool: asyncpg.Pool | None = None
+
+
+async def _get_pool() -> asyncpg.Pool:
+    global _db_pool
+    if _db_pool is None:
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise HTTPException(500, "DATABASE_URL not configured")
+        _db_pool = await asyncpg.create_pool(db_url, min_size=1, max_size=10)
+    return _db_pool
+
+
+CHAT_LIMITS = [
+    Limit("chat:ip", 30, timedelta(minutes=1)),
+    Limit("chat:ip", 200, timedelta(hours=1)),
 ]
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else DEFAULT_ORIGINS
-ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS if o.strip()]
+CHAT_IMAGE_LIMITS = [
+    Limit("chat-image:ip", 10, timedelta(minutes=1)),
+    Limit("chat-image:ip", 50, timedelta(hours=1)),
+]
+REPORT_LIMITS = [
+    Limit("report:ip", 3, timedelta(hours=1)),
+    Limit("report:ip", 10, timedelta(hours=24)),
+]
+ANALYZE_LIMITS = [
+    Limit("analyze:ip", 20, timedelta(minutes=1)),
+]
+UPLOAD_LIMITS = [
+    Limit("upload:ip", 10, timedelta(hours=1)),
+]
+
+
+def enforce(limits: list[Limit]):
+    """Return a FastAPI dependency that enforces the given Postgres rate limits."""
+
+    async def _dep(request: Request, _api_key: str = Security(verify_api_key)):
+        identity = resolve_client_ip(request, api_key_valid=True)
+        pool = await _get_pool()
+        try:
+            await check_limits(pool, limits, identity)
+        except PgRateLimitExceeded as exc:
+            raise HTTPException(
+                status_code=429,
+                detail=f"rate limit exceeded ({exc.limit}/{exc.window})",
+                headers={"Retry-After": str(exc.retry_after_seconds)},
+            ) from exc
+
+    return _dep
+
+
+# --- CORS Configuration ---
+enable_dev_cors = os.getenv("ENABLE_DEV_CORS", "false").lower() == "true"
+cors_origins = ["http://localhost:3000"] if enable_dev_cors else []
 
 # Global services and stats
 rag_service: RAGService | None = None
@@ -237,39 +283,19 @@ stats = {
 }
 
 
-async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
-    """Validate the API key from the X-API-Key header.
-
-    Raises:
-        HTTPException 401: If no API key is provided.
-        HTTPException 403: If the API key is invalid.
-
-    Returns:
-        The validated API key string.
-    """
-    if not API_KEY:
-        # If no API key is configured, allow all requests (dev mode)
-        logger.warning("ADIL_API_KEY not set — running in OPEN mode (no auth)")
-        return "open"
-    if not api_key:
-        raise HTTPException(
-            status_code=401,
-            detail="Missing API key. Provide it in the X-API-Key header.",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
-    if not secrets.compare_digest(api_key, API_KEY):
-        logger.warning("Invalid API key attempt")
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid API key.",
-        )
-    return api_key
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     global rag_service, content_extractor
+
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            await run_migrations(database_url)
+        except Exception:
+            logger.exception("run_migrations failed — continuing startup")
+    else:
+        logger.warning("DATABASE_URL not set — skipping migrations")
 
     logger.info(f"Starting {API_TITLE}...")
 
@@ -283,7 +309,7 @@ async def lifespan(app: FastAPI):
         raise ValueError("FILE_SEARCH_STORE_ID not set. Run document-uploader first to create a store.")
 
     # Warn if no API key is configured
-    if not API_KEY:
+    if not os.getenv("ADIL_API_KEY"):
         logger.warning("⚠️  ADIL_API_KEY not set — API is running WITHOUT authentication")
     else:
         logger.info("🔐 API key authentication enabled")
@@ -295,7 +321,7 @@ async def lifespan(app: FastAPI):
     content_extractor = ContentExtractor()
 
     logger.info(f"🚦 Rate limits: query={RATE_LIMIT_QUERY}, general={RATE_LIMIT_GENERAL}")
-    logger.info(f"🌐 CORS origins: {ALLOWED_ORIGINS}")
+    logger.info(f"🌐 CORS: {'enabled for localhost:3000' if cors_origins else 'disabled (production mode)'}")
     logger.info("✅ Project Adil RAG API started successfully")
     yield
     logger.info("Project Adil RAG API shutdown complete")
@@ -350,6 +376,10 @@ tags_metadata = [
         "name": "Solicitor Directory",
         "description": "Curated directory of solicitors with discrimination law expertise. Filterable by jurisdiction, specialism, and location.",
     },
+    {
+        "name": "Uploads",
+        "description": "Upload metadata registration. The frontend mints R2 presigned URLs; this endpoint records the metadata for ownership verification.",
+    },
 ]
 
 app = FastAPI(
@@ -380,21 +410,29 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — restricted to known origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["X-API-Key", "Content-Type", "Accept"],
-)
+# CORS — only enabled for local dev (ENABLE_DEV_CORS=true)
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # Log validation errors so we can debug 422s
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # Serialize errors safely — strip non-JSON-serializable ctx values (e.g. raw exceptions)
+    safe_errors = []
+    for err in exc.errors():
+        safe_err = {k: v for k, v in err.items() if k != "ctx"}
+        if "ctx" in err:
+            safe_err["ctx"] = {k: str(v) for k, v in err["ctx"].items()}
+        safe_errors.append(safe_err)
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
 # --- Request Timing Middleware ---
@@ -594,6 +632,7 @@ def _parse_suggested_questions(answer: str) -> list[str] | None:
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service not initialised"},
     },
+    dependencies=[Depends(enforce(CHAT_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def query(request: Request, body: QueryRequest, _api_key: str = Security(verify_api_key)):
@@ -686,6 +725,74 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
 
 
 @app.post(
+    "/api/v1/query/stream",
+    tags=["Query"],
+    summary="Query UK discrimination law with Server-Sent Events streaming",
+    responses={
+        200: {"description": "SSE stream of token/source/viability/done events"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+        429: {"description": "Rate limit exceeded"},
+        503: {"description": "RAG service not initialised"},
+    },
+    dependencies=[Depends(enforce(CHAT_LIMITS))],
+)
+async def query_stream(
+    request: Request,  # noqa: ARG001  # kept for symmetry with /api/v1/query
+    body: QueryRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Streaming counterpart of ``/api/v1/query``.
+
+    Emits ``text/event-stream`` frames as Gemini produces tokens. Event types:
+
+    - ``token`` — incremental answer text (JSON-encoded string)
+    - ``source`` — statute or case-law reference (one per source)
+    - ``viability`` — optional viability assessment (only if requested)
+    - ``done`` — final summary with ``conversation_id``, ``sources_count``,
+      ``tokens_used``
+    - ``error`` — emitted if the stream aborts mid-flight
+    """
+    import json as _json
+
+    from fastapi.responses import StreamingResponse
+
+    if not rag_service:
+        raise HTTPException(status_code=503, detail="RAG service not initialized")
+
+    # Convert conversation history to dicts (RAGService expects dicts)
+    history_dicts = None
+    if body.conversation_history:
+        history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
+
+    async def event_source():
+        try:
+            async for event in rag_service.stream_query(
+                query_text=body.query,
+                conversation_history=history_dicts,
+                max_sources=body.max_sources,
+                include_viability_score=body.include_viability_score,
+                conversation_id=getattr(body, "conversation_id", None),
+            ):
+                data = event["data"]
+                data_json = _json.dumps(data, default=str)
+                yield f"event: {event['event']}\ndata: {data_json}\n\n"
+        except Exception as exc:
+            logger.exception("query_stream error")
+            err_payload = _json.dumps({"code": "INTERNAL", "message": str(exc)[:200]})
+            yield f"event: error\ndata: {err_payload}\n\n"
+
+    return StreamingResponse(
+        event_source(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@app.post(
     "/api/v1/analyze",
     response_model=AnalyzeContentResponse,
     tags=["Content Analysis"],
@@ -697,6 +804,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service or content extractor not initialised"},
     },
+    dependencies=[Depends(enforce(ANALYZE_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_key: str = Security(verify_api_key)):
@@ -870,6 +978,55 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
+async def _load_uploads_from_r2(
+    conversation_id: uuid.UUID | None,
+    upload_ids: list[uuid.UUID],
+) -> list[ImageData]:
+    """Fetch images from R2 for verified upload_ids owned by this conversation.
+
+    Raises HTTPException(403) if any upload_id is missing or belongs to
+    a different conversation.
+    """
+    if not upload_ids:
+        return []
+    if conversation_id is None:
+        raise HTTPException(status_code=400, detail="conversation_id required when upload_ids provided")
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        rows = await conn.fetch(
+            "SELECT id, object_key, content_type FROM uploads " "WHERE id = ANY($1::uuid[]) AND conversation_id = $2",
+            upload_ids,
+            conversation_id,
+        )
+    finally:
+        await conn.close()
+
+    found_ids = {r["id"] for r in rows}
+    missing = set(upload_ids) - found_ids
+    if missing:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Upload(s) not found for this conversation: {sorted(str(m) for m in missing)}",
+        )
+
+    r2 = R2Client.from_env()
+    images: list[ImageData] = []
+    for row in rows:
+        data = await r2.get_object(row["object_key"])
+        images.append(
+            ImageData(
+                data=base64.b64encode(data).decode("ascii"),
+                mime_type=row["content_type"],
+            )
+        )
+    return images
+
+
 @app.post(
     "/api/v1/query/image",
     response_model=QueryResponse,
@@ -883,6 +1040,7 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service not initialised"},
     },
+    dependencies=[Depends(enforce(CHAT_IMAGE_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def query_image(
@@ -908,7 +1066,14 @@ async def query_image(
     if not rag_service:
         raise HTTPException(status_code=503, detail="RAG service not initialized")
 
-    # Validate image MIME types and base64 data
+    # At least one image source must be provided
+    if not body.images and not body.upload_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one image via 'images' (base64) or 'upload_ids'.",
+        )
+
+    # Validate inline image MIME types and base64 data
     for i, img in enumerate(body.images):
         if img.mime_type not in ALLOWED_IMAGE_MIMES:
             raise HTTPException(
@@ -925,13 +1090,17 @@ async def query_image(
             ) from exc
 
     try:
+        # Load R2-backed uploads and merge with any inline base64 images
+        r2_images = await _load_uploads_from_r2(body.conversation_id, body.upload_ids)
+        all_images = r2_images + list(body.images)  # R2 first, then legacy inline base64
+
         # Convert conversation history
         history_dicts = None
         if body.conversation_history:
             history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         # Convert images to dicts for the RAG service
-        images_data = [{"mime_type": img.mime_type, "data": img.data} for img in body.images]
+        images_data = [{"mime_type": img.mime_type, "data": img.data} for img in all_images]
 
         answer, sources, usage, metadata, viability, evidence_checklist = await rag_service.query_with_images(
             images=images_data,
@@ -1062,6 +1231,7 @@ async def report_targets(request: Request, _api_key: str = Security(verify_api_k
     response_model=SubmitReportResponse,
     tags=["Report Submission"],
     summary="Submit a hate crime report via automated form filling",
+    dependencies=[Depends(enforce(REPORT_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def submit_report(
@@ -1319,6 +1489,62 @@ async def list_solicitors(
         "total": len(results),
         "disclaimer": SOLICITOR_DISCLAIMER,
     }
+
+
+# =============================================================================
+# UPLOAD RECORD ENDPOINT
+# =============================================================================
+
+
+@app.post(
+    "/api/v1/uploads/record",
+    response_model=UploadRecordResponse,
+    status_code=201,
+    tags=["Uploads"],
+    summary="Record R2 upload metadata",
+    responses={
+        201: {"description": "Upload metadata recorded"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+        422: {"description": "Invalid content type or size"},
+        500: {"description": "DATABASE_URL not configured"},
+    },
+    dependencies=[Depends(enforce(UPLOAD_LIMITS))],
+)
+async def record_upload(
+    body: UploadRecordRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Record metadata for a file already uploaded to R2.
+
+    The frontend mints presigned URLs locally and uploads directly to R2.
+    After a successful upload the frontend calls this endpoint to register
+    the object key, content type, size, and conversation ownership so that
+    vision query endpoints can verify access.
+
+    🔐 **Requires `X-API-Key` header.**
+    """
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        await conn.execute(
+            """
+            INSERT INTO uploads (id, conversation_id, object_key, content_type, size_bytes)
+            VALUES ($1, $2, $3, $4, $5)
+            """,
+            body.id,
+            body.conversation_id,
+            body.object_key,
+            body.content_type,
+            body.size_bytes,
+        )
+    finally:
+        await conn.close()
+
+    return UploadRecordResponse(id=body.id)
 
 
 if __name__ == "__main__":
