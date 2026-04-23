@@ -1,17 +1,335 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* ===========================================
+   AskAdil — Illuminated Manuscript ✕ Legal Editorial
+   =========================================== */
+
 @theme {
-  --color-brand-900: #14532d;
-  --color-brand-700: #15803d;
-  --color-brand-500: #22c55e;
-  --color-scale-500: #eab308;
+  /* Palette — warm parchment on deep forest, gold illumination */
+  --color-paper: #f4eedc;            /* aged ivory — primary background */
+  --color-paper-warm: #ebe2c9;       /* deeper vellum — for cards */
+  --color-paper-shadow: #d9ccab;     /* faded edge */
+  --color-ink: #0f3e29;              /* deep forest ink — primary text */
+  --color-ink-soft: #264a39;         /* softened body */
+  --color-ink-faded: #6b7668;        /* meta, captions */
+  --color-emerald: #1f6f4a;          /* accent / links */
+  --color-emerald-bright: #2d8f5f;   /* hover */
+  --color-gold: #c89b3c;             /* illumination / citations */
+  --color-gold-soft: #dcbb66;        /* paler gold wash */
+  --color-rust: #8b3c1e;             /* error / urgent */
+  --color-ember: #d4772a;            /* warm accent */
+
+  /* Kept for legacy Tailwind classes — mapped to new palette */
+  --color-brand-50:  #f1ebd3;
+  --color-brand-100: #e4d8a8;
+  --color-brand-500: #1f6f4a;
+  --color-brand-700: #155a3a;
+  --color-brand-900: #0f3e29;
+  --color-brand-200: #c7d2c1;
+  --color-scale-50:  #faf2d8;
+  --color-scale-500: #c89b3c;
+}
+
+/* ===========================================
+   Typography
+   =========================================== */
+
+:root {
+  --font-display: "Fraunces", "Source Serif Pro", Georgia, serif;
+  --font-body:    "Lora", "Source Serif Pro", Georgia, serif;
+  --font-ui:      "Inter Tight", system-ui, -apple-system, sans-serif;
+  --font-arabic:  "Amiri", "Noto Naskh Arabic", serif;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
 }
 
 html, body {
-  @apply h-full bg-white text-gray-900 antialiased;
+  @apply h-full antialiased;
 }
 
 body {
-  font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  font-feature-settings: "kern", "liga", "calt", "onum";
+  background:
+    /* grain overlay — subtle noise */
+    url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.12 0 0 0 0 0.25 0 0 0 0 0.18 0 0 0 0.06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    /* radial wash — warm lamp glow */
+    radial-gradient(ellipse at top, rgba(200, 155, 60, 0.07) 0%, transparent 60%),
+    /* page base */
+    var(--color-paper);
+  background-blend-mode: multiply, normal, normal;
+  min-height: 100vh;
+}
+
+/* Selection — gold wash */
+::selection {
+  background: rgba(200, 155, 60, 0.35);
+  color: var(--color-ink);
+}
+
+/* ===========================================
+   Scrollbar — discreet
+   =========================================== */
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(15, 62, 41, 0.2);
+  border-radius: 999px;
+  border: 2px solid var(--color-paper);
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(15, 62, 41, 0.35); }
+
+/* ===========================================
+   Text rendering — Fraunces defaults
+   =========================================== */
+
+h1, h2, h3, h4, .font-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-feature-settings: "kern", "liga", "dlig", "ss01", "ss02";
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
+}
+
+.font-ui { font-family: var(--font-ui); }
+.font-body { font-family: var(--font-body); }
+.font-arabic { font-family: var(--font-arabic); }
+
+/* ===========================================
+   Ornaments
+   =========================================== */
+
+/* Thin gold rule — reusable divider */
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--color-gold) 20%,
+    var(--color-gold) 80%,
+    transparent 100%
+  );
+}
+
+/* Eight-point Islamic star — reusable mark */
+@keyframes star-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.star-mark {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  position: relative;
+}
+.star-mark::before,
+.star-mark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  clip-path: polygon(
+    50% 0%, 61% 39%, 100% 50%, 61% 61%, 50% 100%,
+    39% 61%, 0% 50%, 39% 39%
+  );
+}
+.star-mark::after { transform: rotate(45deg); opacity: 0.6; }
+
+/* ===========================================
+   Prose styling for streamed legal answers
+   =========================================== */
+
+.prose-legal {
+  font-family: var(--font-body);
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--color-ink-soft);
+  max-width: none;
+}
+
+.prose-legal p { margin: 0 0 1.1em 0; }
+.prose-legal p:last-child { margin-bottom: 0; }
+
+.prose-legal strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.prose-legal em { font-style: italic; }
+
+.prose-legal h1, .prose-legal h2, .prose-legal h3 {
+  font-family: var(--font-display);
+  color: var(--color-ink);
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+  letter-spacing: -0.01em;
+}
+
+.prose-legal h1 { font-size: 1.6em; font-weight: 600; }
+.prose-legal h2 { font-size: 1.3em; font-weight: 600; }
+.prose-legal h3 { font-size: 1.12em; font-weight: 600; }
+
+.prose-legal ul, .prose-legal ol {
+  margin: 0.8em 0 1.2em 0;
+  padding-left: 1.6em;
+}
+
+.prose-legal ul > li { list-style: none; position: relative; margin-bottom: 0.55em; }
+.prose-legal ul > li::before {
+  content: "◆";
+  position: absolute;
+  left: -1.2em;
+  top: 0.05em;
+  color: var(--color-gold);
+  font-size: 0.7em;
+}
+
+.prose-legal ol { counter-reset: legal-num; padding-left: 2em; }
+.prose-legal ol > li {
+  list-style: none;
+  position: relative;
+  counter-increment: legal-num;
+  margin-bottom: 0.55em;
+}
+.prose-legal ol > li::before {
+  content: counter(legal-num);
+  position: absolute;
+  left: -2em;
+  top: 0;
+  width: 1.6em;
+  text-align: right;
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--color-gold);
+  font-variant-numeric: oldstyle-nums;
+  font-size: 0.95em;
+}
+
+.prose-legal a {
+  color: var(--color-emerald);
+  text-decoration: underline;
+  text-decoration-color: var(--color-gold-soft);
+  text-underline-offset: 3px;
+  transition: color 150ms, text-decoration-color 150ms;
+}
+.prose-legal a:hover {
+  color: var(--color-emerald-bright);
+  text-decoration-color: var(--color-gold);
+}
+
+.prose-legal blockquote {
+  margin: 1.2em 0;
+  padding: 0.4em 0 0.4em 1.2em;
+  border-left: 2px solid var(--color-gold);
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+
+.prose-legal code {
+  font-family: "IBM Plex Mono", "Source Code Pro", monospace;
+  background: rgba(200, 155, 60, 0.12);
+  color: var(--color-ink);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.prose-legal hr {
+  border: 0;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--color-gold) 50%,
+    transparent
+  );
+  margin: 2em 0;
+}
+
+/* Drop cap on first paragraph of assistant messages — opt-in via class */
+.has-dropcap > p:first-of-type::first-letter {
+  font-family: var(--font-display);
+  font-weight: 600;
+  float: left;
+  font-size: 3.3em;
+  line-height: 0.9;
+  padding: 0.08em 0.12em 0 0;
+  color: var(--color-emerald);
+  font-feature-settings: "kern", "dlig";
+}
+
+/* ===========================================
+   Utility classes
+   =========================================== */
+
+.paper-card {
+  background: var(--color-paper-warm);
+  border: 1px solid rgba(15, 62, 41, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 4px 18px rgba(15, 62, 41, 0.05),
+    0 24px 48px rgba(15, 62, 41, 0.03);
+  position: relative;
+}
+
+.paper-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.42 0 0 0 0 0.25 0 0 0 0.04 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  border-radius: inherit;
+}
+
+.btn-primary {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--color-ink);
+  transition: background 180ms, transform 120ms;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  background: var(--color-emerald);
+  border-color: var(--color-emerald);
+}
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  background: var(--color-ink);
+}
+
+.btn-secondary {
+  font-family: var(--font-ui);
+  font-weight: 500;
+  background: transparent;
+  color: var(--color-ink);
+  padding: 0.6rem 1.2rem;
+  border: 1px solid rgba(15, 62, 41, 0.35);
+  transition: border-color 180ms, background 180ms;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  border-color: var(--color-emerald);
+  background: rgba(31, 111, 74, 0.06);
+}
+
+/* Elegant focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+  border-radius: 2px;
 }

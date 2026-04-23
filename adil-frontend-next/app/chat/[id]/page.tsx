@@ -128,21 +128,124 @@ export default function ChatPage() {
     <div className="flex flex-col h-full">
       <div ref={scrollerRef} className="flex-1 overflow-y-auto">
         <ErrorBoundary>
-          <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto px-6 md:px-4 py-8 md:py-12">
             {messages.length === 0 && !jurisdiction && (
-              <div className="bg-white p-4 rounded border border-gray-200">
-                <p className="text-sm">
-                  Welcome to AskAdil — free AI legal education for British Muslims.
-                  We cover UK discrimination, hate crime, and mental capacity / Court of Protection.
-                  Please select your jurisdiction to begin:
+              <div className="paper-card p-6 md:p-10 relative">
+                {/* Opening flourish */}
+                <div className="flex items-center gap-3 mb-6">
+                  <span
+                    className="font-ui text-[11px] uppercase"
+                    style={{
+                      letterSpacing: "0.28em",
+                      color: "var(--color-gold)",
+                    }}
+                  >
+                    ❃ Welcome
+                  </span>
+                  <div
+                    className="flex-1 h-px"
+                    style={{
+                      background:
+                        "linear-gradient(to right, var(--color-gold) 0%, transparent 70%)",
+                      opacity: 0.5,
+                    }}
+                  />
+                </div>
+
+                <h1
+                  className="font-display leading-[1.05] mb-4"
+                  style={{
+                    fontSize: "clamp(28px, 4.5vw, 40px)",
+                    fontWeight: 500,
+                    color: "var(--color-ink)",
+                    letterSpacing: "-0.018em",
+                  }}
+                >
+                  Free, citation-backed UK legal guidance
+                  <span
+                    className="italic block mt-1"
+                    style={{
+                      color: "var(--color-emerald)",
+                      fontSize: "0.68em",
+                      fontWeight: 400,
+                    }}
+                  >
+                    for British Muslims.
+                  </span>
+                </h1>
+
+                <p
+                  className="font-body mb-2"
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 1.7,
+                    color: "var(--color-ink-soft)",
+                  }}
+                >
+                  A Muslim Council of Britain initiative covering discrimination, hate
+                  crime, and mental capacity &amp; Court of Protection across all four
+                  UK jurisdictions. Grounded in UK legislation and{" "}
+                  <span
+                    className="font-display"
+                    style={{ color: "var(--color-gold)", fontWeight: 600 }}
+                  >
+                    1,000+
+                  </span>{" "}
+                  court judgments.
                 </p>
+
+                <p
+                  className="font-ui text-[12px] uppercase mt-6 mb-2"
+                  style={{
+                    letterSpacing: "0.22em",
+                    color: "var(--color-emerald)",
+                  }}
+                >
+                  Select your jurisdiction
+                </p>
+
                 <JurisdictionSelector onSelect={setJurisdiction} />
               </div>
             )}
             {messages.length === 0 && jurisdiction && (
-              <div className="text-sm text-gray-600">
-                Ask me anything about UK discrimination, hate crime, or mental capacity law.
-                Type <strong>report</strong> to submit a hate crime report.
+              <div className="paper-card p-6 md:p-8">
+                <div className="flex items-center gap-3 mb-3">
+                  <span
+                    className="font-ui text-[11px] uppercase"
+                    style={{
+                      letterSpacing: "0.24em",
+                      color: "var(--color-emerald)",
+                    }}
+                  >
+                    Ready
+                  </span>
+                  <div
+                    className="flex-1 h-px"
+                    style={{
+                      background:
+                        "linear-gradient(to right, var(--color-gold) 0%, transparent 70%)",
+                      opacity: 0.45,
+                    }}
+                  />
+                </div>
+                <p
+                  className="font-body"
+                  style={{
+                    fontSize: 16,
+                    lineHeight: 1.7,
+                    color: "var(--color-ink-soft)",
+                  }}
+                >
+                  Ask about discrimination at work, hate crime, religious leave, or
+                  deputyship for an adult with learning disabilities. Type{" "}
+                  <strong
+                    className="font-display"
+                    style={{ color: "var(--color-ink)", fontWeight: 600 }}
+                  >
+                    report
+                  </strong>{" "}
+                  to submit a hate-crime report directly.
+                </p>
               </div>
             )}
             {messages.map((m, i) => (
