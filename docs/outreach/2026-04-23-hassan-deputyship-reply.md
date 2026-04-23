@@ -49,6 +49,11 @@ This is not discrimination law — it's **Court of Protection** work under the *
 5. **Reach out to Shabina Begum** for a 30-min call to review the draft before publication; offer co-authorship.
 
 ### Medium-term (new AskAdil track)
+5. **Alternative data sources for comprehensive directory** — the research flagged that no comprehensive "all Muslim lawyers" list is publicly obtainable. Alternatives to pursue:
+   - **Law Society's "Find a Solicitor" directory** (solicitors.lawsociety.org.uk) — searchable but not filterable by religion/community; would need manual curation to extract Muslim partners
+   - **LinkedIn** (filter by law firm + Muslim-community signals e.g. bar associations, alumni networks, verified practice areas) — requires either a data scraping workflow respecting LinkedIn ToS, or manual/semi-manual research
+   - **Muslim community publications** (Muslim News, 5Pillars, The Muslim Vibe) — features & interviews often name Muslim solicitors in specific practice areas; ingest article archives + extract named professionals
+   - Each of the above yields partial data only; the research concluded **no automated path produces a comprehensive list** — human-in-the-loop curation + direct outreach to umbrella networks (step 7 below) remains the most reliable approach
 6. **Expand AskAdil's legal scope** to include Mental Capacity Act + Court of Protection.
    - Upload the MCA 2005, Code of Practice, relevant case law (Re D, Re MN, Cheshire West) to the Gemini FST store via `adil-document-uploader`
    - Add a new search domain: `mental_capacity_deputyship` → EWCOP (Court of Protection) court code on TNA
