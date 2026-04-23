@@ -2,13 +2,19 @@ from arq.connections import RedisSettings
 from arq.cron import cron
 
 from app.config import get_settings
-from app.workers.tasks import fetch_case_law, heartbeat, heartbeat_alert_only, upload_pending
+from app.workers.tasks import (
+    fetch_case_law,
+    heartbeat,
+    heartbeat_alert_only,
+    rate_limit_cleanup,
+    upload_pending,
+)
 
 _settings = get_settings()
 
 
 class WorkerSettings:
-    functions = [fetch_case_law, upload_pending, heartbeat, heartbeat_alert_only]
+    functions = [fetch_case_law, upload_pending, heartbeat, heartbeat_alert_only, rate_limit_cleanup]
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
 
     cron_jobs = [
@@ -19,4 +25,6 @@ class WorkerSettings:
         cron(heartbeat, hour={0, 6, 12, 18}, minute=0),
         # Hourly health check (only sends Telegram alert on failure)
         cron(heartbeat_alert_only, minute=0),
+        # Hourly cleanup of rate-limit counters (>48h) and expired uploads
+        cron(rate_limit_cleanup, minute=15),
     ]
