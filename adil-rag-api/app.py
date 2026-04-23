@@ -34,6 +34,7 @@ import time
 from contextlib import asynccontextmanager
 
 import httpx
+from db_migrate import run_migrations
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.exceptions import RequestValidationError
@@ -270,6 +271,15 @@ async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     global rag_service, content_extractor
+
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            await run_migrations(database_url)
+        except Exception:
+            logger.exception("run_migrations failed — continuing startup")
+    else:
+        logger.warning("DATABASE_URL not set — skipping migrations")
 
     logger.info(f"Starting {API_TITLE}...")
 
