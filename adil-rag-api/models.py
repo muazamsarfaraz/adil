@@ -20,7 +20,7 @@ import uuid
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class SourceType(str, Enum):
@@ -151,10 +151,18 @@ class ImageQueryRequest(BaseModel):
         max_length=10000,
     )
     images: list[ImageData] = Field(
-        ...,
-        description="List of base64-encoded images to analyse (1-5).",
-        min_length=1,
+        default_factory=list,
+        description="List of base64-encoded images to analyse (1-5). Legacy inline base64 — kept for backward compatibility.",
         max_length=5,
+    )
+    # NEW: references to uploads recorded via POST /api/v1/uploads/record
+    upload_ids: list[uuid.UUID] = Field(
+        default_factory=list,
+        description="UUIDs of uploads recorded via /api/v1/uploads/record. Ownership is verified against conversation_id.",
+    )
+    conversation_id: uuid.UUID | None = Field(
+        None,
+        description="Conversation ID used for upload ownership verification when upload_ids are provided.",
     )
     include_viability_score: bool = Field(
         False,
@@ -165,6 +173,13 @@ class ImageQueryRequest(BaseModel):
         description="Previous conversation turns for multi-turn context.",
         max_length=50,
     )
+
+    @model_validator(mode="after")
+    def _require_at_least_one_image_source(self) -> "ImageQueryRequest":
+        """Either inline images or upload_ids must be provided."""
+        if not self.images and not self.upload_ids:
+            raise ValueError("Provide at least one image via 'images' (base64) or 'upload_ids'.")
+        return self
 
     model_config = ConfigDict(
         json_schema_extra={

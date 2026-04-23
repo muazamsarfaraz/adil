@@ -30,6 +30,7 @@ import logging
 import os
 import re
 import time
+import uuid
 from contextlib import asynccontextmanager
 
 import asyncpg
@@ -42,6 +43,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
+from r2_client import R2Client
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -60,6 +62,7 @@ from models import (
     GenerateReportRequest,
     GenerateReportResponse,
     HealthResponse,
+    ImageData,
     ImageQueryRequest,
     QueryRequest,
     QueryResponse,
@@ -198,6 +201,9 @@ Rate limit headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-R
 are included in all responses.
 """
 API_VERSION = "1.3.0"
+
+# --- API Key (module-level for testability) ---
+API_KEY = os.getenv("ADIL_API_KEY")
 
 # --- Rate Limiting ---
 RATE_LIMIT_QUERY = os.getenv("RATE_LIMIT_QUERY", "30/minute")
@@ -373,7 +379,14 @@ app.add_middleware(
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation error on {request.method} {request.url.path}: {exc.errors()}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # Serialize errors safely — strip non-JSON-serializable ctx values (e.g. raw exceptions)
+    safe_errors = []
+    for err in exc.errors():
+        safe_err = {k: v for k, v in err.items() if k != "ctx"}
+        if "ctx" in err:
+            safe_err["ctx"] = {k: str(v) for k, v in err["ctx"].items()}
+        safe_errors.append(safe_err)
+    return JSONResponse(status_code=422, content={"detail": safe_errors})
 
 
 # --- Request Timing Middleware ---
@@ -849,6 +862,55 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
+async def _load_uploads_from_r2(
+    conversation_id: uuid.UUID | None,
+    upload_ids: list[uuid.UUID],
+) -> list[ImageData]:
+    """Fetch images from R2 for verified upload_ids owned by this conversation.
+
+    Raises HTTPException(403) if any upload_id is missing or belongs to
+    a different conversation.
+    """
+    if not upload_ids:
+        return []
+    if conversation_id is None:
+        raise HTTPException(status_code=400, detail="conversation_id required when upload_ids provided")
+
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
+
+    conn = await asyncpg.connect(db_url)
+    try:
+        rows = await conn.fetch(
+            "SELECT id, object_key, content_type FROM uploads " "WHERE id = ANY($1::uuid[]) AND conversation_id = $2",
+            upload_ids,
+            conversation_id,
+        )
+    finally:
+        await conn.close()
+
+    found_ids = {r["id"] for r in rows}
+    missing = set(upload_ids) - found_ids
+    if missing:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Upload(s) not found for this conversation: {sorted(str(m) for m in missing)}",
+        )
+
+    r2 = R2Client.from_env()
+    images: list[ImageData] = []
+    for row in rows:
+        data = await r2.get_object(row["object_key"])
+        images.append(
+            ImageData(
+                data=base64.b64encode(data).decode("ascii"),
+                mime_type=row["content_type"],
+            )
+        )
+    return images
+
+
 @app.post(
     "/api/v1/query/image",
     response_model=QueryResponse,
@@ -887,7 +949,14 @@ async def query_image(
     if not rag_service:
         raise HTTPException(status_code=503, detail="RAG service not initialized")
 
-    # Validate image MIME types and base64 data
+    # At least one image source must be provided
+    if not body.images and not body.upload_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide at least one image via 'images' (base64) or 'upload_ids'.",
+        )
+
+    # Validate inline image MIME types and base64 data
     for i, img in enumerate(body.images):
         if img.mime_type not in ALLOWED_IMAGE_MIMES:
             raise HTTPException(
@@ -904,13 +973,17 @@ async def query_image(
             ) from exc
 
     try:
+        # Load R2-backed uploads and merge with any inline base64 images
+        r2_images = await _load_uploads_from_r2(body.conversation_id, body.upload_ids)
+        all_images = r2_images + list(body.images)  # R2 first, then legacy inline base64
+
         # Convert conversation history
         history_dicts = None
         if body.conversation_history:
             history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
         # Convert images to dicts for the RAG service
-        images_data = [{"mime_type": img.mime_type, "data": img.data} for img in body.images]
+        images_data = [{"mime_type": img.mime_type, "data": img.data} for img in all_images]
 
         answer, sources, usage, metadata, viability, evidence_checklist = await rag_service.query_with_images(
             images=images_data,
