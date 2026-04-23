@@ -29,18 +29,17 @@ import binascii
 import logging
 import os
 import re
-import secrets
 import time
 from contextlib import asynccontextmanager
 
 import httpx
+from auth import verify_api_key  # noqa: E402
 from db_migrate import run_migrations
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, Security
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.security import APIKeyHeader
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -197,14 +196,6 @@ are included in all responses.
 """
 API_VERSION = "1.3.0"
 
-# --- Security Configuration ---
-API_KEY = os.getenv("ADIL_API_KEY")
-api_key_header = APIKeyHeader(
-    name="X-API-Key",
-    description="API key for authentication. Required for all protected endpoints.",
-    auto_error=False,
-)
-
 # --- Rate Limiting ---
 RATE_LIMIT_QUERY = os.getenv("RATE_LIMIT_QUERY", "30/minute")
 RATE_LIMIT_GENERAL = os.getenv("RATE_LIMIT_GENERAL", "60/minute")
@@ -238,35 +229,6 @@ stats = {
 }
 
 
-async def verify_api_key(api_key: str = Security(api_key_header)) -> str:
-    """Validate the API key from the X-API-Key header.
-
-    Raises:
-        HTTPException 401: If no API key is provided.
-        HTTPException 403: If the API key is invalid.
-
-    Returns:
-        The validated API key string.
-    """
-    if not API_KEY:
-        # If no API key is configured, allow all requests (dev mode)
-        logger.warning("ADIL_API_KEY not set — running in OPEN mode (no auth)")
-        return "open"
-    if not api_key:
-        raise HTTPException(
-            status_code=401,
-            detail="Missing API key. Provide it in the X-API-Key header.",
-            headers={"WWW-Authenticate": "ApiKey"},
-        )
-    if not secrets.compare_digest(api_key, API_KEY):
-        logger.warning("Invalid API key attempt")
-        raise HTTPException(
-            status_code=403,
-            detail="Invalid API key.",
-        )
-    return api_key
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
@@ -293,7 +255,7 @@ async def lifespan(app: FastAPI):
         raise ValueError("FILE_SEARCH_STORE_ID not set. Run document-uploader first to create a store.")
 
     # Warn if no API key is configured
-    if not API_KEY:
+    if not os.getenv("ADIL_API_KEY"):
         logger.warning("⚠️  ADIL_API_KEY not set — API is running WITHOUT authentication")
     else:
         logger.info("🔐 API key authentication enabled")
