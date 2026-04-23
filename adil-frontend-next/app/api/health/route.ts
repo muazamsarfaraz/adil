@@ -1,6 +1,4 @@
-import { NextResponse } from "next/server";
-
+export const dynamic = "force-dynamic";
 export async function GET() {
-  // Always return 200 for Railway healthcheck — frontend is healthy if it can respond
-  return NextResponse.json({ status: "ok" });
+  return Response.json({ status: "ok", service: "adil-frontend-next" });
 }
