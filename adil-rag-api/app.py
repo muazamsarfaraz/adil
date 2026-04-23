@@ -266,18 +266,8 @@ def enforce(limits: list[Limit]):
 
 
 # --- CORS Configuration ---
-DEFAULT_ORIGINS = [
-    "https://askadil.org",
-    "https://www.askadil.org",
-    "https://adil-frontend-production.up.railway.app",
-    "http://localhost:8000",
-    "http://localhost:8080",
-    "http://localhost:3000",
-    "http://127.0.0.1:8000",
-    "http://127.0.0.1:8080",
-]
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "").split(",") if os.getenv("ALLOWED_ORIGINS") else DEFAULT_ORIGINS
-ALLOWED_ORIGINS = [o.strip() for o in ALLOWED_ORIGINS if o.strip()]
+enable_dev_cors = os.getenv("ENABLE_DEV_CORS", "false").lower() == "true"
+cors_origins = ["http://localhost:3000"] if enable_dev_cors else []
 
 # Global services and stats
 rag_service: RAGService | None = None
@@ -331,7 +321,7 @@ async def lifespan(app: FastAPI):
     content_extractor = ContentExtractor()
 
     logger.info(f"🚦 Rate limits: query={RATE_LIMIT_QUERY}, general={RATE_LIMIT_GENERAL}")
-    logger.info(f"🌐 CORS origins: {ALLOWED_ORIGINS}")
+    logger.info(f"🌐 CORS: {'enabled for localhost:3000' if cors_origins else 'disabled (production mode)'}")
     logger.info("✅ Project Adil RAG API started successfully")
     yield
     logger.info("Project Adil RAG API shutdown complete")
@@ -420,14 +410,15 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS — restricted to known origins
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["X-API-Key", "Content-Type", "Accept"],
-)
+# CORS — only enabled for local dev (ENABLE_DEV_CORS=true)
+if cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 # Log validation errors so we can debug 422s
