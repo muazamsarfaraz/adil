@@ -358,7 +358,7 @@ tags_metadata = [
         "name": "Report Submission",
         "description": (
             "**Hate crime report submission endpoints.** Submit reports to external portals "
-            "(Police UK, Tell MAMA, Police Scotland, IRU, Islamophobia UK) via AI-powered browser "
+            "(British Muslim Trust, Police UK, Police Scotland, IRU, Islamophobia UK, Tell MAMA) via AI-powered browser "
             "automation, or to EASS and Stop Hate UK via email. The system collects user consent, "
             "fills forms automatically, and returns confirmation with reference numbers. "
             "Email receipts sent via SendGrid. PII is never stored."

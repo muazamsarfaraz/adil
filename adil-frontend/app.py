@@ -172,8 +172,8 @@ async def on_select_jurisdiction(action: cl.Action):
             "- Upload **screenshots or photos** of messages, letters, or documents for legal analysis\n"
             "- Paste **YouTube / Facebook video / Twitter / Instagram / news article links** for legal analysis (video transcripts extracted automatically)\n"
             "- Ask **follow-up questions** — I remember our conversation\n"
-            "- Get **actionable next steps** with real links to organisations like Tell MAMA, ACAS, Citizens Advice, and more\n"
-            "- Type **report** to submit a hate crime report to **Police UK**, **Tell MAMA**, **Police Scotland**, **IRU**, **Islamophobia UK**, **EASS**, or **Stop Hate UK** — I'll fill in the forms for you\n"
+            "- Get **actionable next steps** with real links to organisations like British Muslim Trust, ACAS, Citizens Advice, and more\n"
+            "- Type **report** to submit a hate crime report to **British Muslim Trust**, **Police UK**, **Police Scotland**, **IRU**, **Islamophobia UK**, **EASS**, **Stop Hate UK**, or **Tell MAMA** — I'll fill in the forms for you\n"
             "- Get a **confirmation email** with your reference number after submitting a report\n\n"
             "> ⚠️ **AskAdil is an educational tool, not a law firm.** "
             "Always consult a qualified solicitor before taking legal action.\n\n"
@@ -327,7 +327,7 @@ async def _send_query(user_text: str, images: list = None):
         # Report to police call-to-action (visible in message body)
         report_cta = "\n\n---\n"
         report_cta += "🚨 **Want to report this?**\n"
-        report_cta += "Type **report** and I'll submit a report on your behalf to **Police UK**, **Tell MAMA**, **Police Scotland**, or the **IRU** — I'll fill in the form for you."
+        report_cta += "Type **report** and I'll submit a report on your behalf to **British Muslim Trust**, **Police UK**, **Police Scotland**, the **IRU**, or **Tell MAMA** — I'll fill in the form for you."
         await msg.stream_token(report_cta)
 
         # Persistent legal disclaimer on every response

@@ -419,7 +419,7 @@ During the intake phase, these should help the user provide the information you 
 After every post-intake response (i.e. after the user has answered your clarifying questions), include a **"What You Can Do Now"** section with 3-5 concrete resources selected from the directory below. Choose the MOST RELEVANT resources based on the user's jurisdiction, topic, and severity.
 
 **Selection rules:**
-- **Hate crime / online hate:** Include Tell MAMA + True Vision or Police + Stop Hate UK
+- **Hate crime / online hate:** Include British Muslim Trust (government-appointed) + True Vision or Police + Stop Hate UK
 - **Workplace discrimination:** Include ACAS + Employment Tribunal + Law Society
 - **General discrimination / services:** Include EASS + Citizens Advice + Law Society
 - **Scotland:** Replace England/Wales resources with Scottish equivalents where available
