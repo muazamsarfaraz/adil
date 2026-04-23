@@ -32,18 +32,21 @@ import re
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import timedelta
 
 import asyncpg
 import httpx
-from auth import verify_api_key  # noqa: E402
+from auth import resolve_client_ip, verify_api_key  # noqa: E402
 from db_migrate import run_migrations
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
 from r2_client import R2Client
+from rate_limit import Limit, check_limits
+from rate_limit import RateLimitExceeded as PgRateLimitExceeded
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -209,6 +212,58 @@ API_KEY = os.getenv("ADIL_API_KEY")
 RATE_LIMIT_QUERY = os.getenv("RATE_LIMIT_QUERY", "30/minute")
 RATE_LIMIT_GENERAL = os.getenv("RATE_LIMIT_GENERAL", "60/minute")
 limiter = Limiter(key_func=get_remote_address)
+
+# --- Postgres-backed rate limits ---
+_db_pool: asyncpg.Pool | None = None
+
+
+async def _get_pool() -> asyncpg.Pool:
+    global _db_pool
+    if _db_pool is None:
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise HTTPException(500, "DATABASE_URL not configured")
+        _db_pool = await asyncpg.create_pool(db_url, min_size=1, max_size=10)
+    return _db_pool
+
+
+CHAT_LIMITS = [
+    Limit("chat:ip", 30, timedelta(minutes=1)),
+    Limit("chat:ip", 200, timedelta(hours=1)),
+]
+CHAT_IMAGE_LIMITS = [
+    Limit("chat-image:ip", 10, timedelta(minutes=1)),
+    Limit("chat-image:ip", 50, timedelta(hours=1)),
+]
+REPORT_LIMITS = [
+    Limit("report:ip", 3, timedelta(hours=1)),
+    Limit("report:ip", 10, timedelta(hours=24)),
+]
+ANALYZE_LIMITS = [
+    Limit("analyze:ip", 20, timedelta(minutes=1)),
+]
+UPLOAD_LIMITS = [
+    Limit("upload:ip", 10, timedelta(hours=1)),
+]
+
+
+def enforce(limits: list[Limit]):
+    """Return a FastAPI dependency that enforces the given Postgres rate limits."""
+
+    async def _dep(request: Request, _api_key: str = Security(verify_api_key)):
+        identity = resolve_client_ip(request, api_key_valid=True)
+        pool = await _get_pool()
+        try:
+            await check_limits(pool, limits, identity)
+        except PgRateLimitExceeded as exc:
+            raise HTTPException(
+                status_code=429,
+                detail=f"rate limit exceeded ({exc.limit}/{exc.window})",
+                headers={"Retry-After": str(exc.retry_after_seconds)},
+            ) from exc
+
+    return _dep
+
 
 # --- CORS Configuration ---
 DEFAULT_ORIGINS = [
@@ -586,6 +641,7 @@ def _parse_suggested_questions(answer: str) -> list[str] | None:
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service not initialised"},
     },
+    dependencies=[Depends(enforce(CHAT_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def query(request: Request, body: QueryRequest, _api_key: str = Security(verify_api_key)):
@@ -689,6 +745,7 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service or content extractor not initialised"},
     },
+    dependencies=[Depends(enforce(ANALYZE_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_key: str = Security(verify_api_key)):
@@ -924,6 +981,7 @@ async def _load_uploads_from_r2(
         429: {"description": "Rate limit exceeded"},
         503: {"description": "RAG service not initialised"},
     },
+    dependencies=[Depends(enforce(CHAT_IMAGE_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def query_image(
@@ -1114,6 +1172,7 @@ async def report_targets(request: Request, _api_key: str = Security(verify_api_k
     response_model=SubmitReportResponse,
     tags=["Report Submission"],
     summary="Submit a hate crime report via automated form filling",
+    dependencies=[Depends(enforce(REPORT_LIMITS))],
 )
 @limiter.limit(RATE_LIMIT_QUERY)
 async def submit_report(
@@ -1391,6 +1450,7 @@ async def list_solicitors(
         422: {"description": "Invalid content type or size"},
         500: {"description": "DATABASE_URL not configured"},
     },
+    dependencies=[Depends(enforce(UPLOAD_LIMITS))],
 )
 async def record_upload(
     body: UploadRecordRequest,
