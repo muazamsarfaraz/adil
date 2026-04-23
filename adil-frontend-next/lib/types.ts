@@ -1,92 +1,104 @@
-export interface V2Source {
-  book_id: string;
-  title: string;
-  author_name: string | null;
-  author_death_year: number | null;
-  excerpt: string;
-  source_type: string;
-  usul_slug: string | null;
-  url: string | null;
-}
+import { z } from "zod";
 
-export interface TokenUsage {
-  prompt_tokens: number;
-  completion_tokens: number;
-  total_tokens: number;
-}
+export const JurisdictionEnum = z.enum(["england_wales", "scotland", "northern_ireland"]);
+export type Jurisdiction = z.infer<typeof JurisdictionEnum>;
 
-export interface V2QueryRequest {
-  query: string;
-  user_tier?: "scholar" | "student" | "layman";
-  max_sources?: number;
-  include_export?: boolean;
-  book_ids?: string[];
-  synthesis?: boolean;
-  conversation_id?: string;
-}
+export const ContentTypeEnum = z.enum(["image/png", "image/jpeg", "image/webp"]);
+export type ContentType = z.infer<typeof ContentTypeEnum>;
 
-export interface V2QueryResponse {
-  conversation_id: string;
-  intent: string;
-  answer: string;
-  sources: V2Source[];
-  sources_count: number;
-  no_results_reason: string | null;
-  user_tier: string;
-  export_available: boolean;
-  usage: TokenUsage | null;
-}
+export const SourceTypeEnum = z.enum(["statute", "case_law", "echr_judgment"]);
+export type SourceType = z.infer<typeof SourceTypeEnum>;
 
-export interface BookSearchResult {
-  slug: string;
-  title_ar: string | null;
-  title_en: string | null;
-  author_name_ar: string | null;
-  author_name_en: string | null;
-  author_death_year: number | null;
-  genres: string[];
-  url: string | null;
-}
+export const VentoBandEnum = z.enum(["Lower", "Middle", "Upper", "Exceptional"]);
+export type VentoBand = z.infer<typeof VentoBandEnum>;
 
-export interface BookSearchResponse {
-  query: string;
-  results: BookSearchResult[];
-  total: number;
-}
+export const ConversationTurnSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  content: z.string().max(20_000),
+});
+export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;
 
-export interface V2ExportResponse {
-  id: string;
-  conversation_id: string;
-  question: string;
-  response: string;
-  sources: V2Source[];
-  user_tier: string;
-  created_at: string | null;
-  disclaimer: string;
-}
+export const QueryRequestSchema = z.object({
+  query: z.string().min(1).max(5_000),
+  conversation_id: z.string().uuid(),
+  conversation_history: z.array(ConversationTurnSchema).max(50).optional(),
+  jurisdiction: JurisdictionEnum.optional(),
+  max_sources: z.number().int().min(1).max(20).default(10),
+  include_viability_score: z.boolean().default(true),
+});
+export type QueryRequest = z.infer<typeof QueryRequestSchema>;
 
-export type UserTier = "scholar" | "student" | "layman";
+export const SourceSchema = z.object({
+  type: SourceTypeEnum,
+  title: z.string(),
+  url: z.string().url().nullable().optional(),
+  citation: z.string(),
+  excerpt: z.string().optional(),
+});
+export type Source = z.infer<typeof SourceSchema>;
 
-export type CitationStyle = "chicago" | "harvard" | "apa";
+export const ViabilitySchema = z.object({
+  score: z.number().int().min(0).max(100),
+  vento_band: VentoBandEnum,
+  statutory_footing: z.boolean(),
+  case_law_precedent: z.boolean(),
+  quantum_potential: z.enum(["low", "moderate", "high"]),
+  evidence_checklist: z.array(z.string()),
+});
+export type Viability = z.infer<typeof ViabilitySchema>;
 
-export interface HadithGrading {
-  scholar: string;
-  hukm: "sahih" | "hasan" | "daif" | "mawdu" | "unknown";
-  source_book: string;
-  notes?: string;
-}
+export type StreamEvent =
+  | { event: "token"; data: string }
+  | { event: "source"; data: Source }
+  | { event: "viability"; data: Viability }
+  | { event: "done"; data: { conversation_id: string | null; sources_count: number; tokens_used: number } }
+  | { event: "error"; data: { message: string; code: string } };
 
-export interface BookAutocompleteResult {
-  book_id: string;
-  title: string;
-  title_ar: string | null;
-  author: string | null;
-  author_ar: string | null;
-}
+export const ImageQueryRequestSchema = z.object({
+  query: z.string().min(1).max(5_000),
+  conversation_id: z.string().uuid(),
+  upload_ids: z.array(z.string().uuid()).min(1).max(5),
+});
+export type ImageQueryRequest = z.infer<typeof ImageQueryRequestSchema>;
 
-export interface BookCollection {
-  id: string;
-  name: string;
-  name_ar?: string;
-  book_ids: string[];
-}
+export const PresignRequestSchema = z.object({
+  conversation_id: z.string().uuid(),
+  content_type: ContentTypeEnum,
+  size_bytes: z.number().int().min(1).max(10_485_760),
+});
+export type PresignRequest = z.infer<typeof PresignRequestSchema>;
+
+export const PresignResponseSchema = z.object({
+  upload_id: z.string().uuid(),
+  presigned_url: z.string().url(),
+  object_key: z.string(),
+  expires_at: z.string(),
+});
+export type PresignResponse = z.infer<typeof PresignResponseSchema>;
+
+export const ReporterInfoSchema = z.object({
+  name: z.string().min(1).max(200),
+  email: z.string().email().max(200),
+  phone: z.string().max(50).optional(),
+  dob: z.string().optional(),
+  address: z.string().max(500).optional(),
+});
+
+export const IncidentInfoSchema = z.object({
+  target_org: z.string().min(1).max(50),
+  summary: z.string().min(10).max(5_000),
+  date: z.string().optional(),
+  location: z.string().max(500).optional(),
+});
+
+export const ReportSubmitRequestSchema = z.object({
+  reporter: ReporterInfoSchema,
+  incident: IncidentInfoSchema,
+  turnstile_token: z.string().min(10),
+});
+export type ReportSubmitRequest = z.infer<typeof ReportSubmitRequestSchema>;
+
+export const ExtractUrlRequestSchema = z.object({
+  url: z.string().url().max(2_000),
+});
+export type ExtractUrlRequest = z.infer<typeof ExtractUrlRequestSchema>;
