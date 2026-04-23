@@ -13,7 +13,9 @@ export const VentoBandEnum = z.enum(["Lower", "Middle", "Upper", "Exceptional"])
 export type VentoBand = z.infer<typeof VentoBandEnum>;
 
 export const ConversationTurnSchema = z.object({
-  role: z.enum(["user", "assistant"]),
+  // Backend uses Gemini's {user, model} convention; frontend UI uses {user, assistant}
+  // and maps at the API boundary. See app/chat/[id]/page.tsx.
+  role: z.enum(["user", "model"]),
   content: z.string().max(20_000),
 });
 export type ConversationTurn = z.infer<typeof ConversationTurnSchema>;

@@ -85,7 +85,13 @@ export default function ChatPage() {
       body: {
         query: text,
         conversation_id: conversationId,
-        conversation_history: messages.map((m) => ({ role: m.role, content: m.content })),
+        conversation_history: messages
+          .filter((m) => m.content.trim().length > 0)
+          .map((m) => ({
+            // Backend uses Gemini's {user, model} role convention, not {user, assistant}
+            role: m.role === "assistant" ? "model" : "user",
+            content: m.content,
+          })),
         jurisdiction,
         max_sources: 10,
         include_viability_score: true,
