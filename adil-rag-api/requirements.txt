@@ -19,3 +19,6 @@ asyncpg>=0.29.0
 # Email receipts
 sendgrid>=6.10.0
 
+# Cloudflare R2 (S3-compatible) async client
+aioboto3>=13.0.0
+
