@@ -112,7 +112,8 @@ Google Gemini and a curated UK legal knowledge base.
 | **Online Safety Act 2023** | Platform duties, illegal content, priority offences |
 | **Crime and Disorder Act 1998** | Religiously aggravated offences (ss.28–32) |
 | **Human Rights Act 1998** | Article 9 (freedom of religion), Article 14 (non-discrimination) |
-| **UK Case Law** | 9 landmark cases including *Eweida v UK*, *Vento v Chief Constable* |
+| **Mental Capacity Act 2005** | Capacity (s.1–3), best interests (s.4), LPAs (s.9–14), Court of Protection deputyship (s.16–21) — England & Wales |
+| **UK Case Law** | 14+ hard-coded landmark cases + 1,000+ judgments from The National Archives (EAT, Court of Appeal, Supreme Court, Court of Protection, Crown Court) via Gemini File Search Tool Store |
 | **Vento Guidelines 2025/26** | Injury to feelings compensation bands |
 
 ### 🏴󠁧󠁢󠁳󠁣󠁴󠁿 Scotland-specific
@@ -126,6 +127,15 @@ Google Gemini and a curated UK legal knowledge base.
 | **Fair Employment and Treatment (NI) Order 1998** | Religious belief & political opinion discrimination in employment |
 | **Race Relations (NI) Order 1997** | Race discrimination in employment, goods & services |
 | **Disability Discrimination Act 1995** | Disability discrimination (still live in NI) |
+| **Mental Capacity Act (Northern Ireland) 2016** | NI mental capacity framework (partially in force) |
+
+### 🧠 Mental capacity / deputyship — each UK nation has its own statute
+| Source | Jurisdiction |
+|--------|--------------|
+| **Mental Capacity Act 2005** + Code of Practice | England & Wales → Court of Protection, deputyship, LPAs |
+| **Adults with Incapacity (Scotland) Act 2000** | Scotland → sheriff court, guardianship |
+| **Mental Capacity Act (Northern Ireland) 2016** | Northern Ireland (partially in force) |
+| **Court of Protection case law** | Cheshire West [2014] UKSC 19, JB [2021] UKSC 52, Re D [2019] UKSC 42, Re MN [2015] EWCOP 76, NHS Trust v Y [2018] UKSC 46 |
 
 ## ⚖️ The Pedagogical Funnel
 

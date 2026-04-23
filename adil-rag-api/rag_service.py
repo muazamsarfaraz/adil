@@ -81,6 +81,22 @@ UK_LEGISLATION_URLS: dict[str, dict[str, str]] = {
         "base": "https://www.legislation.gov.uk/ukpga/1995/50",
         "contents": "https://www.legislation.gov.uk/ukpga/1995/50/contents",
     },
+    # Mental capacity & adults with incapacity (each UK nation has its own statute)
+    "Mental Capacity Act 2005": {
+        "base": "https://www.legislation.gov.uk/ukpga/2005/9",
+        "contents": "https://www.legislation.gov.uk/ukpga/2005/9/contents",
+    },
+    "Mental Capacity Act 2005 Code of Practice": {
+        "base": "https://www.gov.uk/government/publications/mental-capacity-act-code-of-practice",
+    },
+    "Adults with Incapacity (Scotland) Act 2000": {
+        "base": "https://www.legislation.gov.uk/asp/2000/4",
+        "contents": "https://www.legislation.gov.uk/asp/2000/4/contents",
+    },
+    "Mental Capacity Act (Northern Ireland) 2016": {
+        "base": "https://www.legislation.gov.uk/nia/2016/18",
+        "contents": "https://www.legislation.gov.uk/nia/2016/18/contents",
+    },
 }
 
 # Jurisdiction mapping: act name -> jurisdiction string
@@ -170,6 +186,25 @@ LEGISLATION_SNIPPETS: dict[str, dict[str, str]] = {
         "4": "It is unlawful for an employer to discriminate against a disabled person in the arrangements for determining to whom employment should be offered, in the terms on which employment is offered, by refusing or deliberately omitting to offer employment.",
         "6": "Duty of employer to make adjustments. Where an employer's provision, criterion or practice places the disabled person at a substantial disadvantage, the employer must take reasonable steps to prevent that disadvantage.",
     },
+    # Mental Capacity Act 2005 (England & Wales). Key sections families need when asking
+    # about deputyship, guardianship, or decisions for adults with learning disabilities.
+    "Mental Capacity Act 2005": {
+        "1": "The five principles: (a) a person must be assumed to have capacity unless established otherwise; (b) a person is not to be treated as unable to make a decision unless all practicable steps to help them have been taken without success; (c) a person is not to be treated as unable to make a decision merely because they make an unwise decision; (d) an act done or decision made for a person who lacks capacity must be done, or made, in their best interests; (e) before the act is done or the decision is made, regard must be had to whether the purpose can be as effectively achieved in a way that is less restrictive of the person's rights and freedom of action.",
+        "2": "People who lack capacity. A person lacks capacity in relation to a matter if at the material time they are unable to make a decision for themselves in relation to that matter because of an impairment of, or a disturbance in the functioning of, the mind or brain.",
+        "3": "Inability to make decisions. A person is unable to make a decision for themselves if they are unable (a) to understand the information relevant to the decision, (b) to retain that information, (c) to use or weigh that information as part of the process of making the decision, or (d) to communicate their decision.",
+        "4": "Best interests. In determining what is in a person's best interests, the decision-maker must consider all relevant circumstances, the person's past and present wishes and feelings (in particular any relevant written statement), the beliefs and values that would be likely to influence their decision if they had capacity, and the views of anyone engaged in caring for them or interested in their welfare.",
+        "9": "Lasting powers of attorney (LPA). A lasting power of attorney is a power of attorney created under this Act which confers authority to make decisions about the donor's (a) personal welfare, or (b) property and affairs. An LPA can only be created while the donor has capacity — it cannot be made for someone who never had capacity.",
+        "16": "Powers to make decisions and appoint deputies. The Court of Protection may by order make decisions on a person's behalf, or appoint a deputy to make decisions on a person's behalf. Deputies may be appointed for personal welfare (welfare deputyship) or property and affairs (financial deputyship).",
+        "20": "Restrictions on deputies. A deputy must act in the person's best interests and may not (a) refuse consent to life-sustaining treatment; (b) make a will; (c) hold property in their own name beyond the scope of the order.",
+    },
+    "Adults with Incapacity (Scotland) Act 2000": {
+        "1": "General principles. Any intervention shall benefit the adult, be the least restrictive option, take account of the adult's past and present wishes and feelings, and take account of the views of the nearest relative, primary carer, guardian or attorney.",
+        "57": "Appointment of guardian. The sheriff may, on an application, appoint an individual as guardian in relation to the property, financial affairs, or personal welfare of an adult with incapacity. Scotland's equivalent of England & Wales deputyship.",
+    },
+    "Mental Capacity Act (Northern Ireland) 2016": {
+        "1": "The principles (NI). A person is not to be treated as unable to make a decision unless all practicable help has been given without success. A person is not to be treated as unable to make a decision merely because they make an unwise decision. An act done, or decision made, for a person who lacks capacity must be done in the person's best interests.",
+        "3": "Capacity (NI). A person lacks capacity in relation to a matter if they are unable to make a decision because of an impairment of, or a disturbance in, the functioning of the mind or brain.",
+    },
 }
 
 
@@ -242,6 +277,39 @@ UK_CASE_LAW: dict[str, dict[str, str]] = {
         "url": "https://www.gov.uk/employment-tribunal-decisions",
         "summary": "Muslim PhD student claimed direct discrimination and harassment on grounds of religion and race. Tribunal found the university failed to adequately address complaints of Islamophobic behaviour by supervisors.",
     },
+    # Court of Protection / Mental Capacity Act landmark cases (England & Wales).
+    # Added to support families asking about deputyship and decisions for adults with
+    # learning disabilities (e.g. Hassan's query, April 2026).
+    "Cheshire West and Chester Council v P [2014] UKSC 19": {
+        "citation": "[2014] UKSC 19",
+        "court": "Supreme Court",
+        "url": "https://caselaw.nationalarchives.gov.uk/uksc/2014/19",
+        "summary": "The 'acid test' for deprivation of liberty: a person is deprived of their liberty if they are under continuous supervision and control AND not free to leave, regardless of whether they are content or compliant. A universal test applicable to people lacking capacity.",
+    },
+    "A Local Authority v JB [2021] UKSC 52": {
+        "citation": "[2021] UKSC 52",
+        "court": "Supreme Court",
+        "url": "https://caselaw.nationalarchives.gov.uk/uksc/2021/52",
+        "summary": "Capacity to consent to sexual relations: the test requires understanding that the other person must consent and can withdraw consent. Clarifies how information-relevance under s.3 MCA applies to complex life decisions.",
+    },
+    "Re D (A Child) [2019] UKSC 42": {
+        "citation": "[2019] UKSC 42",
+        "court": "Supreme Court",
+        "url": "https://caselaw.nationalarchives.gov.uk/uksc/2019/42",
+        "summary": "Deprivation of liberty of 16-17 year olds: parents cannot consent to restrictions amounting to a deprivation of liberty for a child of that age. Court of Protection or inherent jurisdiction authorisation required.",
+    },
+    "Re MN (Adult) [2015] EWCOP 76": {
+        "citation": "[2015] EWCOP 76",
+        "court": "Court of Protection",
+        "url": "https://caselaw.nationalarchives.gov.uk/",
+        "summary": "Best interests decisions for adults with learning disabilities: the Court of Protection's role is narrow — it cannot compel a local authority to provide specific care services. Illustrates the limits of welfare deputyship.",
+    },
+    "NHS Trust v Y [2018] UKSC 46": {
+        "citation": "[2018] UKSC 46",
+        "court": "Supreme Court",
+        "url": "https://caselaw.nationalarchives.gov.uk/uksc/2018/46",
+        "summary": "Withdrawal of clinically-assisted nutrition and hydration (CANH): where best interests and clinical consensus agree, court application is not mandatory. Important for families making end-of-life decisions for relatives lacking capacity.",
+    },
 }
 
 
@@ -270,7 +338,12 @@ Your answers are grounded in:
 - **Race Relations (Northern Ireland) Order 1997** — NI's race discrimination framework. Covers direct/indirect discrimination, victimisation, harassment on grounds of race, colour, nationality, ethnic or national origins.
 - **Disability Discrimination Act 1995** (as applies to Northern Ireland) — Still live in NI (repealed in England/Wales/Scotland by EA 2010). Covers disability discrimination in employment, goods/services, education.
 
-- **UK case law** from the Supreme Court, Court of Appeal, Employment Tribunals, and ECHR
+**Mental capacity & deputyship (each UK nation has its own statute):**
+- **Mental Capacity Act 2005** — England & Wales. Governs decisions for adults who lack capacity (learning disabilities, dementia, brain injury). Covers the five principles (s.1), capacity assessment (s.2-3), best interests (s.4), Lasting Powers of Attorney (s.9-14), the Court of Protection and deputyship (s.16-21), and Deprivation of Liberty Safeguards.
+- **Adults with Incapacity (Scotland) Act 2000** — Scotland's equivalent. Uses "guardianship" terminology (s.57) rather than "deputyship"; sheriff court rather than Court of Protection.
+- **Mental Capacity Act (Northern Ireland) 2016** — NI's equivalent, partially in force.
+
+- **UK case law** from the Supreme Court, Court of Appeal, Court of Protection, Employment Tribunals, and ECHR — including Cheshire West [2014] UKSC 19 (deprivation of liberty "acid test"), JB [2021] UKSC 52 (capacity to consent), Re D [2019] UKSC 42 (16-17 year olds), Re MN [2015] EWCOP 76 (limits of welfare deputyship), NHS Trust v Y [2018] UKSC 46 (CANH withdrawal)
 
 ## Core Principles
 
@@ -477,7 +550,70 @@ After every post-intake response (i.e. after the user has answered your clarifyi
 - **Law Society NI** — https://lawsoc-ni.org — Find a NI solicitor
 - **Advice NI** — https://adviceni.net — Free advice services across Northern Ireland
 
-## Response Format
+## 11. MENTAL CAPACITY & DEPUTYSHIP INTAKE BRANCH
+
+**When the user's question involves any of:**
+- "learning disability", "learning difficulties", "autism", "Down's syndrome", "dementia", "brain injury", "stroke"
+- "can't make decisions", "doesn't understand", "unable to consent"
+- "deputyship", "guardianship", "Lasting Power of Attorney", "LPA", "Court of Protection", "COP"
+- "best interests", "mental capacity", "capacity assessment"
+- Decisions about money, care, medical treatment, or housing for someone else
+
+...route to a Mental Capacity Act-aware response instead of (or alongside) the discrimination framework. Key rules:
+
+### 11.1 Jurisdiction first
+
+- **England & Wales:** Mental Capacity Act 2005 → Court of Protection → deputyship
+- **Scotland:** Adults with Incapacity (Scotland) Act 2000 → sheriff court → guardianship
+- **Northern Ireland:** Mental Capacity Act (Northern Ireland) 2016 → equivalent framework (partially in force)
+
+Never conflate these. A Scottish reader needs the AWI Act; an NI reader needs the NI 2016 Act.
+
+### 11.2 LPA vs deputyship — the critical distinction
+
+- **Lasting Power of Attorney (LPA)** — only possible if the person had capacity at the time of signing. **An LPA cannot be created for an adult who has always lacked capacity** (e.g. someone with a lifelong learning disability). Many families ask about LPAs; the correct answer for a young adult with learning disabilities is usually deputyship, not LPA.
+- **Welfare deputyship** — decisions about care, medical treatment, where to live. Less commonly granted; courts prefer individual best-interests decisions.
+- **Property and affairs deputyship** — decisions about money, benefits, bank accounts. More commonly granted and broader scope.
+
+### 11.3 The five principles (MCA s.1) — cite verbatim where relevant
+
+(a) Capacity is presumed. (b) Take all practicable steps to help the person decide. (c) An unwise decision is not evidence of incapacity. (d) Acts for a person lacking capacity must be in their best interests. (e) The least restrictive option must be chosen.
+
+### 11.4 Best interests test (MCA s.4) — must consider:
+
+- The person's past and present wishes and feelings (including any written statements)
+- Beliefs and values that would influence their decision (including Islamic religious observance, halal dietary needs, gender of carers where relevant)
+- Views of family, carers, anyone named by the person, any attorney or deputy
+
+### 11.5 Practical next steps for families
+
+- For **property & affairs deputyship**: apply via **COP1 + COP1A + COP3** forms to the Court of Protection. Court fee £408 (2025). Application typically takes 4-6 months. Once granted, annual supervision fee £35-£320 depending on level.
+- For **welfare deputyship**: same forms plus explanation of why one-off best-interests decisions won't suffice. Welfare deputyships are granted more rarely.
+- **Office of the Public Guardian (OPG)** — regulator, supervises deputies. https://www.gov.uk/government/organisations/office-of-the-public-guardian
+- **Free help**: Citizens Advice, Mencap (https://www.mencap.org.uk), MIND (for mental health dimensions)
+
+### 11.6 Solicitor referral for mental capacity work
+
+When the user's query involves Court of Protection or deputyship:
+- **Shabina Begum (Goodman Ray)** — https://www.goodmanray.com/our-team/partners/shabina-begum/ — Muslim partner at a mainstream specialist firm; known for welfare deputyship and complex vulnerable-adult cases
+- **I Will Solicitors** — https://www.iwillsolicitors.com/ — Muslim-owned wills/probate firm covering property & affairs deputyship and LPAs; not a welfare-deputyship specialist
+- Larger Muslim-friendly firms like **Duncan Lewis** have Court of Protection departments
+- **Office of the Public Guardian** and Mencap can help families navigate without a solicitor for straightforward cases
+
+### 11.7 Islamic considerations — flag to the user
+
+- The Islamic concept of *wali* (guardian) does not directly map onto UK legal deputyship. A wali (e.g. in marriage) is not automatically recognised by the Court of Protection.
+- Faith considerations feed into the s.4 best-interests analysis (religious observance, diet, modesty of care, gender of carers, burial wishes) but do not override capacity law.
+- Families should document the person's religious wishes in writing where possible — these carry real weight in best-interests decisions.
+
+### 11.8 What AskAdil will NOT do on MCA matters
+
+- Advise on a specific capacity assessment for a named individual
+- Draft COP1 paperwork
+- Predict whether the court will grant a deputyship
+- Substitute for a solicitor or the Court of Protection process itself
+
+##Response Format
 
 ### First message (intake — no conversation history):
 1. **Brief acknowledgement** (1-2 sentences)

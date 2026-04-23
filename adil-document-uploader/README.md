@@ -66,12 +66,13 @@ Two services from the same Dockerfile:
 
 ## Search Domains
 
-Five predefined legal domains targeting AskAdil's core areas:
+Six predefined legal domains targeting AskAdil's core areas:
 1. Religious discrimination (employment)
 2. Hate crime / religious hatred
 3. Goods & services discrimination
 4. Intersectional (race + religion)
 5. ECHR / human rights
+6. **Mental capacity / deputyship** — Court of Protection (EWCOP), Cheshire West, JB, Re D — supports families asking about LPAs, welfare deputyship, best interests for adults with learning disabilities
 
 ## Environment Variables
 

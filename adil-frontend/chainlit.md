@@ -18,7 +18,7 @@
 - ⚖️ [Crime and Disorder Act 1998](https://www.legislation.gov.uk/ukpga/1998/37/contents) — Religiously aggravated offences
 - 🇪🇺 [Human Rights Act 1998](https://www.legislation.gov.uk/ukpga/1998/42/contents) — Article 9 (Freedom of religion)
 
-> 📎 **Case Law:** I'm grounded in **1,000+ court judgments** from the [National Archives Case Law](https://caselaw.nationalarchives.gov.uk/) database — covering the Employment Appeal Tribunal, Court of Appeal, High Court, Supreme Court, and Crown Court. My case law is updated daily and spans religious discrimination, hate crime, goods & services discrimination, race/religion intersectional cases, and ECHR human rights.
+> 📎 **Case Law:** I'm grounded in **1,000+ court judgments** from the [National Archives Case Law](https://caselaw.nationalarchives.gov.uk/) database — covering the Employment Appeal Tribunal, Court of Appeal, High Court, Supreme Court, Court of Protection, and Crown Court. My case law is updated daily and spans religious discrimination, hate crime, goods & services discrimination, race/religion intersectional cases, ECHR human rights, and **mental capacity / Court of Protection** (e.g. deputyship for adults with learning disabilities).
 
 ---
 
@@ -31,6 +31,7 @@
 | 💬 **Online** | Hate speech, platform complaints, reporting content |
 | 📸 **Image Analysis** | Upload screenshots of messages, photos of letters, or documents — I'll analyse them for legal issues |
 | 📺 **Media Analysis** | Paste a YouTube, Facebook, Twitter/X, or Instagram link and I'll extract the content and analyse it for legal issues |
+| 🧠 **Mental capacity / deputyship** | Court of Protection, Lasting Power of Attorney, welfare vs property & affairs deputyship, best-interests decisions for adults with learning disabilities, Adults with Incapacity (Scotland) Act guardianship |
 | 📚 **Education** | Understanding your rights before taking action |
 | 📞 **Next Steps** | Reporting hate crime, finding a solicitor, contacting support organisations |
 

@@ -39,6 +39,21 @@ SEARCH_DOMAINS: list[SearchDomain] = [
         queries=['"Article 9" religion', '"Article 14" discrimination'],
         courts=["uksc", "ewca/civ"],
     ),
+    # Mental Capacity Act / Court of Protection track — added 2026-04-23 following
+    # community queries about deputyship for young adults with learning disabilities.
+    # EWCOP (Court of Protection) is the primary court; UKSC covers landmark cases
+    # like Cheshire West [2014] UKSC 19 and JB [2021] UKSC 52.
+    SearchDomain(
+        name="mental_capacity_deputyship",
+        queries=[
+            '"Mental Capacity Act" 2005',
+            '"best interests" deputyship',
+            '"deprivation of liberty"',
+            '"Court of Protection" welfare',
+            '"learning disability" capacity',
+        ],
+        courts=["ewcop", "uksc", "ewca/civ"],
+    ),
 ]
 
 

@@ -35,7 +35,8 @@ AskAdil is **not a law firm**. It educates users about their rights, helps them 
 ### Legal knowledge base
 
 - **Legislation:** Equality Act 2010, Public Order Act 1986, Online Safety Act 2023, Crime and Disorder Act 1998, Human Rights Act 1998, Employment Rights Act 1996, Racial and Religious Hatred Act 2006, Scotland Hate Crime Act 2021, FETO 1998, NI Race Relations Order 1997
-- **Case law:** 1,000+ court judgments sourced daily from [The National Archives](https://caselaw.nationalarchives.gov.uk/) via `adil-document-uploader`, covering EAT, Court of Appeal, High Court, Supreme Court, and Crown Court — plus 9 landmark cases hard-coded (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, etc.)
+- **Case law:** 1,000+ court judgments sourced daily from [The National Archives](https://caselaw.nationalarchives.gov.uk/) via `adil-document-uploader`, covering EAT, Court of Appeal, High Court, Supreme Court, **Court of Protection**, and Crown Court — plus 14+ landmark cases hard-coded (Eweida v UK, JH Walker v Hussain, Azmi v Kirklees, Cheshire West [2014] UKSC 19, JB [2021] UKSC 52, etc.)
+- **Mental capacity / deputyship:** Mental Capacity Act 2005 (E&W), Adults with Incapacity (Scotland) Act 2000, Mental Capacity Act (NI) 2016 — covers Court of Protection, LPAs, welfare & property deputyship, best-interests decisions for adults with learning disabilities
 - **Vento bands:** 2025-2026 compensation ranges for injury to feelings claims
 - **Jurisdictions:** England & Wales, Scotland, Northern Ireland -- with jurisdiction-specific legislation and case law
 

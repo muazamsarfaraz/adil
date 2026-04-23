@@ -11,7 +11,7 @@ Part of [AskAdil by MCB](https://askadil.org) (Muslim Council of Britain).
 
 ## What It Does
 
-The RAG API is the backend intelligence layer for AskAdil. It uses Google Gemini with File Search Tool (FST) grounded in UK legislation and 1,000+ court judgments (sourced daily from The National Archives by `adil-document-uploader`) to provide accurate, citation-backed legal education. The service handles multi-turn conversations, content analysis, viability assessments, report generation, and solicitor directory lookups.
+The RAG API is the backend intelligence layer for AskAdil. It uses Google Gemini with File Search Tool (FST) grounded in UK legislation and 1,000+ court judgments (sourced daily from The National Archives by `adil-document-uploader`) to provide accurate, citation-backed legal education. The service handles multi-turn conversations, content analysis, viability assessments, report generation, and solicitor directory lookups. Coverage spans UK discrimination law, hate crime, ECHR human rights, and **mental capacity / Court of Protection** work (Mental Capacity Act 2005 + Adults with Incapacity (Scotland) Act 2000 + Mental Capacity Act (NI) 2016, deputyship, LPAs, best-interests decisions).
 
 ## Features
 
