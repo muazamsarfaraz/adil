@@ -1,0 +1,17 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-brand-900: #14532d;
+  --color-brand-700: #15803d;
+  --color-brand-500: #22c55e;
+  --color-scale-500: #eab308;
+}
+
+html, body {
+  @apply h-full bg-white text-gray-900 antialiased;
+}
+
+body {
+  font-family: var(--font-sans, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+}
