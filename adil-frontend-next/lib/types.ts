@@ -6,7 +6,14 @@ export type Jurisdiction = z.infer<typeof JurisdictionEnum>;
 export const ContentTypeEnum = z.enum(["image/png", "image/jpeg", "image/webp"]);
 export type ContentType = z.infer<typeof ContentTypeEnum>;
 
-export const SourceTypeEnum = z.enum(["statute", "case_law", "echr_judgment"]);
+// Mirrors backend adil-rag-api/models.py::SourceType
+export const SourceTypeEnum = z.enum([
+  "statute",
+  "case_law",
+  "guidance",
+  "tribunal_decision",
+  "echr_judgment",
+]);
 export type SourceType = z.infer<typeof SourceTypeEnum>;
 
 export const VentoBandEnum = z.enum(["Lower", "Middle", "Upper", "Exceptional"]);

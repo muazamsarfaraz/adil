@@ -1,13 +1,16 @@
 import type { Source } from "@/lib/types";
 
-const TYPE_META = {
-  statute:       { label: "Statute",    abbr: "S" },
-  case_law:      { label: "Case law",   abbr: "C" },
-  echr_judgment: { label: "ECHR",       abbr: "E" },
-} as const;
+const TYPE_META: Record<string, { label: string; abbr: string }> = {
+  statute:           { label: "Statute",            abbr: "S" },
+  case_law:          { label: "Case law",           abbr: "C" },
+  guidance:          { label: "Guidance",           abbr: "G" },
+  tribunal_decision: { label: "Tribunal",           abbr: "T" },
+  echr_judgment:     { label: "ECHR",               abbr: "E" },
+};
+const FALLBACK_META = { label: "Source", abbr: "•" };
 
 export default function SourceCard({ source, index }: { source: Source; index?: number }) {
-  const meta = TYPE_META[source.type];
+  const meta = TYPE_META[source.type] ?? FALLBACK_META;
 
   const body = (
     <div className="flex items-start gap-4">
