@@ -107,6 +107,17 @@ export default function ChatPage() {
           setSourcesByMsg((s) => ({ ...s, [assistantIdx]: [...(s[assistantIdx] ?? []), e.data] }));
         } else if (e.event === "viability") {
           setViabilityByMsg((v) => ({ ...v, [assistantIdx]: e.data }));
+        } else if (e.event === "error") {
+          const data = e.data as { code?: string; message?: string };
+          const isBudget = /monthly spending cap|RESOURCE_EXHAUSTED/i.test(data?.message ?? "");
+          const hint = isBudget
+            ? "Adil is temporarily over its daily usage quota. Please try again later — we've been notified."
+            : (data?.message ?? "Something went wrong while drafting a reply.");
+          setMessages((m) => {
+            const copy = [...m];
+            copy[assistantIdx] = { ...copy[assistantIdx], content: `⚠️ ${hint}` };
+            return copy;
+          });
         }
       },
       onError: ({ message, status, retryAfter }) => {
