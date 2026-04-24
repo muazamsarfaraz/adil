@@ -37,11 +37,17 @@ export const QueryRequestSchema = z.object({
 });
 export type QueryRequest = z.infer<typeof QueryRequestSchema>;
 
+// Backend emits snake_case Pydantic fields (source_type, neutral_citation, section).
+// Accept both shapes and normalise in the UI.
 export const SourceSchema = z.object({
-  type: SourceTypeEnum,
+  type: SourceTypeEnum.optional(),
+  source_type: SourceTypeEnum.optional(),
   title: z.string(),
   url: z.string().url().nullable().optional(),
-  citation: z.string(),
+  citation: z.string().optional(),
+  neutral_citation: z.string().nullable().optional(),
+  section: z.string().nullable().optional(),
+  act_name: z.string().nullable().optional(),
   excerpt: z.string().optional(),
 });
 export type Source = z.infer<typeof SourceSchema>;

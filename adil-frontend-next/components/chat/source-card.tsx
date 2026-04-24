@@ -10,7 +10,9 @@ const TYPE_META: Record<string, { label: string; abbr: string }> = {
 const FALLBACK_META = { label: "Source", abbr: "•" };
 
 export default function SourceCard({ source, index }: { source: Source; index?: number }) {
-  const meta = TYPE_META[source.type] ?? FALLBACK_META;
+  const kind = source.source_type ?? source.type ?? "";
+  const meta = TYPE_META[kind] ?? FALLBACK_META;
+  const citation = source.neutral_citation ?? source.section ?? source.citation;
 
   const body = (
     <div className="flex items-start gap-4">
@@ -40,12 +42,14 @@ export default function SourceCard({ source, index }: { source: Source; index?: 
           >
             {meta.label}
           </span>
-          <span
-            className="font-display text-[12px]"
-            style={{ color: "var(--color-gold)", fontVariantNumeric: "oldstyle-nums" }}
-          >
-            {source.citation}
-          </span>
+          {citation && (
+            <span
+              className="font-display text-[12px]"
+              style={{ color: "var(--color-gold)", fontVariantNumeric: "oldstyle-nums" }}
+            >
+              {citation}
+            </span>
+          )}
         </div>
         <h4
           className="font-display text-[15px] leading-snug"
