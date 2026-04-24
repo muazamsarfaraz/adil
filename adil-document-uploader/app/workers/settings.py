@@ -3,6 +3,7 @@ from arq.cron import cron
 
 from app.config import get_settings
 from app.workers.tasks import (
+    fast_probe,
     fetch_case_law,
     heartbeat,
     heartbeat_alert_only,
@@ -14,7 +15,7 @@ _settings = get_settings()
 
 
 class WorkerSettings:
-    functions = [fetch_case_law, upload_pending, heartbeat, heartbeat_alert_only, rate_limit_cleanup]
+    functions = [fetch_case_law, upload_pending, heartbeat, heartbeat_alert_only, fast_probe, rate_limit_cleanup]
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
 
     cron_jobs = [
@@ -25,6 +26,43 @@ class WorkerSettings:
         cron(heartbeat, hour={0, 6, 12, 18}, minute=0),
         # Hourly health check (only sends Telegram alert on failure)
         cron(heartbeat_alert_only, minute=0),
+        # Fast synthetic prober every 2 min (alerts on 2nd consecutive failure,
+        # and again on recovery). Covers adil-rag-api and adil-frontend-next.
+        cron(
+            fast_probe,
+            minute={
+                0,
+                2,
+                4,
+                6,
+                8,
+                10,
+                12,
+                14,
+                16,
+                18,
+                20,
+                22,
+                24,
+                26,
+                28,
+                30,
+                32,
+                34,
+                36,
+                38,
+                40,
+                42,
+                44,
+                46,
+                48,
+                50,
+                52,
+                54,
+                56,
+                58,
+            },
+        ),
         # Hourly cleanup of rate-limit counters (>48h) and expired uploads
         cron(rate_limit_cleanup, minute=15),
     ]

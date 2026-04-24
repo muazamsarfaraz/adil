@@ -289,6 +289,72 @@ async def heartbeat_alert_only(ctx: dict) -> dict:
     return await heartbeat(ctx)
 
 
+# --- Fast synthetic prober (every 2 min) -----------------------------------
+# Tracks consecutive failures per target in-process. An alert fires only when
+# a target fails twice in a row, avoiding pager noise from a single flaky
+# request. TelegramNotifier's underlying dedup (if any) is orthogonal.
+
+_FAST_PROBE_TARGETS_DEFAULT = (
+    "rag-api=https://adil-rag-api-production.up.railway.app/health,"
+    "frontend-next=https://adil-frontend-next-production.up.railway.app/api/health"
+)
+_FAST_PROBE_FAIL_THRESHOLD = 2
+_fast_probe_failures: dict[str, int] = {}
+
+
+def _parse_fast_targets() -> dict[str, str]:
+    """Read FAST_PROBE_TARGETS env override or fall back to the default."""
+    spec = os.getenv("FAST_PROBE_TARGETS", _FAST_PROBE_TARGETS_DEFAULT)
+    return _parse_targets(spec)
+
+
+async def fast_probe(ctx: dict) -> dict:
+    """Probe critical user-facing endpoints every 2 minutes.
+
+    Alerts on the 2nd consecutive failure per target so a single 502 blip
+    doesn't page anyone. Success clears the counter.
+    """
+    settings = get_settings()
+    targets = _parse_fast_targets()
+    results = await _check_service_health(targets)
+
+    newly_failing: list[str] = []
+    recovered: list[str] = []
+    for name, (ok, detail) in results.items():
+        prev = _fast_probe_failures.get(name, 0)
+        if ok:
+            if prev >= _FAST_PROBE_FAIL_THRESHOLD:
+                recovered.append(f"{name} ({detail})")
+            _fast_probe_failures[name] = 0
+        else:
+            _fast_probe_failures[name] = prev + 1
+            if _fast_probe_failures[name] == _FAST_PROBE_FAIL_THRESHOLD:
+                newly_failing.append(f"{name} — {detail}")
+
+    if settings.telegram_bot_token and settings.telegram_chat_id and (newly_failing or recovered):
+        notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+        lines = []
+        if newly_failing:
+            lines.append("🚨 *AskAdil fast probe — DOWN*")
+            lines.extend(f"❌ {item}" for item in newly_failing)
+        if recovered:
+            if lines:
+                lines.append("")
+            lines.append("✅ *Recovered*")
+            lines.extend(f"✅ {item}" for item in recovered)
+        lines.append("")
+        lines.append(f"_Checked {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}_")
+        await notifier.send("\n".join(lines))
+
+    return {
+        "targets": {
+            k: {"ok": v[0], "detail": v[1], "streak": _fast_probe_failures.get(k, 0)} for k, v in results.items()
+        },
+        "alerted_down": newly_failing,
+        "alerted_recovered": recovered,
+    }
+
+
 async def rate_limit_cleanup(ctx: dict) -> dict:
     """Remove rate-limit counter rows older than 48 hours and expired upload rows.
 
