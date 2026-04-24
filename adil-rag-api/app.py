@@ -731,6 +731,12 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
 
     except Exception as e:
         logger.error(f"Query error: {e}")
+        try:
+            from telegram_notifier import notify_error
+
+            await notify_error("adil-rag-api", "/api/v1/query", e)
+        except Exception:
+            logger.exception("telegram notify failed (non-fatal)")
         raise HTTPException(status_code=500, detail="An internal error occurred. Please try again later.") from e
 
 
@@ -791,6 +797,12 @@ async def query_stream(
             logger.exception("query_stream error")
             err_payload = _json.dumps({"code": "INTERNAL", "message": str(exc)[:200]})
             yield f"event: error\ndata: {err_payload}\n\n"
+            try:
+                from telegram_notifier import notify_error
+
+                await notify_error("adil-rag-api", "/api/v1/query/stream", exc)
+            except Exception:
+                logger.exception("telegram notify failed (non-fatal)")
 
     return StreamingResponse(
         event_source(),

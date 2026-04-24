@@ -16,7 +16,9 @@ export const SourceTypeEnum = z.enum([
 ]);
 export type SourceType = z.infer<typeof SourceTypeEnum>;
 
-export const VentoBandEnum = z.enum(["Lower", "Middle", "Upper", "Exceptional"]);
+// Backend emits lowercase (models.VentoBand). We preserve the raw string
+// and Title-Case it in the UI.
+export const VentoBandEnum = z.enum(["lower", "middle", "upper", "exceptional"]);
 export type VentoBand = z.infer<typeof VentoBandEnum>;
 
 export const ConversationTurnSchema = z.object({
@@ -52,13 +54,19 @@ export const SourceSchema = z.object({
 });
 export type Source = z.infer<typeof SourceSchema>;
 
+// Mirrors backend ViabilityAssessment. quantum_potential is a bool on the
+// backend ("damages recoverable?"); evidence_checklist is merged in by the
+// streaming yield path but is absent from the raw Pydantic model.
 export const ViabilitySchema = z.object({
   score: z.number().int().min(0).max(100),
-  vento_band: VentoBandEnum,
+  vento_band: VentoBandEnum.nullable().optional(),
+  vento_range: z.string().nullable().optional(),
   statutory_footing: z.boolean(),
   case_law_precedent: z.boolean(),
-  quantum_potential: z.enum(["low", "moderate", "high"]),
-  evidence_checklist: z.array(z.string()),
+  quantum_potential: z.boolean(),
+  reasoning: z.string().optional(),
+  requires_hitl: z.boolean().optional(),
+  evidence_checklist: z.array(z.string()).optional().default([]),
 });
 export type Viability = z.infer<typeof ViabilitySchema>;
 

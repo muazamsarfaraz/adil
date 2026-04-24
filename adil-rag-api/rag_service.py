@@ -1287,13 +1287,26 @@ class RAGService:
 
     @staticmethod
     def _strip_viability_block(text: str) -> str:
-        """Remove the viability assessment block from the answer text."""
-        return re.sub(
+        """Remove the viability assessment block from the answer text.
+
+        Handles:
+        - Full fenced blocks: ---VIABILITY_ASSESSMENT--- ... ---END_VIABILITY---
+        - Stray opening/closing markers if the model produced only one half
+          (observed: ``---END_VIABILITY---`` leaking into prose).
+        """
+        # 1. Full fenced block
+        cleaned = re.sub(
             r"\s*---VIABILITY_ASSESSMENT---.*?---END_VIABILITY---\s*",
             "\n\n",
             text,
             flags=re.DOTALL,
-        ).strip()
+        )
+        # 2. Any stray markers that slipped through (mismatched / unbalanced)
+        cleaned = re.sub(r"\s*---VIABILITY_ASSESSMENT---\s*", "\n\n", cleaned)
+        cleaned = re.sub(r"\s*---END_VIABILITY---\s*", "\n\n", cleaned)
+        # 3. Collapse runs of 3+ newlines into a paragraph break
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
 
     @staticmethod
     def _parse_evidence_checklist(text: str) -> list[str]:

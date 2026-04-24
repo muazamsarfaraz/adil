@@ -79,7 +79,10 @@ function Check({ ok, label }: { ok: boolean; label: string }) {
 }
 
 export default function ViabilityCard({ viability }: { viability: Viability }) {
-  const quantumLabel = { low: "Low", moderate: "Moderate", high: "High" }[viability.quantum_potential];
+  const ventoBand = viability.vento_band
+    ? viability.vento_band.charAt(0).toUpperCase() + viability.vento_band.slice(1)
+    : null;
+  const evidence = viability.evidence_checklist ?? [];
 
   return (
     <div className="paper-card mt-6 p-6 md:p-7 max-w-3xl mx-auto">
@@ -98,12 +101,15 @@ export default function ViabilityCard({ viability }: { viability: Viability }) {
             opacity: 0.5,
           }}
         />
-        <span
-          className="font-ui text-[11px]"
-          style={{ color: "var(--color-ink-faded)", letterSpacing: "0.08em" }}
-        >
-          {viability.vento_band} band
-        </span>
+        {ventoBand && (
+          <span
+            className="font-ui text-[11px]"
+            style={{ color: "var(--color-ink-faded)", letterSpacing: "0.08em" }}
+          >
+            {ventoBand} band
+            {viability.vento_range ? ` · ${viability.vento_range}` : ""}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start">
@@ -120,29 +126,12 @@ export default function ViabilityCard({ viability }: { viability: Viability }) {
           <div className="space-y-0.5">
             <Check ok={viability.statutory_footing} label="Statutory footing present" />
             <Check ok={viability.case_law_precedent} label="Case-law precedent identified" />
-            <div className="flex items-center gap-3 py-1">
-              <span
-                className="flex-shrink-0 flex items-center justify-center font-ui text-[10px]"
-                style={{
-                  width: 20,
-                  height: 20,
-                  border: "1px solid var(--color-gold)",
-                  color: "var(--color-gold)",
-                  background: "rgba(200,155,60,0.1)",
-                }}
-              >
-                £
-              </span>
-              <span className="font-body text-[14px]" style={{ color: "var(--color-ink)" }}>
-                Quantum potential:{" "}
-                <span className="font-display" style={{ fontWeight: 600 }}>{quantumLabel}</span>
-              </span>
-            </div>
+            <Check ok={viability.quantum_potential} label="Recoverable damages likely" />
           </div>
         </div>
       </div>
 
-      {viability.evidence_checklist.length > 0 && (
+      {evidence.length > 0 && (
         <>
           <div className="gold-rule my-6" />
           <div>
@@ -153,7 +142,7 @@ export default function ViabilityCard({ viability }: { viability: Viability }) {
               Evidence to gather
             </h4>
             <ul className="space-y-2">
-              {viability.evidence_checklist.map((item, i) => (
+              {evidence.map((item, i) => (
                 <li key={i} className="flex gap-3 font-body text-[14px]" style={{ color: "var(--color-ink-soft)" }}>
                   <span
                     className="flex-shrink-0 font-display"
