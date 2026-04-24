@@ -109,13 +109,17 @@ export default function ChatPage() {
           setViabilityByMsg((v) => ({ ...v, [assistantIdx]: e.data }));
         } else if (e.event === "error") {
           const data = e.data as { code?: string; message?: string };
-          const isBudget = /monthly spending cap|RESOURCE_EXHAUSTED/i.test(data?.message ?? "");
+          const msg = data?.message ?? "";
+          const isBudget = /monthly spending cap|RESOURCE_EXHAUSTED|429/i.test(msg);
+          const isUpstream = /5\d\d|timeout|unavailable/i.test(msg);
           const hint = isBudget
-            ? "Adil is temporarily over its daily usage quota. Please try again later — we've been notified."
-            : (data?.message ?? "Something went wrong while drafting a reply.");
+            ? "⏳ **Temporary delay** — Adil is briefly over its usage quota while we top up. The team has been alerted and service usually returns within a few minutes. Please try again shortly."
+            : isUpstream
+              ? "⏳ A temporary upstream hiccup interrupted the reply. The team has been notified — please try again in a moment."
+              : `⚠️ ${msg || "Something went wrong while drafting a reply. Please try again."}`;
           setMessages((m) => {
             const copy = [...m];
-            copy[assistantIdx] = { ...copy[assistantIdx], content: `⚠️ ${hint}` };
+            copy[assistantIdx] = { ...copy[assistantIdx], content: hint };
             return copy;
           });
         }

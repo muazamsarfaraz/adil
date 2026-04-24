@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Final
 
 import httpx
@@ -17,6 +18,10 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _MAX_LEN: Final[int] = 3800  # Telegram caps text at 4096; leave headroom for our wrapper
+
+# Dedup: fingerprint -> last-sent epoch. Prevents alert floods during a 429 storm.
+_ALERT_COOLDOWN_SECONDS: Final[int] = 600  # 10 minutes
+_recent_alerts: dict[str, float] = {}
 
 
 def _env() -> tuple[str | None, str | None]:
@@ -51,6 +56,23 @@ async def notify(text: str, *, parse_mode: str = "Markdown") -> bool:
 
 
 async def notify_error(service: str, endpoint: str, exc: BaseException) -> bool:
-    """Format and send a compact error alert."""
-    msg = f"🚨 *{service}* error\n" f"`{endpoint}`\n" f"{type(exc).__name__}: {str(exc)[:400]}"
+    """Format and send a compact error alert.
+
+    Deduplicates identical errors within a 10-minute window so a sustained
+    upstream outage (e.g. Gemini monthly spending cap hit) produces one
+    alert, not one per user request.
+    """
+    fp = f"{service}|{endpoint}|{type(exc).__name__}|{str(exc)[:120]}"
+    now = time.time()
+    last = _recent_alerts.get(fp, 0.0)
+    if now - last < _ALERT_COOLDOWN_SECONDS:
+        return False
+    _recent_alerts[fp] = now
+    # Opportunistic GC — keep the dict bounded.
+    if len(_recent_alerts) > 256:
+        cutoff = now - _ALERT_COOLDOWN_SECONDS
+        for k in [k for k, v in _recent_alerts.items() if v < cutoff]:
+            _recent_alerts.pop(k, None)
+
+    msg = f"🚨 *{service}* error\n`{endpoint}`\n{type(exc).__name__}: {str(exc)[:400]}"
     return await notify(msg)
