@@ -296,7 +296,8 @@ async def heartbeat_alert_only(ctx: dict) -> dict:
 
 _FAST_PROBE_TARGETS_DEFAULT = (
     "rag-api=https://adil-rag-api-production.up.railway.app/health,"
-    "frontend-next=https://adil-frontend-next-production.up.railway.app/api/health"
+    # Use the canonical user-facing host so we also catch DNS / TLS / CDN problems.
+    "askadil-org=https://askadil.org/api/health"
 )
 _FAST_PROBE_FAIL_THRESHOLD = 2
 _fast_probe_failures: dict[str, int] = {}

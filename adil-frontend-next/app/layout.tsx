@@ -2,9 +2,64 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Nav from "@/components/nav";
 
+const SITE_URL = "https://askadil.org";
+const TITLE = "AskAdil — Free UK legal guidance for British Muslims";
+const DESCRIPTION =
+  "Free, citation-backed UK legal education for British Muslims — discrimination, hate crime, and Mental Capacity / Court of Protection. A Muslim Council of Britain initiative.";
+
 export const metadata: Metadata = {
-  title: "AskAdil — UK discrimination & mental capacity law guidance",
-  description: "Free AI-powered UK legal education for British Muslims — covering discrimination, hate crime, and mental capacity / Court of Protection. A Muslim Council of Britain initiative.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: TITLE,
+    template: "%s · AskAdil",
+  },
+  description: DESCRIPTION,
+  applicationName: "AskAdil",
+  authors: [{ name: "Muslim Council of Britain" }],
+  keywords: [
+    "UK discrimination law",
+    "Equality Act 2010",
+    "hate crime",
+    "Mental Capacity Act",
+    "Court of Protection",
+    "British Muslims",
+    "legal aid",
+  ],
+  alternates: { canonical: SITE_URL },
+  openGraph: {
+    type: "website",
+    url: SITE_URL,
+    siteName: "AskAdil",
+    title: TITLE,
+    description: DESCRIPTION,
+    locale: "en_GB",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "AskAdil — Free citation-backed UK legal guidance for British Muslims",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
