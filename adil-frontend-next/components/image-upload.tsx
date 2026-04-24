@@ -74,22 +74,31 @@ export default function ImageUpload({
   };
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex items-center gap-2">
       <label className={`inline-flex items-center gap-2 text-sm cursor-pointer ${uploading ? "opacity-50" : ""}`}>
-        <span className="px-2 py-1 border border-gray-300 rounded hover:border-brand-500">📎 Attach</span>
+        <span
+          className="px-3 py-1.5 text-[12px] font-ui rounded-full transition-colors"
+          style={{
+            border: "1px solid rgba(15,62,41,0.25)",
+            color: "var(--color-ink-soft)",
+          }}
+        >
+          📎 Attach
+        </span>
         <input type="file" multiple accept="image/png,image/jpeg,image/webp"
                className="hidden" disabled={uploading}
                onChange={(e) => handleFiles(e.target.files)} />
       </label>
-      {err && <div className="text-xs text-red-700">{err}</div>}
+      {err && <div className="text-[11px] font-ui" style={{ color: "var(--color-rust)" }}>{err}</div>}
       {images.length > 0 && (
         <div className="flex gap-2 flex-wrap">
           {images.map((img) => (
-            <div key={img.upload_id} className="relative w-16 h-16">
+            <div key={img.upload_id} className="relative w-12 h-12">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.preview_url} alt={img.name} className="w-full h-full object-cover rounded" />
+              <img src={img.preview_url} alt={img.name} className="w-full h-full object-cover rounded-xl" />
               <button type="button" onClick={() => onChange(images.filter((i) => i.upload_id !== img.upload_id))}
-                      className="absolute -top-2 -right-2 bg-white rounded-full w-5 h-5 text-xs border border-gray-300">
+                      className="absolute -top-2 -right-2 rounded-full w-5 h-5 text-xs flex items-center justify-center"
+                      style={{ background: "var(--color-paper)", border: "1px solid rgba(15,62,41,0.25)", color: "var(--color-ink)" }}>
                 ×
               </button>
             </div>

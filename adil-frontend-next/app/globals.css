@@ -272,6 +272,7 @@ h1, h2, h3, h4, .font-display {
 .paper-card {
   background: var(--color-paper-warm);
   border: 1px solid rgba(15, 62, 41, 0.12);
+  border-radius: 18px;
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 4px 18px rgba(15, 62, 41, 0.05),
@@ -297,6 +298,7 @@ h1, h2, h3, h4, .font-display {
   color: var(--color-paper);
   padding: 0.6rem 1.2rem;
   border: 1px solid var(--color-ink);
+  border-radius: 999px;
   transition: background 180ms, transform 120ms;
   cursor: pointer;
 }
@@ -319,6 +321,7 @@ h1, h2, h3, h4, .font-display {
   color: var(--color-ink);
   padding: 0.6rem 1.2rem;
   border: 1px solid rgba(15, 62, 41, 0.35);
+  border-radius: 999px;
   transition: border-color 180ms, background 180ms;
   cursor: pointer;
 }

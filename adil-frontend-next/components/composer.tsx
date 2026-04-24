@@ -55,8 +55,8 @@ export default function Composer({ conversationId, disabled, onSubmit }: Props) 
       <div className="max-w-3xl mx-auto flex flex-col gap-3">
         {pastedUrl && <UrlPreview url={pastedUrl} onCancel={() => setPastedUrl(null)} />}
         <div
-          className="paper-card flex items-end gap-3 p-3"
-          style={{ background: "var(--color-paper)" }}
+          className="paper-card flex items-center gap-3 px-4 py-3"
+          style={{ background: "var(--color-paper)", borderRadius: 999 }}
         >
           <ImageUpload conversationId={conversationId} images={images} onChange={setImages} />
           <textarea
@@ -78,10 +78,11 @@ export default function Composer({ conversationId, disabled, onSubmit }: Props) 
             type="submit"
             disabled={disabled}
             aria-label="Send"
-            className="flex items-center justify-center transition-all"
+            className="flex items-center justify-center transition-all shrink-0"
             style={{
-              width: 42,
-              height: 42,
+              width: 40,
+              height: 40,
+              borderRadius: 999,
               background: disabled ? "rgba(15,62,41,0.2)" : "var(--color-ink)",
               color: disabled ? "rgba(244,238,220,0.6)" : "var(--color-paper)",
               border: `1px solid ${disabled ? "rgba(15,62,41,0.2)" : "var(--color-ink)"}`,

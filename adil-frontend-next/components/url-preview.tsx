@@ -15,14 +15,36 @@ export default function UrlPreview({ url, onCancel }: { url: string; onCancel: (
     return () => { cancelled = true; };
   }, [url]);
 
-  if (err) return <div className="p-2 text-xs text-red-700">Couldn&apos;t preview: {err}</div>;
-  if (!data) return <div className="p-2 text-xs text-gray-500">Previewing {url}…</div>;
+  if (err)
+    return (
+      <div className="px-3 py-2 rounded-2xl font-ui text-[11px]" style={{ color: "var(--color-rust)" }}>
+        Couldn&apos;t preview: {err}
+      </div>
+    );
+  if (!data)
+    return (
+      <div className="px-3 py-2 rounded-2xl font-ui text-[11px]" style={{ color: "var(--color-ink-faded)" }}>
+        Previewing {url}…
+      </div>
+    );
 
   return (
-    <div className="p-2 border border-gray-200 rounded bg-gray-50 text-xs">
-      <div className="font-semibold">{data.title}</div>
-      <div className="text-gray-600 line-clamp-2 mt-1">{data.excerpt}</div>
-      <button onClick={onCancel} className="mt-2 text-brand-700 underline">Remove</button>
+    <div
+      className="px-4 py-3 rounded-2xl font-body text-[13px]"
+      style={{
+        border: "1px solid rgba(15,62,41,0.15)",
+        background: "rgba(255,255,255,0.35)",
+      }}
+    >
+      <div className="font-display font-semibold" style={{ color: "var(--color-ink)" }}>{data.title}</div>
+      <div className="line-clamp-2 mt-1 italic" style={{ color: "var(--color-ink-faded)" }}>{data.excerpt}</div>
+      <button
+        onClick={onCancel}
+        className="mt-2 font-ui text-[10px] uppercase"
+        style={{ letterSpacing: "0.2em", color: "var(--color-emerald)" }}
+      >
+        Remove
+      </button>
     </div>
   );
 }

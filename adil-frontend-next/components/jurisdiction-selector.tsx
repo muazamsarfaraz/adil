@@ -45,6 +45,7 @@ export default function JurisdictionSelector({ onSelect }: { onSelect: (j: Juris
           style={{
             background: "var(--color-paper-warm)",
             border: "1px solid rgba(15,62,41,0.18)",
+            borderRadius: 16,
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = "var(--color-gold)";

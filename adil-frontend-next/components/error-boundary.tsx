@@ -12,7 +12,14 @@ export default class ErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return this.props.fallback ?? (
-        <div className="p-4 bg-red-50 text-red-800 rounded">
+        <div
+          className="p-4 font-body text-[14px] rounded-2xl"
+          style={{
+            background: "rgba(183, 74, 56, 0.08)",
+            border: "1px solid rgba(183, 74, 56, 0.25)",
+            color: "var(--color-rust)",
+          }}
+        >
           Something went wrong rendering this message. Please retry.
         </div>
       );

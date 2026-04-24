@@ -17,6 +17,7 @@ export default function SourceCard({ source, index }: { source: Source; index?: 
         style={{
           width: 44,
           height: 44,
+          borderRadius: 14,
           background: "rgba(200, 155, 60, 0.12)",
           border: "1px solid var(--color-gold)",
           color: "var(--color-gold)",
@@ -65,6 +66,7 @@ export default function SourceCard({ source, index }: { source: Source; index?: 
   const borderStyle = {
     border: "1px solid rgba(15,62,41,0.15)",
     background: "rgba(255,255,255,0.35)",
+    borderRadius: 16,
   };
 
   return source.url ? (
