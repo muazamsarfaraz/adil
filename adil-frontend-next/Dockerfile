@@ -7,6 +7,11 @@ RUN npm ci
 
 FROM base AS builder
 WORKDIR /app
+# NEXT_PUBLIC_* vars must be present during `next build` — they are inlined
+# into the client bundle. Railway sets these as build env vars when present
+# on the service, but Docker requires explicit ARG declarations.
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
