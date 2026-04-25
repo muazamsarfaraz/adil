@@ -31,6 +31,11 @@ class SubmitResponse(BaseModel):
     error: str | None = None
     fallback_report: str | None = None
     target_url: str | None = None
+    # Dry-run safety: when BRIDGE_DRY_RUN=true the agent walks the form but
+    # never clicks Submit. The client should NOT treat dry_run=true as a
+    # filed report.
+    dry_run: bool = False
+    message: str | None = None
 
 
 class HealthResponse(BaseModel):

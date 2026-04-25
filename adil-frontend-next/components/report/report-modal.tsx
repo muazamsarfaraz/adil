@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ReportState } from "./report-flow";
-import { submitReport } from "@/lib/api";
+import { submitReport, type SubmitReportResponse } from "@/lib/api";
 
 declare global {
   interface Window {
@@ -34,7 +34,7 @@ export default function ReportModal({
 }: {
   state: ReportState;
   onCancel: () => void;
-  onSubmitted: (reference: string) => void;
+  onSubmitted: (result: SubmitReportResponse) => void;
 }) {
   const [consent, setConsent] = useState(false);
   const [token, setToken] = useState<string | null>(null);
@@ -96,8 +96,7 @@ export default function ReportModal({
         evidence_urls: [],
         turnstile_token: token,
       });
-      const ref = result.reference_number ?? "(no reference returned)";
-      onSubmitted(ref);
+      onSubmitted(result);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Submission failed");
       if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);

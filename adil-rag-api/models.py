@@ -564,6 +564,9 @@ class SubmitReportResponse(BaseModel):
     fallback_report: str | None = None
     target_url: str | None = None
     form_guide: str | None = None
+    # Bridge-side dry-run flag (BRIDGE_DRY_RUN=true). Surfaced so the chat UI
+    # can render an honest "not actually filed" message when set.
+    dry_run: bool = False
 
 
 # ============================================================================

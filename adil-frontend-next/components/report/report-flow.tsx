@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ReportTargetPicker from "./report-target-picker";
 import ReportModal from "./report-modal";
+import type { SubmitReportResponse } from "@/lib/api";
 
 export interface ReportState {
   targetId: string;
@@ -51,7 +52,7 @@ function focusBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | 
   e.currentTarget.style.borderColor = focused ? "var(--color-gold)" : "rgba(15,62,41,0.20)";
 }
 
-export default function ReportFlow({ onComplete }: { onComplete: (reference: string) => void }) {
+export default function ReportFlow({ onComplete }: { onComplete: (result: SubmitReportResponse) => void }) {
   const [step, setStep] = useState<Step>("pick_target");
   const [state, setState] = useState<ReportState>({
     targetId: "",
@@ -241,9 +242,9 @@ export default function ReportFlow({ onComplete }: { onComplete: (reference: str
     <ReportModal
       state={state}
       onCancel={() => setStep("collect_details")}
-      onSubmitted={(ref) => {
+      onSubmitted={(result) => {
         setStep("pick_target");
-        onComplete(ref);
+        onComplete(result);
       }}
     />
   );

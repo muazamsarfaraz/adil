@@ -22,6 +22,11 @@ _semaphore = asyncio.Semaphore(1)
 SEMAPHORE_TIMEOUT = 30  # seconds to wait before returning 503
 
 
+def _is_dry_run() -> bool:
+    """Whether to skip the final Submit click. Controlled by BRIDGE_DRY_RUN env."""
+    return os.getenv("BRIDGE_DRY_RUN", "false").strip().lower() in ("1", "true", "yes", "on")
+
+
 def _build_task_prompt(target_config: dict[str, Any], data: dict[str, Any]) -> str:
     """Build the agent task prompt from target instructions and user data."""
     instructions = target_config["instructions"]
@@ -40,15 +45,27 @@ def _build_task_prompt(target_config: dict[str, Any], data: dict[str, Any]) -> s
 
     data_block = "\n".join(data_lines)
 
-    return (
+    base = (
         f"{instructions}\n\n"
         f"DATA TO FILL IN THE FORM:\n{data_block}\n\n"
         f"IMPORTANT:\n"
         f"- If a field is not in the data above, leave it blank or skip it.\n"
         f"- For 'additional_info' or free-text fields, include: "
         f"'Submitted via AskAdil (askadil.org) on behalf of the reporter.'\n"
-        f"- After submitting, DO NOT close the page. Stay on the confirmation page.\n"
-        f"- Report the confirmation text and any reference number you see."
+    )
+    if _is_dry_run():
+        return base + (
+            "- DRY RUN MODE: walk through every step and fill every field, BUT "
+            "WHEN YOU REACH THE FINAL REVIEW / SUBMIT PAGE, DO NOT CLICK THE "
+            "SUBMIT, SEND, FILE, or CONFIRM BUTTON. Stop on the review page and "
+            "report back the page contents. This is a pre-launch validation "
+            "and any actual submission would be logged as a false police report.\n"
+            "- Treat the run as successful once you reach (but do not interact "
+            "with) the final Submit button.\n"
+        )
+    return base + (
+        "- After submitting, DO NOT close the page. Stay on the confirmation page.\n"
+        "- Report the confirmation text and any reference number you see.\n"
     )
 
 
@@ -110,15 +127,38 @@ async def submit_report(
 
         if is_successful:
             reference = _extract_reference(final_result)
+            dry_run = _is_dry_run()
+            screenshot_size = len(screenshot_b64) if screenshot_b64 else 0
+            logger.info(
+                "Submit OK target=%s dry_run=%s ref=%s screenshot_bytes=%s",
+                target_id,
+                dry_run,
+                reference,
+                screenshot_size,
+            )
+            message = (
+                "DRY RUN — form was filled and the review page was reached, but "
+                "no Submit button was clicked. No report was filed."
+                if dry_run
+                else None
+            )
             return {
                 "success": True,
                 "target": target_id,
-                "reference_number": reference,
+                "reference_number": (f"DRY-RUN-{int(datetime.now(UTC).timestamp())}" if dry_run else reference),
                 "confirmation_screenshot": screenshot_b64,
                 "confirmation_text": final_result[:500],
                 "submitted_at": datetime.now(UTC).isoformat(),
+                "message": message,
+                "dry_run": dry_run,
             }
         else:
+            logger.warning(
+                "Submit unsuccessful target=%s screenshot_bytes=%s result=%s",
+                target_id,
+                len(screenshot_b64) if screenshot_b64 else 0,
+                final_result[:200],
+            )
             return {
                 "success": False,
                 "target": target_id,
@@ -154,16 +194,31 @@ async def submit_report(
 
 
 def _extract_reference(text: str) -> str | None:
-    """Try to extract a reference number from the agent's final result text."""
+    """Try to extract a reference number from the agent's final result text.
+
+    Patterns ordered most-to-least specific so a portal-specific format wins
+    over the generic 'reference: XYZ' fallback. Anchors avoid swallowing
+    common false positives like 'AskAdil' (capital + 5 alphanums).
+    """
     import re
 
     patterns = [
-        r"(?:ref(?:erence)?[\s:]*#?\s*)([A-Z0-9-]{5,})",
-        r"(HC-\d{4}-\d+)",
-        r"(?:number[\s:]*#?\s*)([A-Z0-9-]{5,})",
+        # Police UK / Met format: HC-2026-12345
+        r"\b(HC-\d{4}-\d{3,})\b",
+        # Tell MAMA: TM-12345
+        r"\b(TM-\d{4,})\b",
+        # IRU: IRU/12345 or IRU-2026-001
+        r"\b(IRU[-/][A-Z0-9-]{4,})\b",
+        # Generic 'crime reference number 1234567/26'
+        r"crime\s+reference(?:\s+number)?[:\s]*#?\s*([A-Z0-9/]{6,})",
+        # Generic '(your )?reference[:\s] XYZ' — only match alphanumeric refs
+        # with at least one digit so we don't catch words like 'AskAdil'.
+        r"(?:your\s+)?ref(?:erence)?(?:\s+number)?[:\s]*#?\s*([A-Z0-9-]{4,}\d[A-Z0-9-]{0,})",
+        # Confirmation/case number labels
+        r"(?:confirmation|case)\s+number[:\s]*#?\s*([A-Z0-9-]{5,})",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            return match.group(1)
+            return match.group(1).strip()
     return None

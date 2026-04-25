@@ -271,9 +271,15 @@ export default function ChatPage() {
               </div>
             ))}
             {streaming && <SearchingIndicator />}
-            {showReport && <ReportFlow onComplete={(ref) => {
+            {showReport && <ReportFlow onComplete={(result) => {
               setShowReport(false);
-              setMessages((m) => [...m, { role: "assistant", content: `✅ Report submitted. Reference: **${ref}**. Confirmation email sent.` }]);
+              const ref = result.reference_number ?? null;
+              const content = result.dry_run
+                ? `🟡 **Dry run only.** The form was filled and the review page was reached, but **no report was submitted** to ${result.target}. The team is in pre-launch testing — please try again once we go live.`
+                : ref
+                  ? `✅ Report submitted to **${result.target}**. Reference: **${ref}**. A confirmation email has been sent.`
+                  : `✅ Report submitted to **${result.target}**. The portal didn't return a reference number — please check your email for confirmation.`;
+              setMessages((m) => [...m, { role: "assistant", content }]);
             }} />}
           </div>
         </ErrorBoundary>

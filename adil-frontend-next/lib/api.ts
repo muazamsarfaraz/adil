@@ -31,6 +31,7 @@ export interface SubmitReportResponse {
   error?: string | null;
   fallback_report?: string | null;
   target_url?: string | null;
+  dry_run?: boolean;
 }
 
 export async function submitReport(body: ReportSubmitRequest): Promise<SubmitReportResponse> {
