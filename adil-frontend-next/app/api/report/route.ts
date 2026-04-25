@@ -18,7 +18,7 @@ export async function POST(request: Request) {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { turnstile_token, ...forwardBody } = parsed.data;
-  const upstream = await proxyToBackend(request, "/api/v1/report/submit", { body: forwardBody });
+  const upstream = await proxyToBackend(request, "/api/v1/submit-report", { body: forwardBody });
   return new Response(upstream.body, {
     status: upstream.status,
     headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },

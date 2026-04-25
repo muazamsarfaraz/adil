@@ -72,11 +72,32 @@ export default function ReportModal({
     setErr(null);
     try {
       const result = await submitReport({
-        reporter: { name: state.name, email: state.email, phone: state.phone, dob: state.dob, address: state.address },
-        incident: { target_org: state.targetId, summary: state.summary, date: state.date, location: state.location },
+        target: state.targetId,
+        consent_confirmed: true,
+        reporter: {
+          first_name: state.first_name,
+          surname: state.surname,
+          email: state.email,
+          phone: state.phone,
+          address: state.address,
+          gender: state.gender ?? "prefer_not_to_say",
+          dob: {
+            day: Number(state.dob_day ?? 0),
+            month: Number(state.dob_month ?? 0),
+            year: Number(state.dob_year ?? 0),
+          },
+        },
+        incident: {
+          details: state.details,
+          location: state.location ?? "",
+          date_time: state.date_time ?? "",
+          role: "victim",
+        },
+        evidence_urls: [],
         turnstile_token: token,
       });
-      onSubmitted(result.reference);
+      const ref = result.reference_number ?? "(no reference returned)";
+      onSubmitted(ref);
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Submission failed");
       if (widgetId.current && window.turnstile) window.turnstile.reset(widgetId.current);
@@ -118,9 +139,10 @@ export default function ReportModal({
           {(
             [
               ["Target", targetLabel],
-              ["Name", state.name],
+              ["Name", `${state.first_name} ${state.surname}`.trim()],
               ["Email", state.email],
-              ...(state.date ? [["Date", state.date]] : []),
+              ...(state.location ? [["Where", state.location]] : []),
+              ...(state.date_time ? [["When", state.date_time.replace("T", " ")]] : []),
             ] as [string, string][]
           ).map(([k, v]) => (
             <div key={k} className="flex gap-3">
@@ -146,7 +168,7 @@ export default function ReportModal({
               className="font-body whitespace-pre-wrap"
               style={{ fontSize: 14, lineHeight: 1.65, color: "var(--color-ink-soft)" }}
             >
-              {state.summary}
+              {state.details}
             </dd>
           </div>
         </dl>

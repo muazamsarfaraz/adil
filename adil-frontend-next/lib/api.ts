@@ -22,13 +22,24 @@ export async function presignUpload(body: PresignRequest): Promise<PresignRespon
   return json<PresignResponse>(resp);
 }
 
-export async function submitReport(body: ReportSubmitRequest): Promise<{ reference: string }> {
+export interface SubmitReportResponse {
+  success: boolean;
+  target: string;
+  reference_number?: string | null;
+  message?: string | null;
+  submitted_at?: string | null;
+  error?: string | null;
+  fallback_report?: string | null;
+  target_url?: string | null;
+}
+
+export async function submitReport(body: ReportSubmitRequest): Promise<SubmitReportResponse> {
   const resp = await fetch("/api/report", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return json<{ reference: string }>(resp);
+  return json<SubmitReportResponse>(resp);
 }
 
 export async function extractUrl(body: ExtractUrlRequest): Promise<{ title: string; excerpt: string }> {

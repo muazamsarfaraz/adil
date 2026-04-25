@@ -99,24 +99,37 @@ export const PresignResponseSchema = z.object({
 });
 export type PresignResponse = z.infer<typeof PresignResponseSchema>;
 
+// Mirrors adil-rag-api/models.py::ReporterInfo (PII — never log).
 export const ReporterInfoSchema = z.object({
-  name: z.string().min(1).max(200),
+  first_name: z.string().min(1).max(100),
+  surname: z.string().min(1).max(100),
+  // Backend wants {day, month, year} ints. Coerced because the form ships strings.
+  dob: z.object({
+    day: z.coerce.number().int().min(1).max(31),
+    month: z.coerce.number().int().min(1).max(12),
+    year: z.coerce.number().int().min(1900).max(2100),
+  }),
+  gender: z.string().min(1).max(50),
   email: z.string().email().max(200),
-  phone: z.string().max(50).optional(),
-  dob: z.string().optional(),
+  phone: z.string().max(30).optional(),
   address: z.string().max(500).optional(),
 });
 
+// Mirrors adil-rag-api/models.py::IncidentInfo.
 export const IncidentInfoSchema = z.object({
-  target_org: z.string().min(1).max(50),
-  summary: z.string().min(10).max(5_000),
-  date: z.string().optional(),
-  location: z.string().max(500).optional(),
+  details: z.string().min(10).max(50_000),
+  location: z.string().min(1).max(1_000),
+  date_time: z.string().min(1).max(500),
+  suspect_description: z.string().max(5_000).optional(),
+  role: z.enum(["victim", "witness", "third_party"]).default("victim"),
 });
 
 export const ReportSubmitRequestSchema = z.object({
+  target: z.string().min(1).max(50),
+  consent_confirmed: z.literal(true),
   reporter: ReporterInfoSchema,
   incident: IncidentInfoSchema,
+  evidence_urls: z.array(z.string().url()).optional().default([]),
   turnstile_token: z.string().min(10),
 });
 export type ReportSubmitRequest = z.infer<typeof ReportSubmitRequestSchema>;
