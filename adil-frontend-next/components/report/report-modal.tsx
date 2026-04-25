@@ -7,15 +7,35 @@ import { submitReport } from "@/lib/api";
 declare global {
   interface Window {
     turnstile?: {
-      render: (el: HTMLElement, opts: { sitekey: string; callback: (t: string) => void; "error-callback"?: () => void }) => string;
+      render: (
+        el: HTMLElement,
+        opts: { sitekey: string; callback: (t: string) => void; "error-callback"?: () => void; theme?: "light" | "dark" }
+      ) => string;
       reset: (id: string) => void;
     };
   }
 }
 
+const TARGET_LABELS: Record<string, string> = {
+  bmt: "British Muslim Trust",
+  "police-uk": "Police UK",
+  "police-scot": "Police Scotland",
+  iru: "IRU — Islamophobia Response Unit",
+  islamophobiaUK: "Islamophobia UK",
+  eass: "EASS",
+  "stop-hate-uk": "Stop Hate UK",
+  tellmama: "Tell MAMA",
+};
+
 export default function ReportModal({
-  state, onCancel, onSubmitted,
-}: { state: ReportState; onCancel: () => void; onSubmitted: (reference: string) => void }) {
+  state,
+  onCancel,
+  onSubmitted,
+}: {
+  state: ReportState;
+  onCancel: () => void;
+  onSubmitted: (reference: string) => void;
+}) {
   const [consent, setConsent] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -30,10 +50,14 @@ export default function ReportModal({
         sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "",
         callback: (t) => setToken(t),
         "error-callback": () => setErr("Turnstile verification failed"),
+        theme: "light",
       });
     }
     const existing = document.querySelector<HTMLScriptElement>("#turnstile-script");
-    if (existing) { render(); return; }
+    if (existing) {
+      render();
+      return;
+    }
     const s = document.createElement("script");
     s.id = "turnstile-script";
     s.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -62,27 +86,140 @@ export default function ReportModal({
     }
   };
 
+  const targetLabel = TARGET_LABELS[state.targetId] ?? state.targetId;
+  const canSubmit = consent && token && !submitting;
+
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-lg w-full p-6 space-y-3">
-        <h2 className="text-lg font-semibold">Review and submit</h2>
-        <dl className="text-sm space-y-1">
-          <div><dt className="inline font-medium">Target:</dt> <dd className="inline">{state.targetId}</dd></div>
-          <div><dt className="inline font-medium">Name:</dt> <dd className="inline">{state.name}</dd></div>
-          <div><dt className="inline font-medium">Email:</dt> <dd className="inline">{state.email}</dd></div>
-          {state.date && <div><dt className="inline font-medium">Date:</dt> <dd className="inline">{state.date}</dd></div>}
-          <div><dt className="font-medium">Incident:</dt><dd className="whitespace-pre-wrap mt-1">{state.summary}</dd></div>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(15,62,41,0.55)", backdropFilter: "blur(4px)" }}
+    >
+      <div
+        className="paper-card max-w-lg w-full p-7"
+        style={{ background: "var(--color-paper)" }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <span
+            className="font-ui text-[11px] uppercase"
+            style={{ letterSpacing: "0.24em", color: "var(--color-gold)" }}
+          >
+            ❃ Review &amp; submit
+          </span>
+          <div
+            className="flex-1 h-px"
+            style={{
+              background: "linear-gradient(to right, var(--color-gold) 0%, transparent 70%)",
+              opacity: 0.5,
+            }}
+          />
+        </div>
+
+        <dl className="space-y-2 mb-5">
+          {(
+            [
+              ["Target", targetLabel],
+              ["Name", state.name],
+              ["Email", state.email],
+              ...(state.date ? [["Date", state.date]] : []),
+            ] as [string, string][]
+          ).map(([k, v]) => (
+            <div key={k} className="flex gap-3">
+              <dt
+                className="font-ui text-[10px] uppercase"
+                style={{ letterSpacing: "0.22em", color: "var(--color-emerald)", minWidth: 64, paddingTop: 4 }}
+              >
+                {k}
+              </dt>
+              <dd className="font-body" style={{ fontSize: 14, color: "var(--color-ink)" }}>
+                {v}
+              </dd>
+            </div>
+          ))}
+          <div>
+            <dt
+              className="font-ui text-[10px] uppercase mb-1"
+              style={{ letterSpacing: "0.22em", color: "var(--color-emerald)" }}
+            >
+              Incident
+            </dt>
+            <dd
+              className="font-body whitespace-pre-wrap"
+              style={{ fontSize: 14, lineHeight: 1.65, color: "var(--color-ink-soft)" }}
+            >
+              {state.summary}
+            </dd>
+          </div>
         </dl>
-        <label className="flex items-start gap-2 text-xs">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
-          <span>I confirm the details above are accurate and I consent to sharing them with the selected organisation.</span>
+
+        <label className="flex items-start gap-3 mb-4">
+          <input
+            type="checkbox"
+            checked={consent}
+            onChange={(e) => setConsent(e.target.checked)}
+            style={{ marginTop: 4, accentColor: "var(--color-emerald)" }}
+          />
+          <span className="font-body" style={{ fontSize: 12, lineHeight: 1.55, color: "var(--color-ink-soft)" }}>
+            I confirm the details above are accurate and I consent to sharing them with the selected organisation.
+          </span>
         </label>
-        <div ref={widgetRef} />
-        {err && <div className="text-xs text-red-700">{err}</div>}
-        <div className="flex justify-end gap-2 pt-2">
-          <button className="px-3 py-1.5 text-sm text-gray-700" onClick={onCancel} disabled={submitting}>Cancel</button>
-          <button className="px-3 py-1.5 text-sm bg-brand-900 text-white rounded disabled:opacity-50"
-                  disabled={!consent || !token || submitting} onClick={submit}>
+
+        <div ref={widgetRef} className="mb-3" />
+
+        {err && (
+          <div
+            className="rounded-2xl px-3 py-2 mb-3 font-ui text-[12px]"
+            style={{ background: "rgba(183,74,56,0.08)", border: "1px solid rgba(183,74,56,0.25)", color: "var(--color-rust)" }}
+          >
+            {err}
+          </div>
+        )}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <button
+            onClick={onCancel}
+            disabled={submitting}
+            className="font-ui transition-all"
+            style={{
+              padding: "9px 18px",
+              borderRadius: 999,
+              fontSize: 12,
+              letterSpacing: "0.04em",
+              background: "transparent",
+              color: "var(--color-ink-soft)",
+              border: "1px solid rgba(15,62,41,0.30)",
+              cursor: submitting ? "not-allowed" : "pointer",
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!canSubmit}
+            className="font-ui transition-all"
+            style={{
+              padding: "9px 22px",
+              borderRadius: 999,
+              fontSize: 12,
+              letterSpacing: "0.04em",
+              fontWeight: 500,
+              background: canSubmit ? "var(--color-ink)" : "rgba(15,62,41,0.2)",
+              color: canSubmit ? "var(--color-paper)" : "rgba(244,238,220,0.6)",
+              border: `1px solid ${canSubmit ? "var(--color-ink)" : "rgba(15,62,41,0.2)"}`,
+              cursor: canSubmit ? "pointer" : "not-allowed",
+            }}
+            onMouseEnter={(e) => {
+              if (canSubmit) {
+                e.currentTarget.style.background = "var(--color-emerald)";
+                e.currentTarget.style.borderColor = "var(--color-emerald)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (canSubmit) {
+                e.currentTarget.style.background = "var(--color-ink)";
+                e.currentTarget.style.borderColor = "var(--color-ink)";
+              }
+            }}
+          >
             {submitting ? "Submitting…" : "Submit report"}
           </button>
         </div>

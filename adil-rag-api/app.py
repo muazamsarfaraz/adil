@@ -512,6 +512,30 @@ async def health_check(request: Request):
     )
 
 
+@app.get("/health/report-bridge", tags=["Health"])
+async def health_report_bridge():
+    """Public liveness probe for the internal adil-report-bridge service.
+
+    No auth — intended for the synthetic prober. Returns 200 if the bridge
+    responds within 5s on its /health route, 503 otherwise. Distinct from
+    the main /health probe so a bridge outage doesn't degrade the API's
+    own health signal.
+    """
+    if not REPORT_BRIDGE_URL:
+        raise HTTPException(status_code=503, detail="report-bridge not configured")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(f"{REPORT_BRIDGE_URL}/health")
+        if resp.status_code != 200:
+            raise HTTPException(status_code=503, detail=f"bridge returned {resp.status_code}")
+        return {"status": "healthy", "upstream": resp.json()}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("report-bridge probe failed: %s", exc)
+        raise HTTPException(status_code=503, detail=f"bridge unreachable: {type(exc).__name__}") from exc
+
+
 @app.get("/api/v1/detect-jurisdiction", tags=["Public"])
 @limiter.limit("30/minute")
 async def detect_jurisdiction(request: Request):

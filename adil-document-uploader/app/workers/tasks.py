@@ -297,7 +297,9 @@ async def heartbeat_alert_only(ctx: dict) -> dict:
 _FAST_PROBE_TARGETS_DEFAULT = (
     "rag-api=https://adil-rag-api-production.up.railway.app/health,"
     # Use the canonical user-facing host so we also catch DNS / TLS / CDN problems.
-    "askadil-org=https://askadil.org/api/health"
+    "askadil-org=https://askadil.org/api/health,"
+    # report-bridge has no public domain; rag-api proxies its /health.
+    "report-bridge=https://adil-rag-api-production.up.railway.app/health/report-bridge"
 )
 _FAST_PROBE_FAIL_THRESHOLD = 2
 _fast_probe_failures: dict[str, int] = {}
