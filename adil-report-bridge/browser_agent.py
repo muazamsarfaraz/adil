@@ -10,8 +10,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-from browser_use import Agent, Browser
-from langchain_google_genai import ChatGoogleGenerativeAI
+from browser_use import Agent, Browser, ChatGoogle
 from screenshot import compress_screenshot
 from targets import get_target
 
@@ -95,7 +94,9 @@ async def submit_report(
     browser = None
     try:
         model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        llm = ChatGoogleGenerativeAI(model=model)
+        # Use browser-use's native ChatGoogle (drops langchain dependency).
+        # Reads GOOGLE_API_KEY / GEMINI_API_KEY from env.
+        llm = ChatGoogle(model=model)
 
         browser = Browser(headless=True)
         task_prompt = _build_task_prompt(target_config, data)
