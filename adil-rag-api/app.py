@@ -1356,8 +1356,10 @@ async def submit_report(
         ref = result.get("reference_number", "N/A")
         target_display = body.target.replace("-", " ").title()
 
-        # Send email receipt to user (fire-and-forget, never blocks response)
-        if body.reporter.email and body.reporter.email != "anonymous@askadil.org":
+        # Send email receipt to user (fire-and-forget, never blocks response).
+        # Skip when the bridge ran in dry-run mode — there is no real report
+        # to confirm, and a receipt would be misleading.
+        if not result.get("dry_run") and body.reporter.email and body.reporter.email != "anonymous@askadil.org":
             asyncio.create_task(
                 send_receipt(
                     to_email=body.reporter.email,
@@ -1368,18 +1370,24 @@ async def submit_report(
                 )
             )
 
+        is_dry_run = bool(result.get("dry_run"))
+        bridge_message = result.get("message")
         return SubmitReportResponse(
             success=True,
             target=body.target,
             reference_number=result.get("reference_number"),
             confirmation_screenshot=result.get("confirmation_screenshot"),
             message=(
-                f"Your hate crime report has been submitted to "
-                f"{target_display}. "
-                f"Please save reference number {ref}. "
-                f"A confirmation email has been sent to {body.reporter.email}."
+                bridge_message
+                if (is_dry_run and bridge_message)
+                else (
+                    f"Your hate crime report has been submitted to {target_display}. "
+                    f"Please save reference number {ref}. "
+                    f"A confirmation email has been sent to {body.reporter.email}."
+                )
             ),
             submitted_at=result.get("submitted_at"),
+            dry_run=is_dry_run,
         )
     else:
         fallback = None
