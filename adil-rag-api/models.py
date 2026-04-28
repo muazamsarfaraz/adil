@@ -680,3 +680,22 @@ class UploadRecordRequest(BaseModel):
 
 class UploadRecordResponse(BaseModel):
     id: uuid.UUID
+
+
+# ============================================================================
+# Report Prefill Models
+# ============================================================================
+
+
+class ReportPrefillRequest(BaseModel):
+    """Conversation history to extract incident report fields from."""
+
+    conversation_history: list[ConversationTurn] = Field(..., min_length=1, max_length=50)
+
+
+class ReportPrefillResponse(BaseModel):
+    """Pre-filled report fields extracted from conversation."""
+
+    details: str = Field(default="", description="Incident narrative for the report form.")
+    location: str | None = Field(None, description="Where the incident occurred.")
+    date_time: str | None = Field(None, description="When the incident occurred (YYYY-MM-DDTHH:MM).")

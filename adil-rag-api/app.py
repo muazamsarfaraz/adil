@@ -69,6 +69,8 @@ from models import (
     ImageQueryRequest,
     QueryRequest,
     QueryResponse,
+    ReportPrefillRequest,
+    ReportPrefillResponse,
     StatsResponse,
     SubmitReportRequest,
     SubmitReportResponse,
@@ -1270,6 +1272,68 @@ async def report_targets(request: Request, _api_key: str = Security(verify_api_k
         tdata["pii_required"] = tid not in NO_PII_TARGETS
 
     return targets
+
+
+@app.post(
+    "/api/v1/report/prefill",
+    response_model=ReportPrefillResponse,
+    tags=["Report Submission"],
+    summary="Extract incident report fields from conversation history",
+)
+@limiter.limit(RATE_LIMIT_QUERY)
+async def report_prefill(
+    request: Request,
+    body: ReportPrefillRequest,
+    _api_key: str = Security(verify_api_key),
+):
+    """Extract pre-fill data for the report form from a conversation.
+
+    Reads the full conversation history (including image analyses already
+    embedded by the assistant) and uses Gemini to extract:
+    - incident_details narrative
+    - location (if mentioned)
+    - date_time (if mentioned, as YYYY-MM-DDTHH:MM)
+
+    Personal PII (name, DOB, email) is never inferable from chat and stays blank.
+    """
+    import json as _json
+
+    import google.generativeai as genai
+
+    conv_text = "\n".join(
+        f"{'User' if t.role == 'user' else 'Adil'}: {t.content}" for t in body.conversation_history if t.content.strip()
+    )
+
+    prompt = f"""Extract structured incident report fields from this conversation about a hate crime or discrimination incident.
+
+Return ONLY valid JSON with exactly these keys:
+- "details": A clear, factual first-person narrative of the incident (2-4 paragraphs). Incorporate information from user messages AND any image analysis the assistant performed. Write as if the victim is describing events to a reporting organisation. Omit legal advice and references to AskAdil.
+- "location": Where the incident occurred (address, street, city, or online platform). null if not mentioned.
+- "date_time": When it occurred, formatted as "YYYY-MM-DDTHH:MM". null if not mentioned or only approximate.
+
+Conversation:
+{conv_text}
+
+Return only the JSON object, no markdown fences."""
+
+    try:
+        model = genai.GenerativeModel(
+            os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+            generation_config=genai.GenerationConfig(
+                response_mime_type="application/json",
+                temperature=0.1,
+            ),
+        )
+        resp = await asyncio.to_thread(model.generate_content, prompt)
+        data = _json.loads(resp.text)
+        return ReportPrefillResponse(
+            details=data.get("details", ""),
+            location=data.get("location"),
+            date_time=data.get("date_time"),
+        )
+    except Exception as e:
+        logger.warning("Report prefill extraction failed: %s", e)
+        return ReportPrefillResponse()
 
 
 @app.post(

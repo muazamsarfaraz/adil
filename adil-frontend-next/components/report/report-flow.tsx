@@ -52,14 +52,28 @@ function focusBlur(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | 
   e.currentTarget.style.borderColor = focused ? "var(--color-gold)" : "rgba(15,62,41,0.20)";
 }
 
-export default function ReportFlow({ onComplete }: { onComplete: (result: SubmitReportResponse) => void }) {
+interface ReportPrefill {
+  details?: string;
+  location?: string;
+  date_time?: string;
+}
+
+export default function ReportFlow({
+  onComplete,
+  initialData,
+}: {
+  onComplete: (result: SubmitReportResponse) => void;
+  initialData?: ReportPrefill;
+}) {
   const [step, setStep] = useState<Step>("pick_target");
   const [state, setState] = useState<ReportState>({
     targetId: "",
     first_name: "",
     surname: "",
     email: "",
-    details: "",
+    details: initialData?.details ?? "",
+    location: initialData?.location,
+    date_time: initialData?.date_time,
   });
 
   const set = <K extends keyof ReportState>(key: K, value: ReportState[K]) =>

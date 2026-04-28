@@ -26,6 +26,8 @@ export default function ChatPage() {
   const [viabilityByMsg, setViabilityByMsg] = useState<Record<number, Viability>>({});
   const [streaming, setStreaming] = useState(false);
   const [showReport, setShowReport] = useState(false);
+  const [reportPrefill, setReportPrefill] = useState<{ details?: string; location?: string; date_time?: string } | null>(null);
+  const [prefillLoading, setPrefillLoading] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -40,7 +42,20 @@ export default function ChatPage() {
   const send = async (text: string, images: UploadedImage[]) => {
     if (!jurisdiction) return;
     if (text.trim().toLowerCase() === "report") {
+      setPrefillLoading(true);
       setShowReport(true);
+      const history = messages
+        .filter((m) => m.content.trim().length > 0)
+        .map((m) => ({ role: m.role === "assistant" ? "model" : "user", content: m.content }));
+      try {
+        const resp = await fetch("/api/report/prefill", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation_history: history }),
+        });
+        if (resp.ok) setReportPrefill(await resp.json());
+      } catch { /* fall back to blank form */ }
+      setPrefillLoading(false);
       return;
     }
 
@@ -271,8 +286,16 @@ export default function ChatPage() {
               </div>
             ))}
             {streaming && <SearchingIndicator />}
-            {showReport && <ReportFlow onComplete={(result) => {
+            {showReport && prefillLoading && (
+              <div className="paper-card p-6 my-6 max-w-3xl mx-auto flex items-center gap-3">
+                <span className="font-ui text-[11px] uppercase" style={{ letterSpacing: "0.24em", color: "var(--color-gold)" }}>
+                  ❃ Analysing your conversation…
+                </span>
+              </div>
+            )}
+            {showReport && !prefillLoading && <ReportFlow initialData={reportPrefill ?? undefined} onComplete={(result) => {
               setShowReport(false);
+              setReportPrefill(null);
               const ref = result.reference_number ?? null;
               const content = result.dry_run
                 ? `🟡 **Dry run only.** The form was filled and the review page was reached, but **no report was submitted** to ${result.target}. The team is in pre-launch testing — please try again once we go live.`
