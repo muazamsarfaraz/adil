@@ -33,3 +33,4 @@ EXPOSE 8002
 ENV SERVICE_ROLE=api
 
 CMD ["sh", "-c", "if [ \"$SERVICE_ROLE\" = 'worker' ]; then echo 'Starting arq worker...' && arq app.workers.settings.WorkerSettings; else alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8002}; fi"]
+
