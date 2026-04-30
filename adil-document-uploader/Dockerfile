@@ -1,4 +1,5 @@
 # Stage 1 — Builder
+# build-refresh: 2026-04-30
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
