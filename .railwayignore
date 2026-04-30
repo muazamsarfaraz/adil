@@ -23,7 +23,6 @@ venv/
 env/
 .playwright-mcp/
 adil-rag-api/
-adil-document-uploader/
 adil-outreach-engine/
 adil-frontend/
 adil-landing/
