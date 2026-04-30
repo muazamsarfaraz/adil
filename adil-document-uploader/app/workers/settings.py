@@ -75,6 +75,6 @@ class WorkerSettings:
         # Hourly cleanup of rate-limit counters (>48h) and expired uploads
         cron(rate_limit_cleanup, minute=15),
         # Monthly SRA register scrape — refreshes solicitor_firms table
-        # Runs 1st of each month at 04:00 UTC
-        cron(scrape_solicitors, month_day=1, hour=4, minute=0),
+        # Runs 1st of each month at 04:00 UTC (arq uses 'day' for day-of-month)
+        cron(scrape_solicitors, day=1, hour=4, minute=0),
     ]
