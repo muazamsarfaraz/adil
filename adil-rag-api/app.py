@@ -51,7 +51,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from solicitor_directory import DISCLAIMER as SOLICITOR_DISCLAIMER  # noqa: E402
-from solicitor_directory import get_solicitors  # noqa: E402
+from solicitor_directory import get_solicitors, refresh_from_db  # noqa: E402
 
 from content_extractor import ContentExtractor
 from conversation_log import log_conversation
@@ -310,6 +310,17 @@ async def lifespan(app: FastAPI):
         logger.warning("DATABASE_URL not set — skipping migrations")
 
     logger.info(f"Starting {API_TITLE}...")
+
+    # Load solicitor directory from DB (populated monthly by document-uploader)
+    # Falls back to bundled JSON if DB table is empty or unavailable
+    try:
+        db_count = await refresh_from_db()
+        if db_count:
+            logger.info("Solicitor directory: %d firms loaded from Postgres", db_count)
+        else:
+            logger.info("Solicitor directory: using bundled JSON fallback")
+    except Exception:
+        logger.exception("solicitor refresh_from_db failed — using JSON fallback")
 
     # Validate required environment variables
     gemini_api_key = os.getenv("GEMINI_API_KEY")

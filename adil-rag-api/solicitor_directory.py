@@ -1,12 +1,14 @@
 """Curated solicitor directory for AskAdil.
 
-Sources:
-1. Manually curated seed database (Muslim-focus firms)
-2. SRA register scrape — employment, discrimination, human rights, mental capacity firms
-   Scraped from https://www.sra.org.uk/consumers/register/ (public data, SRA attribution required)
+Sources (priority order):
+1. Postgres solicitor_firms table — populated monthly by adil-document-uploader's
+   scrape_solicitors arq task. Always preferred when available and non-empty.
+2. Bundled SRA JSON — adil-rag-api/docs/sra_firms.json (static fallback).
+3. Manually curated seed database — docs/plans/muslim-solicitors-seed-database.json
 
 All firms are pending outreach — none have consented to be listed.
 Contact details are from publicly available sources only.
+SRA data: "data supplied by the Solicitors Regulation Authority"
 """
 
 import json
@@ -142,8 +144,55 @@ def _load_seed_database() -> list[dict]:
     return all_firms
 
 
+async def _load_from_db() -> list[dict]:
+    """Load SRA firms from the solicitor_firms Postgres table (populated by document-uploader)."""
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        return []
+    try:
+        import asyncpg
+
+        conn = await asyncpg.connect(db_url)
+        try:
+            rows = await conn.fetch("SELECT * FROM solicitor_firms ORDER BY name")
+        finally:
+            await conn.close()
+
+        firms = []
+        for r in rows:
+            row = dict(r)
+            firms.append(_sra_to_firm(row))
+        logger.info("Loaded %d firms from solicitor_firms Postgres table", len(firms))
+        return firms
+    except Exception as e:
+        logger.warning("Could not load solicitor_firms from DB: %s", e)
+        return []
+
+
+async def refresh_from_db() -> int:
+    """Reload _firms from Postgres. Call on startup and after scrape_solicitors runs.
+
+    Returns the number of DB firms loaded (0 means DB unavailable; JSON fallback used).
+    """
+    global _firms
+    db_firms = await _load_from_db()
+    if db_firms:
+        # Merge: DB firms + curated seed (seed takes precedence for duplicates)
+        seed_firms = _load_seed_database()
+        db_names = {f["name"].lower() for f in seed_firms}
+        merged = seed_firms + [f for f in db_firms if f["name"].lower() not in db_names]
+        _firms = merged
+        logger.info("solicitor_directory refreshed: %d total firms (%d from DB)", len(_firms), len(db_firms))
+        return len(db_firms)
+    else:
+        # Fall back to JSON files
+        _firms = _load_seed_database()
+        logger.info("solicitor_directory loaded from JSON: %d firms", len(_firms))
+        return 0
+
+
 def _ensure_loaded() -> list[dict]:
-    """Lazily load firms on first access."""
+    """Lazily load firms on first access (sync fallback — skips DB)."""
     global _firms
     if not _firms:
         _firms = _load_seed_database()

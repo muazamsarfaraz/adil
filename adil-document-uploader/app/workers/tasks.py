@@ -9,9 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 import httpx
 
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+
 from app.config import SEARCH_DOMAINS, SearchDomain, get_settings
 from app.models.judgment import Judgment, JudgmentStatus
+from app.models.solicitor_firm import SolicitorFirm
 from app.services.gemini_uploader import GeminiUploader
+from app.services.sra_scraper import run_scrape
 from app.services.telegram import TelegramNotifier
 from app.services.tna_client import TNAClient
 from app.services.xml_parser import build_upload_text, parse_judgment_xml
@@ -402,3 +406,56 @@ async def rate_limit_cleanup(ctx: dict) -> dict:
         deleted_u,
     )
     return {"deleted_counters": int(deleted_c or 0), "deleted_uploads": int(deleted_u or 0)}
+
+
+async def scrape_solicitors(ctx: dict) -> dict:
+    """arq task: scrape SRA register and upsert results into solicitor_firms table.
+
+    Runs monthly (1st of each month, 04:00 UTC).
+    Scrapes ~167 employment/discrimination/human-rights/mental-capacity law firms.
+    Attribution: data supplied by the Solicitors Regulation Authority.
+    """
+    from app.database import async_session
+
+    settings = get_settings()
+    notifier = (
+        TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+        if settings.telegram_bot_token and settings.telegram_chat_id
+        else None
+    )
+
+    logger.info("scrape_solicitors: starting SRA register scrape")
+    try:
+        firms = await run_scrape(delay=0.3)
+    except Exception:
+        logger.exception("scrape_solicitors: scrape failed")
+        if notifier:
+            await notifier.send("❌ *SRA solicitor scrape FAILED* — check logs")
+        return {"error": "scrape failed", "firms": 0}
+
+    if not firms:
+        logger.warning("scrape_solicitors: no firms returned")
+        return {"firms": 0}
+
+    # Upsert into Postgres
+    upserted = 0
+    async with async_session() as session:
+        for firm in firms:
+            stmt = (
+                pg_insert(SolicitorFirm)
+                .values(**firm)
+                .on_conflict_do_update(
+                    index_elements=["sra_number"],
+                    set_={k: v for k, v in firm.items() if k != "sra_number"},
+                )
+            )
+            await session.execute(stmt)
+            upserted += 1
+        await session.commit()
+
+    logger.info("scrape_solicitors: upserted %d firms", upserted)
+    if notifier:
+        await notifier.send(
+            f"✅ *SRA solicitor directory refreshed*\n" f"{upserted} firms upserted into solicitor_firms table."
+        )
+    return {"firms": upserted}

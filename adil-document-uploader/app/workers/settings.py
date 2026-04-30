@@ -8,6 +8,7 @@ from app.workers.tasks import (
     heartbeat,
     heartbeat_alert_only,
     rate_limit_cleanup,
+    scrape_solicitors,
     upload_pending,
 )
 
@@ -15,7 +16,15 @@ _settings = get_settings()
 
 
 class WorkerSettings:
-    functions = [fetch_case_law, upload_pending, heartbeat, heartbeat_alert_only, fast_probe, rate_limit_cleanup]
+    functions = [
+        fetch_case_law,
+        upload_pending,
+        heartbeat,
+        heartbeat_alert_only,
+        fast_probe,
+        rate_limit_cleanup,
+        scrape_solicitors,
+    ]
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
 
     cron_jobs = [
@@ -65,4 +74,7 @@ class WorkerSettings:
         ),
         # Hourly cleanup of rate-limit counters (>48h) and expired uploads
         cron(rate_limit_cleanup, minute=15),
+        # Monthly SRA register scrape — refreshes solicitor_firms table
+        # Runs 1st of each month at 04:00 UTC
+        cron(scrape_solicitors, month_day=1, hour=4, minute=0),
     ]
