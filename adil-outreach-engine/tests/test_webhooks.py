@@ -408,6 +408,41 @@ async def test_inbound_reply_unknown_sender(client: AsyncClient):
     assert response.json()["status"] == "ignored"
 
 
+@pytest.mark.asyncio
+async def test_inbound_reply_multipart_form_data(
+    client: AsyncClient,
+    emailed_contact: Contact,
+):
+    """SendGrid's real inbound parse posts multipart/form-data, NOT
+    application/x-www-form-urlencoded. Starlette's request.form() requires
+    the `python-multipart` package to parse the multipart variant. This
+    regression test forces multipart encoding by using files= instead of
+    data= so the dep is exercised — otherwise a missing python-multipart
+    install passes every other test in this module while crashing in prod.
+    """
+    response = await client.post(
+        "/api/v1/outreach/webhooks/sendgrid/inbound",
+        files={
+            "from": (None, "Test Contact <test@example.com>"),
+            "to": (None, "outreach@askadil.org"),
+            "subject": (None, "Re: AskAdil Directory"),
+            "text": (None, "Sure, please list us."),
+        },
+    )
+    assert (
+        response.status_code == 200
+    ), f"multipart parse failed — python-multipart likely missing. body={response.text!r}"
+    assert response.json()["status"] == "ok"
+    assert response.json()["contact_id"] == str(emailed_contact.id)
+
+
+def test_smtp_transport_import_available():
+    """SmtpTransport lazy-imports aiosmtplib inside send(). If the package
+    isn't in the deployed image, every send_email_task crashes at runtime
+    with EMAIL_TRANSPORT=smtp. This catches the missing-dep at import time."""
+    import aiosmtplib  # noqa: F401 — import-only assertion
+
+
 # ---------------------------------------------------------------------------
 # Test: Unknown Contact in Event Webhook
 # ---------------------------------------------------------------------------
