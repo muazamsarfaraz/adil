@@ -44,6 +44,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
+from health_bot import notify as msentry_notify  # MSentry health-bot
 from r2_client import R2Client
 from rate_limit import Limit, check_limits
 from rate_limit import RateLimitExceeded as PgRateLimitExceeded
@@ -310,6 +311,9 @@ async def lifespan(app: FastAPI):
         logger.warning("DATABASE_URL not set — skipping migrations")
 
     logger.info(f"Starting {API_TITLE}...")
+    msentry_notify(
+        "info", "deploy", "adil-rag-api started", commit=os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
+    )  # MSentry startup ping
 
     # Load solicitor directory from DB (populated monthly by document-uploader)
     # Falls back to bundled JSON if DB table is empty or unavailable
@@ -1058,7 +1062,7 @@ async def _load_uploads_from_r2(
     conn = await asyncpg.connect(db_url)
     try:
         rows = await conn.fetch(
-            "SELECT id, object_key, content_type FROM uploads " "WHERE id = ANY($1::uuid[]) AND conversation_id = $2",
+            "SELECT id, object_key, content_type FROM uploads WHERE id = ANY($1::uuid[]) AND conversation_id = $2",
             upload_ids,
             conversation_id,
         )

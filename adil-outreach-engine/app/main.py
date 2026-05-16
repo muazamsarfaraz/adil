@@ -1,3 +1,6 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
@@ -11,6 +14,16 @@ from app.api.outreach import router as outreach_router
 from app.api.public import public_router
 from app.api.conversion_webhooks import conversion_webhooks_router
 from app.api.webhooks import router as webhooks_router
+from health_bot import notify as msentry_notify  # MSentry health-bot
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    msentry_notify(
+        "info", "deploy", "adil-outreach-engine started", commit=os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
+    )  # MSentry startup ping
+    yield
+
 
 tags_metadata = [
     {
@@ -67,6 +80,7 @@ app = FastAPI(
     license_info={
         "name": "Proprietary",
     },
+    lifespan=_lifespan,
 )
 
 app.state.limiter = limiter

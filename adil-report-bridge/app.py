@@ -19,6 +19,7 @@ import time
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import APIKeyHeader
+from health_bot import notify as msentry_notify  # MSentry health-bot
 from targets import TARGETS, get_target, validate_data_for_target
 
 from models import (
@@ -76,6 +77,13 @@ app = FastAPI(
     docs_url=None,
     redoc_url=None,
 )
+
+
+@app.on_event("startup")
+async def _msentry_startup_ping() -> None:
+    msentry_notify(
+        "info", "deploy", "adil-report-bridge started", commit=os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")
+    )  # MSentry startup ping
 
 
 @app.get("/health", response_model=HealthResponse)
