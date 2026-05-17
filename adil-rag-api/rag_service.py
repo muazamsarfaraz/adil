@@ -944,6 +944,19 @@ class RAGService:
         conversation_history: list[dict[str, str]] | None = None,
     ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None, list[str]]:
         """Execute RAG query against UK legal documents"""
+        # OG-RAG backend opt-in: when RAG_BACKEND=ograg, completely bypass
+        # the File Search Tool path. Default ('fst' or unset) keeps the
+        # existing behaviour unchanged.
+        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+            from ograg.backend import answer as ograg_answer
+
+            return await ograg_answer(
+                query_text,
+                max_sources=max_sources,
+                include_viability=include_viability,
+                conversation_history=conversation_history,
+            )
+
         start_time = time.time()
 
         # Prepend viability trigger so Gemini includes the structured block

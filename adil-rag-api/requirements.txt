@@ -16,6 +16,9 @@ yt-dlp>=2025.1.0
 # Anonymised conversation logging
 asyncpg>=0.29.0
 
+# OG-RAG: pgvector client for asyncpg (registers vector(N) codec)
+pgvector>=0.4.0
+
 # Email receipts
 sendgrid>=6.10.0
 
