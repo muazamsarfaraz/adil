@@ -1,27 +1,40 @@
-# Ask Aisha Frontend
+# Ask Adil — Frontend (Next.js)
 
-Next.js web frontend for the Ask Aisha Islamic library assistant.
+Next.js 16 / React 19 chat UI for **Ask Adil**, the Muslim Council of Britain's free
+UK discrimination-law guidance assistant. Live at **https://askadil.org**.
 
-**Live:** https://frontend-production-d4c6.up.railway.app
+This service replaces the legacy Flask `adil-frontend` and is the canonical web frontend
+for the Adil platform.
 
 ## Tech Stack
 
 - **Next.js 16** (App Router, TypeScript)
+- **React 19**
 - **Tailwind CSS v4** (`@import "tailwindcss"` + `@theme` in `globals.css`)
-- **react-markdown** + remark-gfm for answer rendering
-- **Playwright** for E2E testing (45 tests)
+- **@microsoft/fetch-event-source** for SSE streaming
+- **react-markdown** + remark-gfm + rehype-sanitize for answer rendering
+- **@aws-sdk/client-s3** for Cloudflare R2 image uploads
+- **Cloudflare Turnstile** for report-submit abuse protection
+- **Playwright** for E2E testing
 - **Railway** deployment via Dockerfile
 
-## Pages
+## Routes
 
-| Route | Type | Description |
-|-------|------|-------------|
-| `/` | Client | Homepage -- centered search with starter prompts and tier selector |
-| `/chat/[id]` | Client | Split-panel chat -- conversation left, sources right |
-| `/library` | Client | Sortable book table with search and genre filter |
-| `/library/[bookId]` | SSR | Book detail with SEO metadata |
-| `/hadith` | Client | Hadith grading lookup with spectrum bar |
-| `/api/health` | API | Health check endpoint |
+| Route | Description |
+|-------|-------------|
+| `/` | Home → redirects to `/chat/[id]` |
+| `/chat/[id]` | Main chat page with SSE streaming |
+| `/privacy` | Privacy policy |
+| `/api/chat` | Proxy to RAG API `/api/v1/query` |
+| `/api/chat/stream` | SSE proxy to RAG API `/api/v1/query/stream` |
+| `/api/chat/image` | Proxy to RAG API `/api/v1/vision` |
+| `/api/report` | Proxy to RAG API `/api/v1/submit-report` |
+| `/api/report/prefill` | Extract report fields from conversation |
+| `/api/upload/presign` | R2 presigned URL for client-side image upload |
+| `/api/jurisdiction` | Jurisdiction detection |
+| `/api/solicitors` | Solicitor directory |
+| `/api/extract-url` | URL content extraction proxy |
+| `/api/health` | Railway healthcheck |
 
 ## Development
 
@@ -29,88 +42,87 @@ Next.js web frontend for the Ask Aisha Islamic library assistant.
 npm install
 npm run dev          # http://localhost:3000
 npm run build        # production build
+npm run start        # serve the built app
 npm run lint         # ESLint
+npm run test         # Playwright e2e
 ```
 
-### Environment Variables
+## Environment Variables
+
+Copy `.env.example` to `.env.local` and fill in real values. Vars are split between
+build-time (baked into the Docker image — must be Railway **build** vars) and runtime.
+
+### Build-time (Railway build args)
+
+`NEXT_PUBLIC_*` variables are inlined into the JS bundle at `next build` time, so they
+must be present as build args, not just runtime env.
+
+| Var | Purpose |
+|-----|---------|
+| `NEXT_PUBLIC_RAG_API_URL` | Public base URL for the RAG API (e.g. `https://adil-rag-api-production.up.railway.app`) |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (prod: `0x4AAAAAADDLP89CUloLqCrk`) |
+
+### Runtime
+
+| Var | Purpose |
+|-----|---------|
+| `RAG_API_KEY` | Auth key for inter-service calls to `adil-rag-api` |
+| `TURNSTILE_SECRET` | Cloudflare Turnstile secret (server-side verification) |
+| `R2_ACCOUNT_ID` | Cloudflare R2 account ID |
+| `R2_BUCKET` | R2 bucket name (e.g. `adil-uploads-prod`) |
+| `R2_ENDPOINT` | R2 S3-compatible endpoint URL |
+| `R2_FRONTEND_ACCESS_KEY_ID` | R2 credentials, scoped to `PutObject` |
+| `R2_FRONTEND_SECRET_ACCESS_KEY` | R2 credentials |
+| `MSENTRY_FEEDBACK_URL` | MSentry central health-bot inbox (optional) |
+| `MSENTRY_FEEDBACK_SECRET` | MSentry shared secret (optional) |
+| `MSENTRY_PROJECT` | MSentry project tag, defaults to `adil-frontend-next` |
+| `NODE_ENV` | `production` in deployed envs |
+
+## Deployment
+
+Railway service deployed from the `adil-frontend-next/` subdirectory via CLI upload
+(never GitHub auto-deploy):
 
 ```bash
-NEXT_PUBLIC_RAG_API_URL=https://rag-api-production-366d.up.railway.app
-RAG_API_INTERNAL_URL=http://rag-api.railway.internal:8000  # Railway internal (SSR only)
+cd adil-frontend-next
+railway up
 ```
+
+The service uses a Dockerfile builder (Node 20 Alpine, Next.js `standalone` output).
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `NEXT_PUBLIC_RAG_API_URL` must be set as Railway
+**build** variables — runtime env alone is not enough because they're baked in at
+Docker build time (`ARG` in the builder stage).
+
+## Key lib/ modules
+
+- `stream.ts` — `streamChat()` SSE client; handles `token`, `source`, `viability`, `error` events
+- `api.ts` — fetch wrappers for all API routes (server/client URL switching)
+- `types.ts` — shared TypeScript types (Source, Viability, Jurisdiction, etc.)
+- `r2.ts` — S3Client + presigned URL generation for image uploads
+- `turnstile.ts` — Cloudflare Turnstile verification
+- `jurisdiction.ts` — jurisdiction cookie read/write
+- `sanitize.ts` — content sanitization utilities
+
+## Report Prefill Flow
+
+When the user types `report` in chat:
+
+1. Chat page calls `POST /api/report/prefill` with the full `messages` array
+2. Shows an "Analysing your conversation…" card while the Gemini call runs (~1–2s)
+3. `ReportFlow` receives `initialData` and pre-populates `details`, `location`, `date_time`
+4. Personal PII fields (name, DOB, email) stay blank — user fills those manually
+5. On completion or failure, `reportPrefill` state is reset to null
 
 ## Testing
 
 ```bash
-npx playwright test                    # all 45 tests
-npx playwright test -g "Journey"       # multi-step journeys (6 tests)
-npx playwright test -g "Homepage"      # single category
-npx playwright test --reporter=html    # HTML report
+npx playwright test
+npx playwright test --reporter=html
 ```
 
-### Test Coverage
+## See also
 
-- **Homepage** (8) -- title, dynamic book count, search input, starters, tier persistence
-- **Navigation** (5) -- links, active states, routing
-- **Library** (7) -- table loading, sorting, search, genre filter
-- **Book Detail** (4) -- SSR rendering, back links, 404
-- **Hadith Grader** (4) -- form, Grade button, loading state
-- **Chat Flow** (5) -- E2E query, split panel, sources, bibliography toggle
-- **Health** (1) -- 200 OK
-- **Mobile** (4) -- responsive layout, sources toggle
-- **Error** (1) -- 404 routing
-- **Multi-step Journeys** (6):
-  - Library search -> book detail -> "Ask about this book"
-  - Chat query -> follow-up with conversation continuity
-  - Citation workflow: Cards -> Bibliography -> Chicago/Harvard/APA -> copy
-  - Tier selection persistence across pages
-  - Mobile: search -> chat -> show/hide sources
-  - Cross-page navigation without errors
-
-All journey tests include **output sanity checks** (e.g., fasting answers mention Ramadan, citations contain author names).
-
-## Key Components
-
-```
-components/
-  nav.tsx               # Top navigation with active link highlighting
-  search-input.tsx      # Reusable search input with loading state
-  tier-selector.tsx     # Layman/Student/Scholar pills (localStorage)
-  chat/
-    message.tsx         # Markdown-rendered message with citation buttons
-    source-card.tsx     # Source card with book info, type badge
-    sources-panel.tsx   # Cards/Bibliography toggle, citation styles
-    hadith-grading.tsx  # Collapsible hadith grading panel
-  library/
-    book-table.tsx      # Sortable table with genre badges
-    genre-badge.tsx     # Color-coded genre pill
-  hadith/
-    grading-table.tsx   # Scholar grading results table
-    spectrum-bar.tsx    # Visual opinion distribution bar
-
-lib/
-  api.ts                # RAG API client (server/client URL switching)
-  types.ts              # TypeScript interfaces matching API models
-  citations.ts          # Chicago/Harvard/APA citation formatting
-  use-book-count.ts     # Hook for dynamic book count from /health
-```
-
-## Tailwind v4
-
-This project uses **Tailwind CSS v4**. Key differences from v3:
-
-- Config is in `app/globals.css` using `@theme` block (no `tailwind.config.ts`)
-- `@import "tailwindcss"` instead of `@tailwind` directives
-- Plugins via `@plugin` directive
-- Content sources via `@source` directive
-
-## Deployment
-
-Railway service with Dockerfile (Node 20 Alpine, standalone output):
-
-```bash
-railway service link frontend
-railway up                        # CLI upload from frontend/ directory
-```
-
-Railway settings: root directory = `frontend`, port = 8080.
+- Repo-root `CLAUDE.md` — monorepo overview and service catalog
+- `adil-frontend-next/CLAUDE.md` — deeper dev notes (Turnstile, SSE event handling, build-time vs runtime env)
+- `adil-rag-api/` — FastAPI backend this frontend proxies to
+- `adil-report-bridge/` — browser-automation service that submits reports to police portals
