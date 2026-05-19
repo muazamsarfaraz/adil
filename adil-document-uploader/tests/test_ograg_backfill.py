@@ -124,7 +124,7 @@ async def test_backfill_skips_already_extracted(db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_backfill_retries_extracted_failed(db, monkeypatch):
-    """EXTRACTED_FAILED is in-scope for a re-run."""
+    """EXTRACTION_FAILED is in-scope for a re-run."""
     import app.services.ograg_backfill as bf
 
     monkeypatch.setattr(bf, "write_case_extraction", _stub_write(returns=(3, 4)))
@@ -132,7 +132,7 @@ async def test_backfill_retries_extracted_failed(db, monkeypatch):
 
     async with _session() as s:
         j = _make_judgment("[2023] EAT 8")
-        j.ograg_status = OgragStatus.EXTRACTED_FAILED.value
+        j.ograg_status = OgragStatus.EXTRACTION_FAILED.value
         s.add(j)
         await s.commit()
 
@@ -179,7 +179,7 @@ async def test_kill_switch_trips_on_cumulative_spend(db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_pass2_failure_marks_judgment_failed(db, monkeypatch):
-    """If pass2_runner raises, that judgment is marked EXTRACTED_FAILED and the loop continues."""
+    """If pass2_runner raises, that judgment is marked EXTRACTION_FAILED and the loop continues."""
     import app.services.ograg_backfill as bf
 
     monkeypatch.setattr(bf, "write_case_extraction", _stub_write(returns=(0, 0)))
@@ -204,7 +204,7 @@ async def test_pass2_failure_marks_judgment_failed(db, monkeypatch):
     assert stats.extracted == 0
     async with _session() as s:
         rows = (await s.execute(select(Judgment))).scalars().all()
-        assert all(j.ograg_status == OgragStatus.EXTRACTED_FAILED.value for j in rows)
+        assert all(j.ograg_status == OgragStatus.EXTRACTION_FAILED.value for j in rows)
         assert all("anthropic api 500" in (j.error_message or "") for j in rows)
 
 

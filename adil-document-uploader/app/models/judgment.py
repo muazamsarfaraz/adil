@@ -31,7 +31,7 @@ class OgragStatus(str, enum.Enum):
     PENDING = "pending"
     EXTRACTING = "extracting"
     EXTRACTED = "extracted"
-    EXTRACTED_FAILED = "extracted_failed"
+    EXTRACTION_FAILED = "extraction_failed"
 
 
 class Judgment(Base):
