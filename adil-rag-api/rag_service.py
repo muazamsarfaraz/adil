@@ -1008,6 +1008,21 @@ class RAGService:
         processing_time = int((time.time() - start_time) * 1000)
         metadata = QueryMetadata(original_language="en", processing_time_ms=processing_time, model_used=self.model_name)
 
+        # P9: fire-and-forget shadow OG-RAG run when RAG_SHADOW=1. User keeps
+        # the FST answer above; the shadow result is logged to eval_run for
+        # daily eval comparison. Failures are swallowed inside shadow.py.
+        try:
+            from ograg.shadow import fire_and_forget_shadow
+
+            fire_and_forget_shadow(
+                query_text,
+                max_sources=max_sources,
+                include_viability=include_viability,
+                conversation_history=conversation_history,
+            )
+        except Exception as e:  # pragma: no cover — defensive
+            logger.warning("shadow scheduling failed (ignored): %s", e)
+
         return answer, sources, usage, metadata, viability, evidence_checklist
 
     async def query_with_images(
@@ -1371,6 +1386,21 @@ class RAGService:
         effective_query = query_text
         if include_viability_score:
             effective_query = "INCLUDE VIABILITY ASSESSMENT. " + query_text
+
+        # P9: fire-and-forget shadow OG-RAG run (RAG_SHADOW=1). Runs concurrently
+        # with the live FST stream; logs to eval_run with backend='ograg_shadow'.
+        # Never affects the user-facing stream.
+        try:
+            from ograg.shadow import fire_and_forget_shadow
+
+            fire_and_forget_shadow(
+                query_text,
+                max_sources=max_sources,
+                include_viability=include_viability_score,
+                conversation_history=conversation_history,
+            )
+        except Exception as e:  # pragma: no cover — defensive
+            logger.warning("shadow scheduling failed (ignored): %s", e)
 
         contents = self._build_contents(effective_query, conversation_history)
 
