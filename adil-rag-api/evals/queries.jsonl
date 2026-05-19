@@ -1,0 +1,30 @@
+{"id": "q01", "query": "My manager keeps making jokes about my hijab in front of colleagues. Is this harassment under the Equality Act 2010?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q02", "query": "I was refused a job interview after the recruiter asked if I was Muslim. What can I do?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q03", "query": "Someone shouted Islamophobic slurs at me in the street and tried to grab my headscarf. Is this a hate crime?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q04", "query": "My neighbour has been posting Islamophobic abuse about my family on Facebook for months. What are my legal options?", "topic": "online_hate", "jurisdiction": "england"}
+{"id": "q05", "query": "A landlord refused to rent me a flat once he saw my name and asked about my background. Can he do that?", "topic": "housing", "jurisdiction": "england"}
+{"id": "q06", "query": "My daughter's primary school told her she cannot wear a headscarf in class. Is the school allowed to do this?", "topic": "education", "jurisdiction": "england"}
+{"id": "q07", "query": "Police stopped and searched me twice last month with no explanation. Both officers commented on my appearance. Is this discrimination?", "topic": "policing", "jurisdiction": "england"}
+{"id": "q08", "query": "What is the time limit to bring an employment tribunal claim for religious discrimination?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q09", "query": "How is Vento banding used to value injury to feelings in a religious discrimination claim?", "topic": "compensation", "jurisdiction": "england"}
+{"id": "q10", "query": "What is the difference between direct discrimination and indirect discrimination under section 19 of the Equality Act?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q11", "query": "My employer dismissed me after I asked for time off for Friday prayers. Do I have an unfair dismissal claim?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q12", "query": "A group of strangers followed me home from the mosque shouting abuse. What should I report to the police?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q13", "query": "Can I report a hate crime online and what evidence do I need to provide?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q14", "query": "Is there a duty on social media platforms to remove Islamophobic content under the Online Safety Act 2023?", "topic": "online_hate", "jurisdiction": "england"}
+{"id": "q15", "query": "Hospital staff repeatedly mispronounced my name and ignored my request for a female practitioner. Is this religious discrimination?", "topic": "public_services", "jurisdiction": "england"}
+{"id": "q16", "query": "I was attacked by a stranger in Glasgow who shouted anti-Muslim slurs. How does Scottish hate crime law apply?", "topic": "hate_crime", "jurisdiction": "scotland"}
+{"id": "q17", "query": "What does section 26 of the Equality Act 2010 say about harassment related to religion or belief?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q18", "query": "My university tutor told me I would do better if I removed my niqab. Is this lawful?", "topic": "education", "jurisdiction": "england"}
+{"id": "q19", "query": "I'm a tenant being evicted after I complained about the landlord's Islamophobic remarks. Is this victimisation?", "topic": "housing", "jurisdiction": "england"}
+{"id": "q20", "query": "Can I bring a claim against the council for refusing to let our community hire a hall because we are a Muslim group?", "topic": "public_services", "jurisdiction": "england"}
+{"id": "q21", "query": "A colleague pulled at my beard and joked it was a 'terrorist beard'. HR did nothing. What can I do?", "topic": "workplace_discrimination", "jurisdiction": "england"}
+{"id": "q22", "query": "How does the Public Order Act 1986 apply to people stirring up religious hatred at a protest?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q23", "query": "What is racially or religiously aggravated common assault under the Crime and Disorder Act 1998?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q24", "query": "An elderly relative with dementia needs someone to make decisions for him. Where do I start with deputyship?", "topic": "mental_capacity", "jurisdiction": "england"}
+{"id": "q25", "query": "What test does the Mental Capacity Act 2005 use to decide if someone has capacity?", "topic": "mental_capacity", "jurisdiction": "england"}
+{"id": "q26", "query": "Can the Court of Protection override a relative's wishes on where my father should live?", "topic": "mental_capacity", "jurisdiction": "england"}
+{"id": "q27", "query": "My partner was racially abused on a bus and the driver did nothing. Is the transport operator liable?", "topic": "public_services", "jurisdiction": "england"}
+{"id": "q28", "query": "Threatening anti-Muslim graffiti was sprayed on our mosque. What offences could the perpetrator face?", "topic": "hate_crime", "jurisdiction": "england"}
+{"id": "q29", "query": "My GP surgery refused to see me unless I removed my face veil. Is this lawful in a public NHS setting?", "topic": "public_services", "jurisdiction": "england"}
+{"id": "q30", "query": "How long do I have to bring a hate crime prosecution and is there a deadline on civil claims for assault?", "topic": "hate_crime", "jurisdiction": "england"}
