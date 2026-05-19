@@ -1,0 +1,19 @@
+{
+  "total_runs": 50,
+  "ok_runs": 50,
+  "fail_runs": 0,
+  "p50_ms": 5999.021500014351,
+  "p95_ms": 11058.905999991111,
+  "p99_ms": 15224.49810001126,
+  "min_ms": 3082.8175000060583,
+  "max_ms": 15224.49810001126,
+  "queries_used": [
+    "q1",
+    "q2",
+    "q3",
+    "q4",
+    "q5"
+  ],
+  "repetitions": 10,
+  "api_url": "https://adil-rag-api-production.up.railway.app"
+}
