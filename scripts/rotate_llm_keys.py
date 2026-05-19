@@ -81,6 +81,36 @@ CONSOLE_URLS = {
     "OPENROUTER_API_KEY": "https://openrouter.ai/keys",
 }
 
+# Which Railway services use each LLM key. Used when the Railway CLI's
+# `variables` introspection is unavailable (the CLI's `--json` output and
+# `--kv` flag are version-fragile). Each list is the set of services that
+# SHOULD have the var set; on rotation we push the new value to all of
+# them. Services not in any list never receive the var.
+SERVICE_ROUTING: dict[str, list[str]] = {
+    "GEMINI_API_KEY": [
+        "adil-rag-api",
+        "adil-document-uploader",
+        "adil-document-uploader-worker",
+        "adil-outreach-engine",
+        "adil-outreach-worker",
+        "adil-report-bridge",
+    ],
+    "ANTHROPIC_API_KEY": [
+        "adil-rag-api",
+        "adil-document-uploader-worker",
+        "adil-outreach-engine",
+        "adil-outreach-worker",
+    ],
+    "OPENAI_API_KEY": [
+        "adil-rag-api",
+        "adil-document-uploader-worker",
+    ],
+    "OPENROUTER_API_KEY": [
+        "adil-rag-api",
+        "adil-document-uploader-worker",
+    ],
+}
+
 
 # ---------------------------------------------------------------------------
 # Discovery
@@ -134,14 +164,39 @@ def railway_available() -> bool:
     return shutil.which("railway") is not None
 
 
-def railway_list_services() -> list[str]:
-    """Return service names from the currently linked Railway project.
+def _railway_exe() -> str:
+    """Resolve the Railway CLI path (handles .cmd/.ps1 shims on Windows)."""
+    found = shutil.which("railway")
+    if not found:
+        raise FileNotFoundError("railway CLI not on PATH")
+    return found
 
-    Uses `railway status --json`; falls back to empty list if it fails.
+
+def railway_list_services(root: Path) -> list[str]:
+    """Return service names for the linked Railway project.
+
+    Source order (per the project convention — see global CLAUDE.md
+    "deploy-manifest-first rule"):
+      1. `.railway.json` at the repo root (the canonical manifest).
+      2. `railway status --json` (newer Railway CLI; may not be supported).
+      3. Empty list — caller surfaces a clear error.
     """
+    # 1) Manifest first.
+    manifest_path = root / ".railway.json"
+    if manifest_path.exists():
+        try:
+            data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            svc_entries = data.get("services") or []
+            services = [s["name"] for s in svc_entries if isinstance(s, dict) and s.get("name")]
+            if services:
+                return services
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    # 2) Fallback: ask the CLI.
     try:
         out = subprocess.run(
-            ["railway", "status", "--json"],
+            [_railway_exe(), "status", "--json"],
             capture_output=True,
             text=True,
             check=True,
@@ -150,7 +205,6 @@ def railway_list_services() -> list[str]:
         data = json.loads(out)
     except (subprocess.SubprocessError, json.JSONDecodeError, FileNotFoundError):
         return []
-    # Railway's status JSON shape: { "name": str, "services": [...] }
     services = []
     for s in data.get("services", data.get("project", {}).get("services", [])):
         if isinstance(s, str):
@@ -164,13 +218,13 @@ def railway_service_vars(service: str) -> dict[str, str]:
     """Return the env vars set on a Railway service. Empty on any failure."""
     try:
         out = subprocess.run(
-            ["railway", "variables", "--service", service, "--kv"],
+            [_railway_exe(), "variables", "--service", service, "--kv"],
             capture_output=True,
             text=True,
             check=True,
-            timeout=20,
+            timeout=30,
         ).stdout
-    except subprocess.SubprocessError:
+    except (subprocess.SubprocessError, FileNotFoundError):
         return {}
     pairs: dict[str, str] = {}
     for line in out.splitlines():
@@ -182,15 +236,19 @@ def railway_service_vars(service: str) -> dict[str, str]:
 
 def railway_set_var(service: str, key: str, value: str, dry_run: bool) -> bool:
     """Set a single var on a single service. Returns True on success."""
-    cmd = ["railway", "variables", "--service", service, "--set", f"{key}={value}"]
+    cmd = [_railway_exe(), "variables", "--service", service, "--set", f"{key}={value}"]
     if dry_run:
-        print(f"  [dry-run] {' '.join(cmd[:-1])} {key}=<NEW>")
+        # Don't print the resolved exe path; show the user-friendly command.
+        print(f"  [dry-run] railway variables --service {service} --set {key}=<NEW>")
         return True
     try:
         subprocess.run(cmd, check=True, timeout=30, capture_output=True, text=True)
         return True
-    except subprocess.CalledProcessError as e:
-        print(f"  ERROR: railway set failed for {service}/{key}: {e.stderr.strip()[:200]}")
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        msg = getattr(e, "stderr", str(e))
+        if isinstance(msg, bytes):
+            msg = msg.decode(errors="replace")
+        print(f"  ERROR: railway set failed for {service}/{key}: {msg.strip()[:200]}")
         return False
 
 
@@ -314,6 +372,12 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="JSON file with {VAR: value} for bulk rotation " "(skips the masked prompt for keys present in the file).",
     )
+    ap.add_argument(
+        "--yes",
+        action="store_true",
+        help="Non-interactive: auto-confirm the 'proceed' prompt and auto-shred the keys file at the end. "
+        "Use after you've reviewed a --dry-run.",
+    )
     args = ap.parse_args(argv)
 
     print(f"== rotate-llm-keys ==  root={args.root}  dry-run={args.dry_run}")
@@ -334,20 +398,24 @@ def main(argv: list[str] | None = None) -> int:
     elif not railway_available():
         print("\n[2/4] Railway CLI not on PATH — will skip Railway updates")
     else:
-        print("\n[2/4] Querying Railway services...")
-        services = railway_list_services()
+        print("\n[2/4] Resolving Railway routing (per .railway.json + SERVICE_ROUTING)...")
+        services = railway_list_services(args.root)
         if not services:
             print("  ! could not enumerate Railway services. Run `railway link` first,")
             print("    or rerun with --skip-railway to do local-only.")
             return 2
-        for svc in services:
-            vars_set = railway_service_vars(svc)
-            present = [v for v in ROTATE_VARS if v in vars_set]
-            if present:
-                railway_targets.append((svc, present))
-                print(f"  {svc}: {', '.join(present)}")
+        # Build the inverted map: service -> [vars to push].
+        service_to_vars: dict[str, list[str]] = {svc: [] for svc in services}
+        for var, svc_list in SERVICE_ROUTING.items():
+            for svc in svc_list:
+                if svc in service_to_vars:
+                    service_to_vars[svc].append(var)
+        for svc, vs in service_to_vars.items():
+            if vs:
+                railway_targets.append((svc, vs))
+                print(f"  {svc}: {', '.join(sorted(vs))}")
             else:
-                print(f"  {svc}: (no LLM vars)")
+                print(f"  {svc}: (no LLM vars routed here)")
 
     # Determine which keys actually need rotating
     keys_needed = sorted(
@@ -364,10 +432,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n[3/4] Will rotate: {', '.join(keys_needed)}")
     if preloaded:
         print(f"      Preloaded from {args.keys_file}: {', '.join(sorted(preloaded))}")
-    proceed = input("Proceed? (yes/no): ").strip().lower()
-    if proceed not in {"yes", "y"}:
-        print("Aborted.")
-        return 1
+    if args.yes:
+        print("Proceed? (--yes given) yes")
+    else:
+        proceed = input("Proceed? (yes/no): ").strip().lower()
+        if proceed not in {"yes", "y"}:
+            print("Aborted.")
+            return 1
 
     new_values = prompt_for_new_keys(keys_needed, preloaded=preloaded)
 
@@ -411,10 +482,12 @@ def main(argv: list[str] | None = None) -> int:
     # Offer to shred the keys file so cleartext doesn't linger on disk.
     if args.keys_file and args.keys_file.exists() and not args.dry_run and not railway_failures:
         print()
-        ans = input(f"Shred {args.keys_file}? (yes/no): ").strip().lower()
+        if args.yes:
+            ans = "yes"
+            print(f"Shred {args.keys_file}? (--yes given) yes")
+        else:
+            ans = input(f"Shred {args.keys_file}? (yes/no): ").strip().lower()
         if ans in {"yes", "y"}:
-            # Overwrite with random bytes then unlink — best-effort shred on a
-            # journalled filesystem. Good enough for a 5KB JSON.
             size = args.keys_file.stat().st_size
             args.keys_file.write_bytes(os.urandom(max(size, 64)))
             args.keys_file.unlink()
