@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import pytest
-from evals.fst_baseline import percentile
+import respx
+from evals.fst_baseline import BaselineRunner, percentile
+from httpx import Response
 
 
 class TestPercentile:
@@ -24,3 +26,28 @@ class TestPercentile:
     def test_unsorted_input_sorted_internally(self):
         # P50 must be invariant to input order
         assert percentile([50, 10, 30, 40, 20], 50) == 30
+
+
+class TestBaselineRunner:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_measure_one_records_latency(self):
+        route = respx.post("https://api.example.test/api/v1/query").mock(
+            return_value=Response(200, json={"answer": "yes", "sources": []})
+        )
+        runner = BaselineRunner(api_url="https://api.example.test", api_key="k")
+        result = await runner.measure_one(query_id="q1", query="test")
+        assert route.called
+        assert result["query_id"] == "q1"
+        assert result["latency_ms"] >= 0
+        assert result["status"] == "ok"
+        assert result["http_status"] == 200
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_measure_one_records_failure(self):
+        respx.post("https://api.example.test/api/v1/query").mock(return_value=Response(500, json={"detail": "boom"}))
+        runner = BaselineRunner(api_url="https://api.example.test", api_key="k")
+        result = await runner.measure_one(query_id="q1", query="test")
+        assert result["status"] == "fail"
+        assert result["http_status"] == 500
