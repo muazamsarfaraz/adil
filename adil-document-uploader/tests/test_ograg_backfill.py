@@ -178,6 +178,120 @@ async def test_kill_switch_trips_on_cumulative_spend(db, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_kill_switch_ignores_prior_run_spend_rows(db, monkeypatch):
+    """Spec: the DB-backed check sums only rows written *during this backfill*
+    (``created_at >= start_of_backfill``). A previous run's $999 ledger row
+    must NOT count against today's budget."""
+    import app.services.ograg_backfill as bf
+
+    monkeypatch.setattr(bf, "write_case_extraction", _stub_write(returns=(0, 0)))
+    monkeypatch.setattr(bf, "case_has_ontology_rows", _stub_async(False))
+
+    async def cheap_pass2(_j, _r):
+        return (1.0, "claude", 100, 50, "ok")
+
+    # Seed extraction_spend_usd with a $999 historical row — should be ignored.
+    async with _session() as s:
+        s.add(
+            ExtractionSpend(
+                judgment_id=None,
+                pass_name="pass2_claude",
+                usd_cost=Decimal("999.000000"),
+                model="claude-haiku",
+                note="prior run, must not count",
+            )
+        )
+        s.add(_make_judgment("[2023] EAT 300"))
+        await s.commit()
+
+    stats = await run_backfill(
+        session_factory=_session,
+        rag_database_url="postgres://stub",
+        notifier=None,
+        config=BackfillConfig(kill_switch_usd=50.0, pass2_runner=cheap_pass2),
+    )
+
+    assert stats.kill_switch_tripped is False
+    assert stats.extracted == 1
+    assert stats.spend_usd == pytest.approx(1.0)
+
+
+@pytest.mark.asyncio
+async def test_db_backed_kill_switch_blocks_pass3_after_pass2_exceeds(db, monkeypatch):
+    """A single judgment with a pass2 cost that on its own exceeds the
+    ceiling: pass2 runs and pays (it was under the ceiling at the moment of
+    check), but the pre-pass3 check then trips so pass3 never fires."""
+    import app.services.ograg_backfill as bf
+
+    monkeypatch.setattr(bf, "write_case_extraction", _stub_write(returns=(0, 0)))
+    monkeypatch.setattr(bf, "case_has_ontology_rows", _stub_async(False))
+
+    pass3_calls: list[str] = []
+
+    async def big_pass2(_j, _r):
+        return (75.0, "claude-haiku-4.5", 1000, 200, "expensive")
+
+    async def tracker_pass3(judgment, _r):
+        pass3_calls.append(judgment.neutral_citation)
+        return (1.0, "gemini-flash", 100, 50, "should-not-fire")
+
+    async with _session() as s:
+        s.add(_make_judgment("[2023] EAT 400"))
+        await s.commit()
+
+    stats = await run_backfill(
+        session_factory=_session,
+        rag_database_url="postgres://stub",
+        notifier=None,
+        config=BackfillConfig(
+            kill_switch_usd=50.0,
+            pass2_runner=big_pass2,
+            pass3_runner=tracker_pass3,
+        ),
+    )
+
+    assert pass3_calls == []  # pre-pass3 check stopped us
+    assert stats.kill_switch_tripped is True
+    # The judgment completed pass2 but did not get written through to EXTRACTED
+    # because the kill switch fired during _process_one.
+    async with _session() as s:
+        spend_rows = (await s.execute(select(ExtractionSpend))).scalars().all()
+        # pass1 (free) + pass2 ($75) only — no pass3 row.
+        pass_names = sorted(row.pass_name for row in spend_rows)
+        assert pass_names == ["pass1_structural", "pass2_claude"]
+
+
+@pytest.mark.asyncio
+async def test_current_spend_usd_sums_only_rows_after_start_ts(db):
+    """The cumulative-spend query must ignore rows written before ``start_ts``,
+    so an old completed backfill doesn't fire today's kill switch."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.services.ograg_backfill import _current_spend_usd
+
+    async with _session() as s:
+        old = ExtractionSpend(
+            judgment_id=None,
+            pass_name="pass2_claude",
+            usd_cost=Decimal("999.000000"),
+            model="claude",
+            note="historical",
+        )
+        s.add(old)
+        await s.commit()
+        old_created = old.created_at
+
+    # Query for rows strictly after the historical row's timestamp.
+    cutoff = old_created + timedelta(seconds=1)
+    total = await _current_spend_usd(_session, cutoff)
+    assert total == 0.0
+
+    # And from a moment well before, it picks up the $999.
+    total = await _current_spend_usd(_session, datetime.now(timezone.utc) - timedelta(days=365))
+    assert total >= 999.0
+
+
+@pytest.mark.asyncio
 async def test_pass2_failure_marks_judgment_failed(db, monkeypatch):
     """If pass2_runner raises, that judgment is marked EXTRACTION_FAILED and the loop continues."""
     import app.services.ograg_backfill as bf

@@ -31,10 +31,11 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Awaitable, Callable
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.judgment import ExtractionSpend, Judgment, JudgmentStatus, OgragStatus
@@ -43,6 +44,18 @@ from app.services.ontology_writer import case_has_ontology_rows, write_case_extr
 from app.services.telegram import TelegramNotifier
 
 logger = logging.getLogger(__name__)
+
+
+class CostCeilingTripped(Exception):
+    """Raised when cumulative LLM spend since the start of this backfill
+    exceeds ``BackfillConfig.kill_switch_usd``. Caught by ``run_backfill`` to
+    fire the kill-switch alert and stop the loop without flipping the
+    current judgment to EXTRACTION_FAILED."""
+
+    def __init__(self, spend_usd: float, ceiling_usd: float) -> None:
+        self.spend_usd = spend_usd
+        self.ceiling_usd = ceiling_usd
+        super().__init__(f"OG-RAG cost ceiling tripped: cumulative spend ${spend_usd:.4f} " f"≥ ${ceiling_usd:.2f}")
 
 
 # A pass runner takes a judgment ORM row + the running ExtractionResult and
@@ -76,6 +89,63 @@ class BackfillStats:
     nodes_written: int = 0
     edges_written: int = 0
     per_pass_spend: dict[str, float] = field(default_factory=dict)
+    # Wall-clock timestamp the backfill started; used by the DB-backed
+    # cost-ceiling check so concurrent retries / crashed runs can't double-spend.
+    start_ts: datetime | None = None
+
+
+async def _current_spend_usd(
+    session_factory: async_sessionmaker[AsyncSession],
+    since: datetime,
+) -> float:
+    """Sum ``extraction_spend_usd.usd_cost`` for rows created since ``since``.
+
+    This is the authoritative cost ledger query used by the kill switch
+    before every paid pass. Querying the DB (vs the in-memory tally on
+    ``BackfillStats``) means a re-run that crashed mid-flight, or a
+    concurrent retry attempt, still trips the ceiling correctly.
+    """
+    async with session_factory() as session:
+        # SQLite stores DateTime(timezone=True) as a naive string and the
+        # driver compares text — a tz-aware ``since`` would not be flagged
+        # as such by the column type, so normalize both sides to naive UTC.
+        bind = session_factory.kw.get("bind") or session_factory.kw.get("engine")  # type: ignore[attr-defined]
+        dialect = getattr(bind, "dialect", None)
+        if dialect is not None and dialect.name == "sqlite" and since.tzinfo is not None:
+            since = since.astimezone(timezone.utc).replace(tzinfo=None)
+        result = await session.execute(
+            select(func.coalesce(func.sum(ExtractionSpend.usd_cost), 0)).where(ExtractionSpend.created_at >= since)
+        )
+        value = result.scalar_one()
+        return float(value or 0)
+
+
+async def _enforce_cost_ceiling(
+    session_factory: async_sessionmaker[AsyncSession],
+    config: "BackfillConfig",
+    stats: "BackfillStats",
+    pass_name: str,
+) -> None:
+    """Raise ``CostCeilingTripped`` if cumulative spend ≥ kill switch.
+
+    Called immediately before every paid pass (Haiku/Flash) so we never
+    spend past the configured ceiling. Updates ``stats.spend_usd`` to the
+    DB-sourced number so callers see the authoritative cumulative figure.
+    """
+    if stats.start_ts is None:
+        return  # paranoid — set by run_backfill before the first call.
+    db_spend = await _current_spend_usd(session_factory, stats.start_ts)
+    # Keep stats in sync with the DB so the final summary is accurate even
+    # if multiple processes recorded rows concurrently.
+    stats.spend_usd = max(stats.spend_usd, db_spend)
+    if db_spend >= config.kill_switch_usd:
+        logger.warning(
+            "OG-RAG cost ceiling tripped before %s: $%.4f ≥ $%.2f",
+            pass_name,
+            db_spend,
+            config.kill_switch_usd,
+        )
+        raise CostCeilingTripped(db_spend, config.kill_switch_usd)
 
 
 async def _record_spend(
@@ -98,6 +168,11 @@ async def _record_spend(
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
                 note=note,
+                # Set Python-side so the timestamp has microsecond precision
+                # and the kill-switch comparison vs ``BackfillStats.start_ts``
+                # is reliable on SQLite (whose CURRENT_TIMESTAMP truncates to
+                # whole seconds and silently drops sub-second start ledgers).
+                created_at=datetime.now(timezone.utc),
             )
         )
         await session.commit()
@@ -157,27 +232,36 @@ async def run_backfill(
     the orchestrator marks that row ``EXTRACTION_FAILED`` and moves on. Only
     the kill switch halts the loop early.
     """
-    stats = BackfillStats()
+    stats = BackfillStats(start_ts=datetime.now(timezone.utc))
 
     candidates = await _select_candidates(session_factory, config)
     stats.selected = len(candidates)
     logger.info("backfill_ograg: %d judgments selected", stats.selected)
 
+    async def _trip_kill_switch(spend_usd: float) -> None:
+        stats.kill_switch_tripped = True
+        stats.spend_usd = spend_usd
+        msg = (
+            f"🛑 *OG-RAG backfill — KILL SWITCH*\n"
+            f"Cumulative spend ${spend_usd:.2f} ≥ ${config.kill_switch_usd:.2f}\n"
+            f"Extracted: {stats.extracted}  Failed: {stats.failed}  "
+            f"Remaining (skipped): {stats.selected - stats.extracted - stats.failed}"
+        )
+        logger.warning("backfill_ograg kill switch tripped at $%.2f", spend_usd)
+        if notifier:
+            try:
+                await notifier.send(msg)
+            except Exception:
+                logger.exception("Failed to send kill-switch alert")
+
     for judgment in candidates:
-        if stats.spend_usd >= config.kill_switch_usd:
-            stats.kill_switch_tripped = True
-            msg = (
-                f"🛑 *OG-RAG backfill — KILL SWITCH*\n"
-                f"Cumulative spend ${stats.spend_usd:.2f} ≥ ${config.kill_switch_usd:.2f}\n"
-                f"Extracted: {stats.extracted}  Failed: {stats.failed}  "
-                f"Remaining (skipped): {stats.selected - stats.extracted - stats.failed}"
-            )
-            logger.warning("backfill_ograg kill switch tripped at $%.2f", stats.spend_usd)
-            if notifier:
-                try:
-                    await notifier.send(msg)
-                except Exception:
-                    logger.exception("Failed to send kill-switch alert")
+        # Pre-judgment guard. The authoritative per-call check lives inside
+        # _process_one, but we also gate at the loop level so a fully-spent
+        # ceiling doesn't even mark the next judgment EXTRACTING.
+        try:
+            await _enforce_cost_ceiling(session_factory, config, stats, "pre_judgment")
+        except CostCeilingTripped as exc:
+            await _trip_kill_switch(exc.spend_usd)
             break
 
         try:
@@ -188,6 +272,13 @@ async def run_backfill(
                 config=config,
                 stats=stats,
             )
+        except CostCeilingTripped as exc:
+            # Roll the in-flight judgment back to PENDING so a future run
+            # (with the threshold lifted) picks it up instead of leaving it
+            # stuck in EXTRACTING.
+            await _update_judgment_status(session_factory, judgment.id, OgragStatus.PENDING)
+            await _trip_kill_switch(exc.spend_usd)
+            break
         except Exception as exc:  # noqa: BLE001 — orchestrator must keep going
             logger.exception("backfill_ograg: judgment %s failed", judgment.neutral_citation)
             await _update_judgment_status(
@@ -248,6 +339,8 @@ async def _process_one(
 
     # ---- Pass 2 — Claude Haiku (optional) ------------------------------
     if config.pass2_runner is not None:
+        # DB-backed ceiling check immediately before the paid call.
+        await _enforce_cost_ceiling(session_factory, config, stats, "pass2_claude")
         cost, model, in_tok, out_tok, note = await config.pass2_runner(judgment, result)
         await _record_spend(session_factory, judgment.id, "pass2_claude", cost, model, in_tok, out_tok, note)
         stats.spend_usd += cost
@@ -255,6 +348,7 @@ async def _process_one(
 
     # ---- Pass 3 — Gemini Flash (optional) ------------------------------
     if config.pass3_runner is not None:
+        await _enforce_cost_ceiling(session_factory, config, stats, "pass3_gemini")
         cost, model, in_tok, out_tok, note = await config.pass3_runner(judgment, result)
         await _record_spend(session_factory, judgment.id, "pass3_gemini", cost, model, in_tok, out_tok, note)
         stats.spend_usd += cost
