@@ -4,6 +4,7 @@ from arq.cron import cron
 from app.config import get_settings
 from app.workers.tasks import (
     fast_probe,
+    fetch_acts,
     fetch_case_law,
     heartbeat,
     heartbeat_alert_only,
@@ -18,6 +19,7 @@ _settings = get_settings()
 class WorkerSettings:
     functions = [
         fetch_case_law,
+        fetch_acts,
         upload_pending,
         heartbeat,
         heartbeat_alert_only,
@@ -77,4 +79,7 @@ class WorkerSettings:
         # Monthly SRA register scrape — refreshes solicitor_firms table
         # Runs 1st of each month at 04:00 UTC (arq uses 'day' for day-of-month)
         cron(scrape_solicitors, day=1, hour=4, minute=0),
+        # Monthly Acts fetch — refreshes UK statutes from legislation.gov.uk.
+        # Runs 1st of each month at 05:00 UTC (after the SRA scrape).
+        cron(fetch_acts, day=1, hour=5, minute=0),
     ]
