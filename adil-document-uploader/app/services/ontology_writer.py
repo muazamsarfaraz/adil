@@ -26,6 +26,7 @@ import uuid
 import asyncpg
 
 from app.services.legislation_client import ParsedAct
+from app.services.ograg_extract import ExtractionResult
 
 logger = logging.getLogger(__name__)
 
@@ -156,3 +157,180 @@ async def _write_act(conn: asyncpg.Connection, act: ParsedAct) -> int:
                 written += 1
 
     return written
+
+
+# ---------------------------------------------------------------------------
+# Case extraction writer (used by backfill_ograg)
+# ---------------------------------------------------------------------------
+
+
+async def write_case_extraction(
+    rag_database_url: str | None,
+    result: ExtractionResult,
+) -> tuple[int, int]:
+    """Write Case + Paragraph nodes and Refs edges for one judgment.
+
+    Returns ``(nodes_written, edges_written)``. No-op (0, 0) when the rag-api
+    DB or its ``ontology_node`` table is not yet available — same guard as
+    ``write_act_to_ontology`` so the writer activates as soon as P1 ships.
+
+    Idempotent: all writes are ``INSERT ... ON CONFLICT`` against the
+    deterministic node IDs already on the dataclass instances.
+    """
+    if not rag_database_url:
+        logger.debug("RAG_DATABASE_URL unset — skipping case ontology write for %s", result.case.neutral_citation)
+        return 0, 0
+
+    conn = await asyncpg.connect(rag_database_url)
+    try:
+        if not await _table_exists(conn, "ontology_node"):
+            logger.info(
+                "ontology_node table not yet present in rag-api DB — skipping case ontology write for %s",
+                result.case.neutral_citation,
+            )
+            return 0, 0
+
+        has_edges = await _table_exists(conn, "ontology_edge")
+        return await _write_case_extraction(conn, result, has_edges)
+    finally:
+        await conn.close()
+
+
+async def _write_case_extraction(
+    conn: asyncpg.Connection,
+    result: ExtractionResult,
+    has_edges: bool,
+) -> tuple[int, int]:
+    nodes = 0
+    edges = 0
+
+    case = result.case
+    case_attrs = {
+        "neutral_citation": case.neutral_citation,
+        "case_name": case.case_name,
+        "court": case.court,
+        "year": case.year,
+    }
+
+    async with conn.transaction():
+        await conn.execute(
+            """
+            INSERT INTO ontology_node (id, type, attrs)
+            VALUES ($1, 'Case', $2::jsonb)
+            ON CONFLICT (id) DO UPDATE
+              SET type = EXCLUDED.type,
+                  attrs = EXCLUDED.attrs
+            """,
+            case.node_id,
+            json.dumps(case_attrs),
+        )
+        nodes += 1
+
+        for para in result.paragraphs:
+            para_attrs = {
+                "case_id": str(case.node_id),
+                "index": para.index,
+                "number": para.number,
+                "text": para.text,
+                "sentence_count": para.sentence_count,
+            }
+            await conn.execute(
+                """
+                INSERT INTO ontology_node (id, type, attrs)
+                VALUES ($1, 'Paragraph', $2::jsonb)
+                ON CONFLICT (id) DO UPDATE
+                  SET type = EXCLUDED.type,
+                      attrs = EXCLUDED.attrs
+                """,
+                para.node_id,
+                json.dumps(para_attrs),
+            )
+            nodes += 1
+
+            if has_edges:
+                edges += await _upsert_edge(conn, case.node_id, para.node_id, "HAS_PARAGRAPH", {"index": para.index})
+
+        if has_edges:
+            for ref in result.statute_refs:
+                target = ref.resolved_node_id or ref.candidate_node_id
+                edges += await _upsert_edge(
+                    conn,
+                    ref.paragraph_id,
+                    target,
+                    "CITES_STATUTE",
+                    {"slug": ref.statute_slug, "resolved": ref.resolved_node_id is not None},
+                )
+
+            for ref in result.section_refs:
+                target = ref.resolved_node_id or ref.candidate_node_id
+                edges += await _upsert_edge(
+                    conn,
+                    ref.paragraph_id,
+                    target,
+                    "CITES_SECTION",
+                    {
+                        "section": ref.section,
+                        "subsection": ref.subsection,
+                        "statute_slug": ref.statute_slug,
+                        "resolved": ref.resolved_node_id is not None,
+                    },
+                )
+
+    return nodes, edges
+
+
+async def _upsert_edge(
+    conn: asyncpg.Connection,
+    src: uuid.UUID,
+    dst: uuid.UUID,
+    kind: str,
+    attrs: dict,
+) -> int:
+    """Upsert one ontology_edge row.
+
+    Edge identity is (src_id, dst_id, kind); attrs are overwritten on
+    conflict. Returns 1 on success, 0 on no-op (none currently — kept for
+    symmetry with node writes).
+    """
+    await conn.execute(
+        """
+        INSERT INTO ontology_edge (src_id, dst_id, kind, attrs)
+        VALUES ($1, $2, $3, $4::jsonb)
+        ON CONFLICT (src_id, dst_id, kind) DO UPDATE
+          SET attrs = EXCLUDED.attrs
+        """,
+        src,
+        dst,
+        kind,
+        json.dumps(attrs),
+    )
+    return 1
+
+
+async def case_has_ontology_rows(rag_database_url: str | None, case_node_id: uuid.UUID) -> bool:
+    """Check whether a Case node already has any Paragraph children written.
+
+    Used by the backfill to skip judgments that already have ontology rows
+    (idempotency). Returns ``False`` when the rag-api DB or ontology_node
+    table is not yet available — backfill should then attempt the write so
+    it can detect schema readiness on each judgment without manual config.
+    """
+    if not rag_database_url:
+        return False
+
+    conn = await asyncpg.connect(rag_database_url)
+    try:
+        if not await _table_exists(conn, "ontology_node"):
+            return False
+        row = await conn.fetchrow(
+            """
+            SELECT 1 FROM ontology_node
+            WHERE type = 'Paragraph'
+              AND (attrs ->> 'case_id') = $1
+            LIMIT 1
+            """,
+            str(case_node_id),
+        )
+        return row is not None
+    finally:
+        await conn.close()

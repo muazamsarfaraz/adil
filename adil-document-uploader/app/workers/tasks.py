@@ -18,6 +18,7 @@ from app.models.solicitor_firm import SolicitorFirm
 from app.services.acts_seed import UK_ACTS_SEED
 from app.services.gemini_uploader import GeminiUploader
 from app.services.legislation_client import LegislationClient, ParsedAct
+from app.services.ograg_backfill import BackfillConfig, run_backfill
 from app.services.ontology_writer import write_act_to_ontology
 from app.services.sra_scraper import run_scrape
 from app.services.telegram import TelegramNotifier
@@ -529,6 +530,80 @@ async def fetch_acts(ctx: dict) -> dict:
     }
 
 
+async def backfill_ograg(
+    ctx: dict,
+    limit: int | None = None,
+    since_id: str | None = None,
+    kill_switch_usd: float | None = None,
+) -> dict:
+    """arq task: run the OG-RAG ontology backfill.
+
+    Selects judgments whose FST upload has succeeded (or hard-failed) but
+    which don't yet have ontology rows on the rag-api side, then runs the
+    full extraction pipeline (P2→P3→P4 — pass 1 structural is the only
+    pass wired today; P3/P4 land via their own ClickUp tasks).
+
+    Designed for one-off invocation from the laptop:
+
+        railway run --service adil-document-uploader-worker \\
+          python -m scripts.run_backfill --limit 500
+
+    Also callable as a deferred arq job; the cron in ``settings.py`` does
+    NOT schedule this — it's manual on purpose so we can watch spend.
+    """
+    settings = get_settings()
+    from app.database import async_session
+
+    rag_db_url = os.getenv("RAG_API_DATABASE_URL") or os.getenv("RAG_DATABASE_URL")
+    notifier = (
+        TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
+        if settings.telegram_bot_token and settings.telegram_chat_id
+        else None
+    )
+
+    cfg = BackfillConfig(
+        kill_switch_usd=kill_switch_usd
+        if kill_switch_usd is not None
+        else float(os.getenv("OGRAG_KILL_SWITCH_USD", "50")),
+        limit=limit,
+        since_id=since_id,
+    )
+
+    stats = await run_backfill(
+        session_factory=async_session,
+        rag_database_url=rag_db_url,
+        notifier=notifier,
+        config=cfg,
+    )
+
+    # Final status ping (success or kill-switch) so MSentry sees a heartbeat.
+    if notifier and (stats.extracted or stats.failed or stats.kill_switch_tripped):
+        icon = "🛑" if stats.kill_switch_tripped else "✅"
+        try:
+            await notifier.send(
+                f"{icon} *OG-RAG backfill complete*\n"
+                f"selected={stats.selected} extracted={stats.extracted} failed={stats.failed} "
+                f"skipped_done={stats.skipped_already_done}\n"
+                f"nodes={stats.nodes_written} edges={stats.edges_written} "
+                f"spend=${stats.spend_usd:.4f}\n"
+                f"per-pass: {stats.per_pass_spend}"
+            )
+        except Exception:
+            logger.exception("backfill_ograg: telegram summary send failed")
+
+    return {
+        "selected": stats.selected,
+        "extracted": stats.extracted,
+        "failed": stats.failed,
+        "skipped_already_done": stats.skipped_already_done,
+        "nodes_written": stats.nodes_written,
+        "edges_written": stats.edges_written,
+        "spend_usd": float(stats.spend_usd),
+        "per_pass_spend": stats.per_pass_spend,
+        "kill_switch_tripped": stats.kill_switch_tripped,
+    }
+
+
 async def scrape_solicitors(ctx: dict) -> dict:
     """arq task: scrape SRA register and upsert results into solicitor_firms table.
 
@@ -577,6 +652,6 @@ async def scrape_solicitors(ctx: dict) -> dict:
     logger.info("scrape_solicitors: upserted %d firms", upserted)
     if notifier:
         await notifier.send(
-            f"✅ *SRA solicitor directory refreshed*\n" f"{upserted} firms upserted into solicitor_firms table."
+            f"✅ *SRA solicitor directory refreshed*\n{upserted} firms upserted into solicitor_firms table."
         )
     return {"firms": upserted}

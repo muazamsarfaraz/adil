@@ -3,6 +3,7 @@ from arq.cron import cron
 
 from app.config import get_settings
 from app.workers.tasks import (
+    backfill_ograg,
     fast_probe,
     fetch_acts,
     fetch_case_law,
@@ -26,6 +27,7 @@ class WorkerSettings:
         fast_probe,
         rate_limit_cleanup,
         scrape_solicitors,
+        backfill_ograg,
     ]
     redis_settings = RedisSettings.from_dsn(_settings.redis_url)
 
