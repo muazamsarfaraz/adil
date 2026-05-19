@@ -2,6 +2,9 @@
 .env
 .env.local
 .env.production
+# LLM key rotation source file — see scripts/KEYS_README.md
+scripts/.keys.local.json
+**/.keys.local.json
 
 # ===== Python =====
 __pycache__/
@@ -53,3 +56,4 @@ augment_docs/
 *~
 .DS_Store
 Thumbs.db
+.gstack/

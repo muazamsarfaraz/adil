@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy this file to scripts/.keys.local.json (which is gitignored) and paste real key values. Then run: python scripts/rotate_llm_keys.py --keys-file scripts/.keys.local.json. The script will offer to shred the file after a clean rotation.",
+  "GEMINI_API_KEY":     "<PASTE_NEW_GEMINI_KEY>",
+  "ANTHROPIC_API_KEY":  "<PASTE_NEW_ANTHROPIC_KEY>",
+  "OPENAI_API_KEY":     "<PASTE_NEW_OPENAI_KEY>",
+  "OPENROUTER_API_KEY": "<PASTE_NEW_OPENROUTER_KEY>"
+}
