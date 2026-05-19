@@ -64,6 +64,8 @@ Rate limits (Postgres-backed, per API key):
 | `TELEGRAM_BOT_TOKEN` | For alerts | Error notification bot |
 | `TELEGRAM_CHAT_ID` | For alerts | Target chat for alerts |
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
+| `RAG_BACKEND` | No | `fst` (default) or `ograg` — routes /query to FST or pgvector OG-RAG |
+| `RAG_SHADOW` | No | `1` enables P9 shadow logging: fire-and-forget OG-RAG run alongside every FST query, logged to `eval_run` table. Never affects user response. |
 | `ENABLE_DEV_CORS` | Dev only | Enables permissive CORS (never set in prod) |
 | `LOG_LEVEL` | No | Default: INFO |
 
