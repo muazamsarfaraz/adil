@@ -59,7 +59,8 @@ Two Railway services share this codebase: one with `SERVICE_ROLE=api`
 |-----|----------|-------------|
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `ADMIN_API_KEY` | Yes | Admin endpoint auth |
-| `GEMINI_API_KEY` | Yes | Google Gemini key |
+| `GEMINI_API_KEY` | Yes | Google Gemini key (embeddings, FST uploads, Flash 2.5 cross-ref pass) |
+| `ANTHROPIC_API_KEY` | Worker only | Claude Haiku 4.5 — ontology extraction pass (topics, parties, relations) for OG-RAG. Org-level key from console.anthropic.com (separate from Claude Code billing key); set budget alert $25/mo. Rotate via `scripts/rotate_llm_keys.py` (auto-discovers). |
 | `FILE_SEARCH_STORE_ID` | Yes | Single FST store — always append, never create new |
 | `REDIS_URL` | Yes | arq task queue (default: redis://localhost:6379) |
 | `TNA_BASE_URL` | No | Default: https://caselaw.nationalarchives.gov.uk |
