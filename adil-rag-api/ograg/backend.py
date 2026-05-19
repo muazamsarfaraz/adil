@@ -3,6 +3,13 @@
 Public surface mirrors ``RAGService.query()``: returns the same 6-tuple
 ``(answer, sources, usage, metadata, viability, evidence_checklist)`` so
 the call sites in app.py don't change. The File Search Tool is NOT used.
+
+Also exposes :func:`answer_stream` which mirrors ``RAGService.stream_query``
+— yields SSE-shaped ``{"event", "data"}`` dicts using Gemini's
+``generate_content_stream`` API. Sources are emitted from the
+already-retrieved chunks (retrieval is unary, before generation, so we
+know them up-front — simpler than the FST stream which parses citations
+out of the answer).
 """
 
 from __future__ import annotations
@@ -11,6 +18,7 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 from google import genai
@@ -77,12 +85,7 @@ def _calc_usage(response) -> TokenUsage:
 
 
 def _sources_from_chunks(chunks: list[dict[str, Any]], max_sources: int) -> list[Source]:
-    """Build typed Source records directly from retrieved chunks.
-
-    Re-uses RAGService.extract_citations_from_answer logic by going through
-    the retrieved metadata first — simpler and more reliable than re-parsing
-    the model output for the MVP.
-    """
+    """Build typed Source records directly from retrieved chunks."""
     out: list[Source] = []
     for c in chunks[:max_sources]:
         src = c.get("source") or {}
@@ -114,6 +117,53 @@ def _sources_from_chunks(chunks: list[dict[str, Any]], max_sources: int) -> list
     return out
 
 
+def _apply_viability_trigger(question: str, include_viability: bool) -> str:
+    if include_viability:
+        return "INCLUDE VIABILITY ASSESSMENT. " + question
+    return question
+
+
+def _build_contents(
+    question: str,
+    context_block: str,
+    jurisdiction: str | None,
+    topic: str | None,
+    conversation_history: list[dict[str, str]] | None,
+) -> Any:
+    user_prompt = _build_user_prompt(question, context_block, jurisdiction, topic)
+    if conversation_history:
+        contents: list[Any] = []
+        for turn in conversation_history[-50:]:
+            role = "user" if turn.get("role") == "user" else "model"
+            text_val = turn.get("content") or turn.get("text") or ""
+            if text_val:
+                contents.append({"role": role, "parts": [{"text": text_val}]})
+        contents.append({"role": "user", "parts": [{"text": user_prompt}]})
+        return contents
+    return user_prompt
+
+
+def _parse_and_strip_blocks(
+    answer: str,
+    include_viability: bool,
+) -> tuple[str, ViabilityAssessment | None, list[str]]:
+    """Extract viability + evidence_checklist blocks, return cleaned answer.
+
+    Reuses ``RAGService`` static parsers so the OG-RAG path is byte-for-byte
+    consistent with the FST path's parsing rules.
+    """
+    if not include_viability:
+        return answer, None, []
+    # Late import to avoid pulling rag_service at module load.
+    from rag_service import RAGService
+
+    evidence = RAGService._parse_evidence_checklist(answer)
+    cleaned = RAGService._strip_evidence_checklist(answer)
+    viability = RAGService._parse_viability(cleaned)
+    cleaned = RAGService._strip_viability_block(cleaned)
+    return cleaned, viability, evidence
+
+
 async def answer(
     question: str,
     *,
@@ -122,30 +172,44 @@ async def answer(
     max_sources: int = 10,
     include_viability: bool = False,
     conversation_history: list[dict[str, str]] | None = None,
+    images: list[dict[str, Any]] | None = None,
 ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None, list[str]]:
-    """Drop-in replacement for RAGService.query() using OG-RAG retrieval."""
-    # Late-import the system prompt so importing this module doesn't drag in
-    # the full FST-tied rag_service module at process start.
+    """Drop-in replacement for ``RAGService.query()`` / ``query_with_images()``.
+
+    If ``images`` is supplied, image parts are attached to the current turn
+    (Gemini multimodal). Retrieval still runs over the question text — the
+    image is treated as supplementary content, not a query input.
+    """
     from rag_service import SYSTEM_INSTRUCTION
 
     start_time = time.time()
 
+    effective_question = _apply_viability_trigger(question, include_viability)
+
     chunks = await retrieve(question, k=DEFAULT_K)
     context_block = _format_context(chunks)
-    user_prompt = _build_user_prompt(question, context_block, jurisdiction, topic)
 
-    # Build contents — multi-turn if history present.
-    contents: list[Any]
-    if conversation_history:
-        contents = []
-        for turn in conversation_history[-50:]:
-            role = "user" if turn.get("role") == "user" else "model"
-            text_val = turn.get("content") or turn.get("text") or ""
-            if text_val:
-                contents.append({"role": role, "parts": [{"text": text_val}]})
-        contents.append({"role": "user", "parts": [{"text": user_prompt}]})
+    if images:
+        from google.genai import types as genai_types
+
+        parts: list[Any] = []
+        for img in images:
+            import base64 as _b64
+
+            image_bytes = _b64.b64decode(img["data"])
+            parts.append(genai_types.Part.from_bytes(data=image_bytes, mime_type=img["mime_type"]))
+        user_prompt = _build_user_prompt(effective_question, context_block, jurisdiction, topic)
+        parts.append(genai_types.Part.from_text(text=user_prompt))
+        contents: Any = []
+        if conversation_history:
+            for turn in conversation_history[-50:]:
+                role = "user" if turn.get("role") == "user" else "model"
+                text_val = turn.get("content") or turn.get("text") or ""
+                if text_val:
+                    contents.append({"role": role, "parts": [{"text": text_val}]})
+        contents.append({"role": "user", "parts": parts})
     else:
-        contents = user_prompt
+        contents = _build_contents(effective_question, context_block, jurisdiction, topic, conversation_history)
 
     def _call():
         client = _client()
@@ -170,6 +234,8 @@ async def answer(
             "Please try rephrasing your question."
         )
 
+    ans, viability, evidence_checklist = _parse_and_strip_blocks(ans, include_viability)
+
     sources = _sources_from_chunks(chunks, max_sources)
     usage = _calc_usage(response)
     processing_ms = int((time.time() - start_time) * 1000)
@@ -178,8 +244,100 @@ async def answer(
         processing_time_ms=processing_ms,
         model_used=MODEL_NAME,
     )
-
-    # Viability assessment is not implemented in the OG-RAG MVP path.
-    viability: ViabilityAssessment | None = None
-    evidence_checklist: list[str] = []
     return ans, sources, usage, metadata, viability, evidence_checklist
+
+
+async def answer_stream(
+    question: str,
+    *,
+    jurisdiction: str | None = None,
+    topic: str | None = None,
+    max_sources: int = 10,
+    include_viability: bool = True,
+    conversation_history: list[dict[str, str]] | None = None,
+    conversation_id: Any = None,
+) -> AsyncIterator[dict[str, Any]]:
+    """SSE-shaped event stream mirroring ``RAGService.stream_query``.
+
+    Yields dicts of ``{"event": str, "data": Any}`` with event types:
+    ``token``, ``source``, ``viability``, ``done`` (and ``error`` raised
+    by the caller). Because retrieval is unary in OG-RAG, sources are
+    known up front and can be emitted before token streaming starts —
+    but to keep parity with the FST stream's ordering (tokens first,
+    sources/viability after), we emit them after the token stream.
+    """
+    from rag_service import SYSTEM_INSTRUCTION
+
+    effective_question = _apply_viability_trigger(question, include_viability)
+
+    chunks = await retrieve(question, k=DEFAULT_K)
+    context_block = _format_context(chunks)
+    contents = _build_contents(effective_question, context_block, jurisdiction, topic, conversation_history)
+
+    def _start_stream():
+        client = _client()
+        return client.models.generate_content_stream(
+            model=MODEL_NAME,
+            contents=contents,
+            config={"system_instruction": SYSTEM_INSTRUCTION},
+        )
+
+    try:
+        stream = await asyncio.to_thread(_start_stream)
+    except Exception as e:
+        logger.error("ograg.backend streaming start failed: %s", e)
+        raise RuntimeError("Failed to start streaming response from AI model") from e
+
+    full_text = ""
+    usage_metadata = None
+
+    def _next_chunk(it):
+        try:
+            return next(it)
+        except StopIteration:
+            return None
+
+    it = iter(stream)
+    while True:
+        chunk = await asyncio.to_thread(_next_chunk, it)
+        if chunk is None:
+            break
+        text = getattr(chunk, "text", None)
+        if text:
+            full_text += text
+            yield {"event": "token", "data": text}
+        um = getattr(chunk, "usage_metadata", None)
+        if um is not None:
+            usage_metadata = um
+
+    answer_text, viability, evidence_checklist = _parse_and_strip_blocks(full_text, include_viability)
+
+    sources = _sources_from_chunks(chunks, max_sources)
+    for s in sources:
+        data = s.model_dump(mode="json") if hasattr(s, "model_dump") else dict(s)
+        yield {"event": "source", "data": data}
+
+    if viability is not None:
+        data = viability.model_dump(mode="json") if hasattr(viability, "model_dump") else dict(viability)
+        if evidence_checklist and not data.get("evidence_checklist"):
+            data["evidence_checklist"] = evidence_checklist
+        yield {"event": "viability", "data": data}
+
+    tokens_used = 0
+    if usage_metadata is not None:
+        prompt = getattr(usage_metadata, "prompt_token_count", 0) or 0
+        completion = getattr(usage_metadata, "candidates_token_count", 0) or 0
+        total = getattr(usage_metadata, "total_token_count", None)
+        tokens_used = int(total) if total else int(prompt + completion)
+
+    # Keep `answer_text` reachable for callers that introspect the generator.
+    _ = answer_text
+
+    yield {
+        "event": "done",
+        "data": {
+            "conversation_id": str(conversation_id) if conversation_id else None,
+            "sources_count": len(sources),
+            "tokens_used": tokens_used,
+        },
+    }

@@ -1045,6 +1045,20 @@ class RAGService:
         Returns:
             Tuple of (answer, sources, usage, metadata, viability, evidence_checklist).
         """
+        # OG-RAG backend opt-in: route vision through ograg.backend.answer
+        # which attaches image parts to the current turn while retrieving
+        # legal context via pgvector (image is supplementary content).
+        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+            from ograg.backend import answer as ograg_answer
+
+            return await ograg_answer(
+                query_text or "Please analyse this image for any potential UK discrimination law issues.",
+                max_sources=max_sources,
+                include_viability=include_viability,
+                conversation_history=conversation_history,
+                images=images,
+            )
+
         from google.genai import types as genai_types
 
         start_time = time.time()
@@ -1382,6 +1396,22 @@ class RAGService:
         ``generate_content_stream`` (the synchronous streaming API, wrapped
         with ``asyncio.to_thread`` so we don't block the event loop).
         """
+        # OG-RAG backend opt-in: delegate to ograg.backend.answer_stream.
+        # The shadow run is skipped when ograg is the primary backend
+        # (otherwise we'd be running OG-RAG twice for the same query).
+        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+            from ograg.backend import answer_stream as ograg_answer_stream
+
+            async for event in ograg_answer_stream(
+                query_text,
+                max_sources=max_sources,
+                include_viability=include_viability_score,
+                conversation_history=conversation_history,
+                conversation_id=conversation_id,
+            ):
+                yield event
+            return
+
         # Prepend viability trigger so Gemini includes the structured block
         effective_query = query_text
         if include_viability_score:
