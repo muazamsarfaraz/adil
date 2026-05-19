@@ -350,7 +350,23 @@ async def lifespan(app: FastAPI):
     logger.info(f"🚦 Rate limits: query={RATE_LIMIT_QUERY}, general={RATE_LIMIT_GENERAL}")
     logger.info(f"🌐 CORS: {'enabled for localhost:3000' if cors_origins else 'disabled (production mode)'}")
     logger.info("✅ Project Adil RAG API started successfully")
+
+    # OG-RAG MSentry probes — 5-min loop. Skips itself if OGRAG_PROBES_DISABLED.
+    probe_task: asyncio.Task | None = None
+    if os.environ.get("OGRAG_PROBES_DISABLED", "").lower() not in ("1", "true", "yes"):
+        from ograg.probes import run_forever as _ograg_probes
+
+        probe_task = asyncio.create_task(_ograg_probes(), name="ograg-probes")
+        logger.info("🔬 OG-RAG probes scheduled")
+
     yield
+
+    if probe_task is not None and not probe_task.done():
+        probe_task.cancel()
+        try:
+            await probe_task
+        except (asyncio.CancelledError, Exception):
+            pass
     logger.info("Project Adil RAG API shutdown complete")
 
 
@@ -745,6 +761,14 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
         # Parse suggested follow-up questions from the answer
         suggested_questions = _parse_suggested_questions(answer)
 
+        # OG-RAG hallucinated citation probe (fire-and-forget)
+        try:
+            from ograg.probes import check_citations as _check_citations
+
+            asyncio.create_task(_check_citations(answer))
+        except Exception:
+            logger.debug("citation probe unavailable", exc_info=True)
+
         # Log anonymised metadata (fire-and-forget)
         asyncio.create_task(
             log_conversation(
@@ -1001,6 +1025,14 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
 
         # Parse suggested follow-up questions from the answer
         suggested_questions = _parse_suggested_questions(answer)
+
+        # OG-RAG hallucinated citation probe (fire-and-forget)
+        try:
+            from ograg.probes import check_citations as _check_citations
+
+            asyncio.create_task(_check_citations(answer))
+        except Exception:
+            logger.debug("citation probe unavailable", exc_info=True)
 
         # Generate content summary if we extracted content
         content_summary = None
