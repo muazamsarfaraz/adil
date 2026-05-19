@@ -561,10 +561,14 @@ async def backfill_ograg(
         else None
     )
 
+    # Threshold precedence: explicit arg > OGRAG_MAX_SPEND_USD (spec name) >
+    # OGRAG_KILL_SWITCH_USD (legacy alias from plan 1/4) > $50 default.
+    if kill_switch_usd is None:
+        raw = os.getenv("OGRAG_MAX_SPEND_USD") or os.getenv("OGRAG_KILL_SWITCH_USD") or "50"
+        kill_switch_usd = float(raw)
+
     cfg = BackfillConfig(
-        kill_switch_usd=kill_switch_usd
-        if kill_switch_usd is not None
-        else float(os.getenv("OGRAG_KILL_SWITCH_USD", "50")),
+        kill_switch_usd=kill_switch_usd,
         limit=limit,
         since_id=since_id,
     )
