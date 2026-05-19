@@ -288,17 +288,20 @@ async def _upsert_edge(
 ) -> int:
     """Upsert one ontology_edge row.
 
-    Edge identity is (src_id, dst_id, kind); attrs are overwritten on
-    conflict. Returns 1 on success, 0 on no-op (none currently — kept for
-    symmetry with node writes).
+    Schema (migrations/004_ontology_init.sql): id UUID PK, source_id UUID,
+    target_id UUID, relation TEXT, attrs JSONB. There is no UNIQUE on
+    (source_id, target_id, relation) so we derive a deterministic UUID
+    from the triple and use ON CONFLICT (id) for upsert semantics.
     """
+    edge_id = uuid.uuid5(_NS, f"edge:{src}:{dst}:{kind}")
     await conn.execute(
         """
-        INSERT INTO ontology_edge (src_id, dst_id, kind, attrs)
-        VALUES ($1, $2, $3, $4::jsonb)
-        ON CONFLICT (src_id, dst_id, kind) DO UPDATE
+        INSERT INTO ontology_edge (id, source_id, target_id, relation, attrs)
+        VALUES ($1, $2, $3, $4, $5::jsonb)
+        ON CONFLICT (id) DO UPDATE
           SET attrs = EXCLUDED.attrs
         """,
+        edge_id,
         src,
         dst,
         kind,
