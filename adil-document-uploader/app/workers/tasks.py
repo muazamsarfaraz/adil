@@ -12,9 +12,13 @@ import httpx
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import SEARCH_DOMAINS, SearchDomain, get_settings
+from app.models.act import Act, ActSection, ActSubsection
 from app.models.judgment import Judgment, JudgmentStatus
 from app.models.solicitor_firm import SolicitorFirm
+from app.services.acts_seed import UK_ACTS_SEED
 from app.services.gemini_uploader import GeminiUploader
+from app.services.legislation_client import LegislationClient, ParsedAct
+from app.services.ontology_writer import write_act_to_ontology
 from app.services.sra_scraper import run_scrape
 from app.services.telegram import TelegramNotifier
 from app.services.tna_client import TNAClient
@@ -406,6 +410,123 @@ async def rate_limit_cleanup(ctx: dict) -> dict:
         deleted_u,
     )
     return {"deleted_counters": int(deleted_c or 0), "deleted_uploads": int(deleted_u or 0)}
+
+
+async def _upsert_act(session: AsyncSession, parsed: ParsedAct) -> Act:
+    """Upsert a ParsedAct + its Sections + Subsections into the local DB.
+
+    Replaces the previous Sections/Subsections wholesale on re-fetch — Acts
+    are amended occasionally and we want the current text, not diff history.
+    """
+    existing = await session.execute(
+        select(Act).where(
+            Act.leg_type == parsed.leg_type,
+            Act.year == parsed.year,
+            Act.leg_number == parsed.leg_number,
+        )
+    )
+    act = existing.scalar_one_or_none()
+    if act is None:
+        act = Act(
+            name=parsed.name,
+            year=parsed.year,
+            leg_type=parsed.leg_type,
+            leg_number=parsed.leg_number,
+            url=parsed.url,
+            raw_xml=parsed.raw_xml,
+        )
+        session.add(act)
+        await session.flush()
+    else:
+        act.name = parsed.name
+        act.url = parsed.url
+        act.raw_xml = parsed.raw_xml
+        # cascade="all, delete-orphan" on Act.sections wipes existing rows.
+        act.sections = []
+        await session.flush()
+
+    for section in parsed.sections:
+        section_row = ActSection(
+            act_id=act.id,
+            number=section.number,
+            title=section.title,
+            text=section.text,
+            ordering=section.ordering,
+        )
+        session.add(section_row)
+        await session.flush()
+        for sub in section.subsections:
+            session.add(
+                ActSubsection(
+                    section_id=section_row.id,
+                    number=sub.number,
+                    text=sub.text,
+                    ordering=sub.ordering,
+                )
+            )
+    return act
+
+
+async def fetch_acts(ctx: dict) -> dict:
+    """arq task: fetch UK Acts from legislation.gov.uk, persist locally,
+    and (when the rag-api ontology schema is in place) mirror into
+    ``ontology_node`` so Case→Statute edges can be built downstream.
+
+    Idempotent — re-running refreshes Sections/Subsections to the current
+    legislation.gov.uk text. v1 captures only the current Act version;
+    time-bounded ``StatuteVersion`` is deferred.
+    """
+    from app.database import async_session
+
+    rag_db_url = os.getenv("RAG_API_DATABASE_URL")
+    fetched = 0
+    failed: list[str] = []
+    ontology_nodes_written = 0
+
+    async with LegislationClient() as client:
+        for seed in UK_ACTS_SEED:
+            try:
+                parsed = await client.fetch_act(name=seed.name, act_url=seed.url)
+            except Exception:
+                logger.exception("fetch_acts: failed to fetch %s", seed.name)
+                failed.append(seed.name)
+                continue
+
+            try:
+                async with async_session() as session:
+                    await _upsert_act(session, parsed)
+                    await session.commit()
+            except Exception:
+                logger.exception("fetch_acts: failed to persist %s", seed.name)
+                failed.append(seed.name)
+                continue
+
+            try:
+                ontology_nodes_written += await write_act_to_ontology(rag_db_url, parsed)
+            except Exception:
+                # Ontology writes are best-effort — local persistence is the
+                # source of truth and downstream extraction tasks can re-read.
+                logger.exception("fetch_acts: ontology mirror failed for %s", seed.name)
+
+            fetched += 1
+            logger.info(
+                "fetch_acts: %s — %d sections, %d subsections",
+                seed.name,
+                len(parsed.sections),
+                sum(len(s.subsections) for s in parsed.sections),
+            )
+
+    logger.info(
+        "fetch_acts complete: %d acts fetched, %d failed, %d ontology nodes",
+        fetched,
+        len(failed),
+        ontology_nodes_written,
+    )
+    return {
+        "fetched": fetched,
+        "failed": failed,
+        "ontology_nodes_written": ontology_nodes_written,
+    }
 
 
 async def scrape_solicitors(ctx: dict) -> dict:

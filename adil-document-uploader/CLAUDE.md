@@ -80,6 +80,12 @@ Never create a new store — it breaks the RAG pipeline.
 
 - `fetch_case_law()` — Discovers new TNA judgments across configured search domains
 - `upload_pending()` — Uploads fetched judgment PDFs/XMLs to Gemini FST
+- `fetch_acts()` — Fetches UK Acts (CLML XML) from legislation.gov.uk, parses
+  Sections + Subsections into the local `acts` / `act_sections` /
+  `act_subsections` tables, and (when `RAG_API_DATABASE_URL` is set AND
+  `ontology_node` exists) mirrors `Statute` / `Section` / `Subsection` nodes
+  into rag-api's ontology via raw asyncpg. Monthly cron, 1st @ 05:00 UTC.
+  Seed list lives in `app/services/acts_seed.py`.
 
 Search domains: religious discrimination, hate crime, goods/services discrimination,
 intersectional discrimination, ECHR human rights, mental capacity/deputyship.
