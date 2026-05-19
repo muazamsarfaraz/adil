@@ -66,6 +66,12 @@ class Settings(BaseSettings):
     gemini_api_key: str
     file_search_store_id: str
 
+    # Anthropic (Claude Haiku 4.5 — OG-RAG extraction pass 2). Worker-only.
+    # API service can leave unset; the worker raises at pass-2 call time when
+    # missing. Org-level key from console.anthropic.com — separate from any
+    # Claude Code billing key. See CLAUDE.md for rotation guidance.
+    anthropic_api_key: str | None = None
+
     # Database
     database_url: str
 

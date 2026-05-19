@@ -194,12 +194,85 @@ class SectionRefCandidate:
         return "SectionRef"
 
 
+@dataclass(frozen=True)
+class CourtNode:
+    """Deterministic node derived from the case neutral citation (UKSC / EWCA / ...).
+
+    No LLM involved — Pass 2 emits one of these per case via ``court_node_for``.
+    """
+
+    node_id: uuid.UUID
+    code: str  # e.g. "UKSC", "EWCA", "UKEAT", "EWHC", "UKHL"
+    division: str | None = None  # e.g. "Civ", "Admin" for EWCA/EWHC
+
+    @property
+    def kind(self) -> str:
+        return "Court"
+
+
+@dataclass(frozen=True)
+class TopicNode:
+    """Closed-vocabulary topic. ``slug`` is the canonical key joined on by
+    the rag-api retriever; the full vocabulary lives in ``pass2_haiku``.
+    """
+
+    node_id: uuid.UUID
+    slug: str
+
+    @property
+    def kind(self) -> str:
+        return "Topic"
+
+
+@dataclass(frozen=True)
+class PartyNode:
+    node_id: uuid.UUID
+    name: str
+    role: str  # "appellant" | "respondent" | "claimant" | "defendant" | "intervener" | "other"
+
+    @property
+    def kind(self) -> str:
+        return "Party"
+
+
+@dataclass(frozen=True)
+class JudgeNode:
+    node_id: uuid.UUID
+    name: str
+
+    @property
+    def kind(self) -> str:
+        return "Judge"
+
+
+@dataclass(frozen=True)
+class Edge:
+    """Generic edge between two ontology nodes.
+
+    Pass 2 emits ``has_topic``, ``decided_in_court``, ``judged_by``,
+    ``heard_party``. ``paragraph_id`` is non-None for paragraph-attributed
+    relations (e.g. ``has_topic``); None for case-level edges (e.g.
+    ``decided_in_court``).
+    """
+
+    kind: str
+    source_id: uuid.UUID
+    target_id: uuid.UUID
+    paragraph_id: uuid.UUID | None = None
+
+
 @dataclass
 class ExtractionResult:
     case: CaseNode
     paragraphs: list[ParagraphNode] = field(default_factory=list)
     statute_refs: list[StatuteRefCandidate] = field(default_factory=list)
     section_refs: list[SectionRefCandidate] = field(default_factory=list)
+    # ---- Pass 2 (Haiku) ----
+    court: CourtNode | None = None
+    topics: list[TopicNode] = field(default_factory=list)
+    parties: list[PartyNode] = field(default_factory=list)
+    judges: list[JudgeNode] = field(default_factory=list)
+    edges: list[Edge] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
