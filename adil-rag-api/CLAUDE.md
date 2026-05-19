@@ -110,3 +110,18 @@ SRA API (when portal is back): `https://sra-prod-apim.developer.azure-api.net` â
 
 Gemini File Search Tool Store holds 1,000+ UK case law judgments. There is **one store**
 (`FILE_SEARCH_STORE_ID`). Always append to it; never create a new one.
+
+## P8 eval harness â€” FST vs OG-RAG
+
+`evals/` runs every query in `queries.jsonl` through both backends, judges the
+pairs with Gemini Flash, and emits a markdown report with auto cutover-gate
+verdicts + 10 random pairs for human spot-check.
+
+```bash
+python -m evals.run                                    # both backends, ~10-15 min
+python -m evals.judge  --run-id <run_id>               # LLM judge with rubric
+python -m evals.report --run-id <run_id>               # eval_review_<run_id>.md
+```
+
+Eval rows land in `eval_run` table with `meta->>'run_id'` tagging. See
+`evals/README.md` for the full workflow and the cutover-gate definition.
