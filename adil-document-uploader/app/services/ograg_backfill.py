@@ -21,7 +21,7 @@ Design notes:
   authoritative cost ledger queried by the Op dashboard. Pass 1 always
   records ``$0`` so re-runs can be priced reliably.
 * Idempotency: a judgment is skipped when it is already ``EXTRACTED`` AND
-  the rag-api side already has Paragraph rows for the Case. ``EXTRACTED_FAILED``
+  the rag-api side already has Paragraph rows for the Case. ``EXTRACTION_FAILED``
   rows are retried — that's the whole point of the status.
 * The orchestrator never writes to FST. ``upload_pending`` continues running
   on its existing cron to keep the FST store warm for rollback (P11).
@@ -129,7 +129,7 @@ async def _select_candidates(
             select(Judgment)
             .where(
                 Judgment.status.in_([JudgmentStatus.UPLOADED, JudgmentStatus.FAILED]),
-                Judgment.ograg_status.in_([OgragStatus.PENDING.value, OgragStatus.EXTRACTED_FAILED.value]),
+                Judgment.ograg_status.in_([OgragStatus.PENDING.value, OgragStatus.EXTRACTION_FAILED.value]),
             )
             .order_by(Judgment.id)
         )
@@ -154,7 +154,7 @@ async def run_backfill(
     """Drive the OG-RAG backfill end-to-end.
 
     Returns ``BackfillStats``. Errors on a single judgment are isolated:
-    the orchestrator marks that row ``EXTRACTED_FAILED`` and moves on. Only
+    the orchestrator marks that row ``EXTRACTION_FAILED`` and moves on. Only
     the kill switch halts the loop early.
     """
     stats = BackfillStats()
@@ -191,7 +191,7 @@ async def run_backfill(
         except Exception as exc:  # noqa: BLE001 — orchestrator must keep going
             logger.exception("backfill_ograg: judgment %s failed", judgment.neutral_citation)
             await _update_judgment_status(
-                session_factory, judgment.id, OgragStatus.EXTRACTED_FAILED, error=str(exc)[:1000]
+                session_factory, judgment.id, OgragStatus.EXTRACTION_FAILED, error=str(exc)[:1000]
             )
             stats.failed += 1
 
