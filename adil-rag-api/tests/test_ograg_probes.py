@@ -71,9 +71,62 @@ async def test_check_citations_flags_unknown_cases(monkeypatch):
 
     assert unknown == ["[2024] EWCA CIV 999"]
     assert len(notified) == 1
-    sev, kind, _msg, _ctx = notified[0]
+    sev, kind, msg, ctx = notified[0]
     assert sev == "warn"
     assert kind == "ograg.hallucinated_citation"
+    # Citation must appear in the message itself so operators can triage from
+    # the alert title without expanding extras.
+    assert "[2024] EWCA CIV 999" in msg
+    assert ctx["total"] == 1
+
+
+async def test_check_citations_message_truncates_long_lists(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+
+    fake_conn = AsyncMock()
+    fake_conn.fetchval = AsyncMock(return_value=True)
+    fake_conn.fetch = AsyncMock(return_value=[])  # nothing known — all hallucinated
+    fake_conn.close = AsyncMock()
+
+    notified: list = []
+    text = "See [2024] UKSC 1, [2024] UKSC 2, [2024] UKSC 3, " "[2024] UKSC 4 and [2024] UKSC 5."
+
+    with (
+        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
+    ):
+        await probes.check_citations(text, db_url="postgres://fake")
+
+    assert len(notified) == 1
+    (_sev, _kind, msg), _ctx = notified[0]
+    assert "+2 more" in msg  # shows first 3, indicates 2 more
+    assert msg.count("[2024]") == 3
+
+
+async def test_check_citations_passes_whitespace_collapsed_cites_to_db(monkeypatch):
+    """The DB query is the side that normalizes stored whitespace; the
+    Python side guarantees the parameters we pass are already collapsed.
+    Verify the params list never contains a citation with double spaces."""
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+
+    captured: dict = {}
+
+    async def fake_fetch(query, params):
+        captured["params"] = params
+        return [{"nc": p} for p in params]  # pretend all known
+
+    fake_conn = AsyncMock()
+    fake_conn.fetchval = AsyncMock(return_value=True)
+    fake_conn.fetch = fake_fetch
+    fake_conn.close = AsyncMock()
+
+    with (
+        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.notify"),
+    ):
+        await probes.check_citations("Cite [ 2021 ]  UKSC  12 here.", db_url="postgres://fake")
+
+    assert captured["params"] == ["[2021] UKSC 12"]
 
 
 async def test_check_citations_silent_when_ontology_table_missing(monkeypatch):

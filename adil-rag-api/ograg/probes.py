@@ -62,8 +62,12 @@ CITATION_REGEX = re.compile(
 
 
 def _normalize_citation(c: str) -> str:
-    """Collapse internal whitespace so '[ 2021 ]  UKSC  12' == '[2021] UKSC 12'."""
-    return re.sub(r"\s+", " ", c).strip().upper()
+    """Collapse internal whitespace and strip space inside brackets so
+    '[ 2021 ]  UKSC  12' == '[2021] UKSC 12'."""
+    s = re.sub(r"\s+", " ", c).strip().upper()
+    s = re.sub(r"\[\s*", "[", s)
+    s = re.sub(r"\s*\]", "]", s)
+    return s
 
 
 # ── Probe 3: hallucinated citation check ────────────────────────────────────
@@ -93,12 +97,23 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
         exists = await conn.fetchval("SELECT to_regclass('ontology_node') IS NOT NULL")
         if not exists:
             return []
+        # Normalize whitespace on both sides so stored values with stray
+        # double-spaces or non-breaking spaces still match the regex-extracted
+        # (already whitespace-collapsed) citations.
         rows = await conn.fetch(
-            """
-            SELECT UPPER(attrs->>'neutral_citation') AS nc
+            r"""
+            SELECT regexp_replace(
+                     regexp_replace(
+                       regexp_replace(UPPER(attrs->>'neutral_citation'), '\s+', ' ', 'g'),
+                       '\[\s*', '[', 'g'),
+                     '\s*\]', ']', 'g') AS nc
             FROM ontology_node
             WHERE type = 'Case'
-              AND UPPER(attrs->>'neutral_citation') = ANY($1::text[])
+              AND regexp_replace(
+                    regexp_replace(
+                      regexp_replace(UPPER(attrs->>'neutral_citation'), '\s+', ' ', 'g'),
+                      '\[\s*', '[', 'g'),
+                    '\s*\]', ']', 'g') = ANY($1::text[])
             """,
             list(cites),
         )
@@ -107,10 +122,12 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
         await conn.close()
     unknown = sorted(cites - known)
     if unknown:
+        preview = ", ".join(unknown[:3])
+        more = f" (+{len(unknown) - 3} more)" if len(unknown) > 3 else ""
         notify(
             "warn",
             "ograg.hallucinated_citation",
-            f"served answer cites {len(unknown)} unknown case(s)",
+            f"served answer cites unknown case(s): {preview}{more}",
             citations=", ".join(unknown[:6]),
             total=len(unknown),
         )
