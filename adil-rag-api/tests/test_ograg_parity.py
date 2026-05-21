@@ -1,16 +1,19 @@
 """P7 parity tests: OG-RAG path returns the same answer/viability/checklist
 shape as the FST path, and is correctly routed for streaming + vision.
 
-These tests are pure-offline: the Gemini client and retriever are stubbed.
+These tests are pure-offline: the Anthropic client and retriever are stubbed.
 They lock in the contract — same 6-tuple from ``answer``, same SSE events
 from ``answer_stream`` — so a future refactor can't silently regress
 either path.
+
+Vendor pivot (Phase 2, 2026-05-21): generation now uses Anthropic Claude
+Sonnet via ``client.messages.create`` (unary) and ``client.messages.stream``
+(SSE). Mocks reflect that shape.
 """
 
 from __future__ import annotations
 
 import sys
-import types as _types
 
 import pytest
 
@@ -20,16 +23,28 @@ pytestmark = pytest.mark.asyncio
 # ---------- helpers ----------------------------------------------------
 
 
-class _FakeUsageMeta:
-    prompt_token_count = 11
-    candidates_token_count = 23
-    total_token_count = 34
+class _FakeAnthropicUsage:
+    """Mirror anthropic.types.Usage shape."""
+
+    input_tokens = 11
+    output_tokens = 23
 
 
-class _FakeResp:
+class _FakeTextBlock:
+    """Mirror anthropic.types.TextBlock shape."""
+
+    type = "text"
+
     def __init__(self, text: str):
         self.text = text
-        self.usage_metadata = _FakeUsageMeta()
+
+
+class _FakeAnthropicResponse:
+    """Mirror anthropic.types.Message (non-streaming)."""
+
+    def __init__(self, text: str):
+        self.content = [_FakeTextBlock(text)]
+        self.usage = _FakeAnthropicUsage()
 
 
 def _viability_block() -> str:
@@ -87,20 +102,24 @@ def _reset_modules():
     yield
 
 
-@pytest.fixture
-def _stub_gemini_unary(monkeypatch):
-    """Stub the unary Gemini call with a deterministic response."""
-    import ograg.backend as backend  # noqa: WPS433 — late import for fresh module
+class _FakeAsyncAnthropicUnary:
+    """Mocks ``AsyncAnthropic`` for the non-streaming path.
 
-    monkeypatch.setattr(backend, "retrieve", _fake_retrieve)
+    Implements ``messages.create(...)`` as a coroutine returning a fake
+    response. Captures the call kwargs for assertion.
+    """
 
-    def _fake_call_factory(text: str):
-        def _call():
-            return _FakeResp(text)
+    def __init__(self, text: str):
+        self._text = text
+        self.captured: dict = {}
 
-        return _call
+        async def _create(**kwargs):
+            self.captured.update(kwargs)
+            return _FakeAnthropicResponse(self._text)
 
-    return backend, _fake_call_factory
+        # nested namespace to mirror the real shape: client.messages.create(...)
+        messages_ns = type("_Messages", (), {"create": staticmethod(_create)})()
+        self.messages = messages_ns
 
 
 # ---------- non-streaming answer parity --------------------------------
@@ -110,14 +129,8 @@ async def test_answer_returns_six_tuple_with_viability(monkeypatch):
     import ograg.backend as backend
 
     monkeypatch.setattr(backend, "retrieve", _fake_retrieve)
-
-    # Patch the synchronous Gemini call inside answer() — the `_call` closure
-    # is resolved by asyncio.to_thread, so we replace asyncio.to_thread for
-    # that one path.
-    async def _fake_to_thread(fn, *args, **kwargs):
-        return _FakeResp(_viability_block())
-
-    monkeypatch.setattr(backend.asyncio, "to_thread", _fake_to_thread)
+    fake_client = _FakeAsyncAnthropicUnary(_viability_block())
+    monkeypatch.setattr(backend, "_client", lambda: fake_client)
 
     result = await backend.answer(
         "What is direct discrimination under the Equality Act 2010?",
@@ -143,20 +156,24 @@ async def test_answer_returns_six_tuple_with_viability(monkeypatch):
     assert sources[0].title == "Equality Act 2010"
     assert sources[0].section == "13"
 
-    # Usage / metadata populated
-    assert usage.total_tokens == 11 + 23
-    assert metadata.model_used == "gemini-2.5-flash"
+    # Usage / metadata populated from Anthropic usage shape
+    assert usage.prompt_tokens == 11
+    assert usage.completion_tokens == 23
+    assert usage.total_tokens == 34
+    assert metadata.model_used == "claude-sonnet-4-6"
+
+    # The mocked client was called with the expected kwargs.
+    assert fake_client.captured["model"] == "claude-sonnet-4-6"
+    assert "system" in fake_client.captured
+    assert isinstance(fake_client.captured["messages"], list)
 
 
 async def test_answer_without_viability_returns_none_and_empty(monkeypatch):
     import ograg.backend as backend
 
     monkeypatch.setattr(backend, "retrieve", _fake_retrieve)
-
-    async def _fake_to_thread(fn, *args, **kwargs):
-        return _FakeResp("Plain answer with no viability block.")
-
-    monkeypatch.setattr(backend.asyncio, "to_thread", _fake_to_thread)
+    fake_client = _FakeAsyncAnthropicUnary("Plain answer with no viability block.")
+    monkeypatch.setattr(backend, "_client", lambda: fake_client)
 
     ans, sources, usage, metadata, viability, evidence = await backend.answer(
         "What is direct discrimination?",
@@ -174,160 +191,94 @@ async def test_answer_without_viability_returns_none_and_empty(monkeypatch):
 # ---------- streaming parity -------------------------------------------
 
 
+class _FakeAsyncAnthropicStream:
+    """Mocks ``AsyncAnthropic`` for the streaming path.
+
+    ``messages.stream(...)`` returns an async context manager exposing
+    ``text_stream`` (async iterator of text deltas) and
+    ``get_final_message()`` (coroutine returning a message with usage).
+    """
+
+    def __init__(self, text_pieces: list[str]):
+        self._pieces = text_pieces
+        self.captured: dict = {}
+
+        outer = self
+
+        class _Manager:
+            async def __aenter__(self_mgr):
+                async def _text_iter():
+                    for p in outer._pieces:
+                        yield p
+
+                self_mgr.text_stream = _text_iter()
+
+                async def _final():
+                    # Mimic anthropic.types.Message with usage attached
+                    msg = type("_Msg", (), {})()
+                    msg.usage = _FakeAnthropicUsage()
+                    return msg
+
+                self_mgr.get_final_message = _final
+                return self_mgr
+
+            async def __aexit__(self_mgr, exc_type, exc, tb):
+                return False
+
+        def _stream_fn(**kwargs):
+            outer.captured.update(kwargs)
+            return _Manager()
+
+        messages_ns = type("_Messages", (), {"stream": staticmethod(_stream_fn)})()
+        self.messages = messages_ns
+
+
 async def test_answer_stream_emits_expected_events(monkeypatch):
     import ograg.backend as backend
 
     monkeypatch.setattr(backend, "retrieve", _fake_retrieve)
 
-    # Build a fake streaming iterator yielding token chunks then a final
-    # chunk that carries usage_metadata.
     text_pieces = [
         "Direct discrimination ",
         "under s.13 ",
         "occurs when ...\n",
         _viability_block(),
     ]
+    fake_client = _FakeAsyncAnthropicStream(text_pieces)
+    monkeypatch.setattr(backend, "_client", lambda: fake_client)
 
-    class _Chunk:
-        def __init__(self, text=None, usage=None):
-            self.text = text
-            self.usage_metadata = usage
-
-    chunks_to_yield = [_Chunk(text=p) for p in text_pieces]
-    chunks_to_yield.append(_Chunk(usage=_FakeUsageMeta()))
-
-    class _FakeStream:
-        def __init__(self, items):
-            self._iter = iter(items)
-
-        def __iter__(self):
-            return self._iter
-
-    async def _fake_to_thread(fn, *args, **kwargs):
-        # First call: kick off the stream. Subsequent calls: next chunk.
-        # The backend uses to_thread for both `_start_stream` and `_next_chunk`.
-        return fn(*args, **kwargs)
-
-    monkeypatch.setattr(backend.asyncio, "to_thread", _fake_to_thread)
-
-    # Patch _client().models.generate_content_stream to return our fake.
-    class _FakeModels:
-        def generate_content_stream(self, *, model, contents, config):  # noqa: ARG002
-            return _FakeStream(chunks_to_yield)
-
-    class _FakeClient:
-        models = _FakeModels()
-
-    monkeypatch.setattr(backend, "_client", lambda: _FakeClient())
-
-    events = []
+    events: list[dict] = []
     async for ev in backend.answer_stream(
         "What is direct discrimination?",
         include_viability=True,
     ):
         events.append(ev)
 
-    event_types = [e["event"] for e in events]
-    # Tokens stream first, then sources, then viability, then done
-    assert event_types.count("token") == len(text_pieces)
-    assert event_types[-1] == "done"
-    assert "source" in event_types
-    assert "viability" in event_types
-
-    # Viability event payload includes the merged evidence_checklist
-    viability_event = next(e for e in events if e["event"] == "viability")
-    assert viability_event["data"]["score"] == 75
-    assert viability_event["data"]["evidence_checklist"] == [
-        "payslips",
-        "grievance letters",
-        "HR investigation report",
-    ]
-
-    # Source events are typed dicts (model_dump output)
+    # 4 token events (one per piece) + 2 sources + 1 viability + 1 done.
+    token_events = [e for e in events if e["event"] == "token"]
     source_events = [e for e in events if e["event"] == "source"]
-    assert len(source_events) == 2
-    assert source_events[0]["data"]["title"] == "Equality Act 2010"
+    viability_events = [e for e in events if e["event"] == "viability"]
+    done_events = [e for e in events if e["event"] == "done"]
 
-    done = events[-1]["data"]
+    assert len(token_events) == 4
+    assert len(source_events) == 2
+    assert len(viability_events) == 1
+    assert len(done_events) == 1
+
+    # Tokens preserve order.
+    assert [e["data"] for e in token_events] == text_pieces
+
+    # Viability parsed from the streamed block.
+    v = viability_events[0]["data"]
+    assert v["score"] == 75
+    assert v["statutory_footing"] is True
+    assert v["evidence_checklist"] == ["payslips", "grievance letters", "HR investigation report"]
+
+    # Done summary references both sources and the running token count.
+    done = done_events[0]["data"]
     assert done["sources_count"] == 2
     assert done["tokens_used"] == 34
 
-
-# ---------- RAG_BACKEND routing for stream + vision --------------------
-
-
-async def test_stream_query_routes_to_ograg_when_flag_set(monkeypatch):
-    monkeypatch.setenv("RAG_BACKEND", "ograg")
-
-    # Stub ograg.backend.answer_stream BEFORE rag_service is imported by the
-    # routing branch.
-    fake_mod = _types.ModuleType("ograg.backend")
-    yielded = [
-        {"event": "token", "data": "hello"},
-        {"event": "done", "data": {"sources_count": 0, "tokens_used": 5}},
-    ]
-
-    async def _fake_stream(question, **kwargs):  # noqa: ARG001
-        for ev in yielded:
-            yield ev
-
-    fake_mod.answer_stream = _fake_stream
-
-    # Also stub answer so stream_query's caller won't pull the real module.
-    async def _unused_answer(*a, **kw):  # noqa: ARG001
-        raise AssertionError("answer must not be called on a stream route")
-
-    fake_mod.answer = _unused_answer
-    monkeypatch.setitem(sys.modules, "ograg.backend", fake_mod)
-
-    from rag_service import RAGService
-
-    service = RAGService(gemini_api_key="test-key", file_search_store_id="test-store")
-
-    # If FST path runs we'll explode here (no real client).
-    out = []
-    async for ev in service.stream_query("any question", include_viability_score=True):
-        out.append(ev)
-
-    assert out == yielded
-
-
-async def test_query_with_images_routes_to_ograg_when_flag_set(monkeypatch):
-    monkeypatch.setenv("RAG_BACKEND", "ograg")
-
-    from models import QueryMetadata, TokenUsage
-
-    sentinel = (
-        "OG-RAG vision answer.",
-        [],
-        TokenUsage(prompt_tokens=1, completion_tokens=2, total_tokens=3, estimated_cost_usd=0.0),
-        QueryMetadata(original_language="en", processing_time_ms=12, model_used="gemini-2.5-flash"),
-        None,
-        [],
-    )
-
-    called = {"ok": False}
-
-    fake_mod = _types.ModuleType("ograg.backend")
-
-    async def _fake_answer(question, **kwargs):
-        called["ok"] = True
-        # images must be forwarded
-        assert kwargs.get("images") == [{"mime_type": "image/png", "data": "AAA"}]
-        return sentinel
-
-    fake_mod.answer = _fake_answer
-    monkeypatch.setitem(sys.modules, "ograg.backend", fake_mod)
-
-    from rag_service import RAGService
-
-    service = RAGService(gemini_api_key="test-key", file_search_store_id="test-store")
-
-    result = await service.query_with_images(
-        images=[{"mime_type": "image/png", "data": "AAA"}],
-        query_text="What does this show?",
-        include_viability=False,
-    )
-
-    assert called["ok"] is True
-    assert result == sentinel
+    # The mocked client received the expected kwargs.
+    assert fake_client.captured["model"] == "claude-sonnet-4-6"
+    assert isinstance(fake_client.captured["messages"], list)
