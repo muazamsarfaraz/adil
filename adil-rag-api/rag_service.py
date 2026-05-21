@@ -1048,9 +1048,17 @@ class RAGService:
         # OG-RAG backend opt-in: route vision through ograg.backend.answer
         # which attaches image parts to the current turn while retrieving
         # legal context via pgvector (image is supplementary content).
-        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+        _rag_backend = os.environ.get("RAG_BACKEND", "fst")
+        logger.info(
+            "query_with_images: RAG_BACKEND env value=%r lower=%r match_ograg=%s",
+            _rag_backend,
+            _rag_backend.lower(),
+            _rag_backend.lower() == "ograg",
+        )
+        if _rag_backend.lower() == "ograg":
             from ograg.backend import answer as ograg_answer
 
+            logger.info("query_with_images: routing to ograg.backend.answer")
             return await ograg_answer(
                 query_text or "Please analyse this image for any potential UK discrimination law issues.",
                 max_sources=max_sources,

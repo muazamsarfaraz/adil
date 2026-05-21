@@ -69,7 +69,13 @@ class Store:
         query_embedding: list[float],
         k: int = 5,
     ) -> list[dict[str, Any]]:
-        """Return the top-k nearest chunks by cosine distance (ascending)."""
+        """Return the top-k nearest chunks by cosine distance (ascending).
+
+        Filters out rows with NULL ``embedding`` defensively — these appear
+        after migration 008 dimensionally-resized the column, NULLing all
+        existing data until the seeder re-populates. Without this filter,
+        ``r['distance']`` is None and ``float()`` raises TypeError.
+        """
         conn = self._require_conn()
         rows = await conn.fetch(
             """
@@ -78,6 +84,7 @@ class Store:
                    source,
                    embedding <=> $1 AS distance
             FROM ograg_chunks
+            WHERE embedding IS NOT NULL
             ORDER BY embedding <=> $1
             LIMIT $2
             """,
