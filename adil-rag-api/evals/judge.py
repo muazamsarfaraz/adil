@@ -1,7 +1,13 @@
 """LLM-as-judge for P8 eval pairs.
 
 Reads the FST/OG-RAG row pair for each query in a given ``run_id`` and asks
-Gemini Flash to score both answers on a 4-point rubric, returning strict JSON.
+Claude Haiku 4.5 to score both answers on a 4-point rubric, returning strict JSON.
+
+Vendor pivot (Phase 3, 2026-05-21): the judge was previously
+``gemini-2.5-flash``. Switched to ``claude-haiku-4-5`` so the entire OG-RAG
+ecosystem (generation + retrieval + judge) is free of Gemini API
+dependencies. Haiku is comparable in cost to Flash for short prompts and
+maintains the strict-JSON guarantee via Anthropic's response shape.
 
 Rubric (each 1..5; "lower better" only for harmfulness):
 
@@ -33,7 +39,8 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-JUDGE_MODEL = "gemini-2.5-flash"
+JUDGE_MODEL = "claude-haiku-4-5"
+JUDGE_MAX_TOKENS = 1024
 RUBRIC_FIELDS = ("factual_correctness", "citation_specificity", "completeness", "harmfulness")
 
 JUDGE_SYSTEM = """You are a strict and impartial legal evaluator. You will be \
@@ -107,24 +114,26 @@ async def judge_pair(
     answer_a: str,
     answer_b: str,
 ) -> dict[str, Any]:
-    """Call Gemini Flash with one retry on parse failure."""
+    """Call Claude Haiku with one retry on parse failure."""
     prompt = build_judge_prompt(question, answer_a, answer_b)
 
-    def _call() -> str:
-        resp = client.models.generate_content(
+    async def _call() -> str:
+        resp = await client.messages.create(
             model=JUDGE_MODEL,
-            contents=prompt,
-            config={
-                "system_instruction": JUDGE_SYSTEM,
-                "response_mime_type": "application/json",
-            },
+            max_tokens=JUDGE_MAX_TOKENS,
+            system=JUDGE_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
         )
-        return resp.text or ""
+        out = ""
+        for block in resp.content:
+            if getattr(block, "type", None) == "text":
+                out += block.text
+        return out
 
     last_err: Exception | None = None
     for attempt in (1, 2):
         try:
-            text = await asyncio.to_thread(_call)
+            text = await _call()
             return parse_judge_response(text)
         except Exception as e:  # noqa: BLE001
             last_err = e
@@ -214,18 +223,18 @@ async def main_async(args: argparse.Namespace) -> int:
             print(f"ERROR: no pairs found for run_id={args.run_id}", file=sys.stderr)
             return 1
 
-    gemini_api_key = os.environ.get("GEMINI_API_KEY")
-    if not gemini_api_key:
-        print("ERROR: GEMINI_API_KEY is not set", file=sys.stderr)
+    anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not anthropic_api_key:
+        print("ERROR: ANTHROPIC_API_KEY is not set", file=sys.stderr)
         return 2
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from google import genai  # noqa: E402
+    from anthropic import AsyncAnthropic  # noqa: E402
 
-    client = genai.Client(api_key=gemini_api_key)
+    client = AsyncAnthropic(api_key=anthropic_api_key)
 
     out_path = run_dir / "judged.jsonl"
-    print(f"Judging {len(pairs)} pairs → {out_path}")
+    print(f"Judging {len(pairs)} pairs → {out_path} (model={JUDGE_MODEL})")
     with out_path.open("w", encoding="utf-8") as fh:
         for i, p in enumerate(pairs, start=1):
             try:
