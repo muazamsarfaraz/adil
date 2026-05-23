@@ -1,0 +1,59 @@
+# UI smoke for askadil.org — runs every 15 min and on every push to master.
+# Reports failures to project-local Telegram + MSentry (if configured).
+#
+# Required GitHub repo secrets (Settings → Secrets and variables → Actions):
+#   TELEGRAM_BOT_TOKEN       — project's own bot token (already on Railway)
+#   TELEGRAM_CHAT_ID         — project's own chat id (already on Railway)
+#   MSENTRY_FEEDBACK_URL     — https://cc-monitor-production.up.railway.app/feedback
+#   MSENTRY_FEEDBACK_SECRET  — shared secret from E:/dev/.services/msentry.json
+#   SMOKE_URL                — OPTIONAL override; defaults to https://askadil.org
+#
+# To offboard from MSentry: delete the two MSENTRY_FEEDBACK_* secrets above.
+# Nothing else changes — project-local Telegram alerts keep working.
+
+name: ui-smoke
+on:
+  schedule:
+    - cron: '*/15 * * * *' # every 15 min
+  push:
+    branches: [master]
+  workflow_dispatch: # manual trigger from Actions tab
+
+concurrency:
+  group: ui-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+
+      - name: Install Playwright (cached)
+        run: |
+          npm install --no-save @playwright/test
+          npx playwright install --with-deps chromium
+
+      - name: Run smoke
+        env:
+          SMOKE_URL: ${{ secrets.SMOKE_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MSENTRY_FEEDBACK_URL: ${{ secrets.MSENTRY_FEEDBACK_URL }}
+          MSENTRY_FEEDBACK_SECRET: ${{ secrets.MSENTRY_FEEDBACK_SECRET }}
+          MSENTRY_PROJECT: AskAdil/adil
+        run: npx playwright test tests/smoke/adil.spec.ts --reporter=line
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
