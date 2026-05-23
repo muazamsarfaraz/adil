@@ -24,6 +24,7 @@ railway up
 | GET | `/api/v1/solicitors/search` | X-API-Key | Per-solicitor search (LegalScraper data) |
 | GET | `/api/v1/solicitors/facets` | X-API-Key | Distinct areas + languages |
 | GET | `/api/v1/solicitors/verify/{sra_id}` | X-API-Key | Verify solicitor by SRA ID |
+| GET | `/api/v1/solicitors/near-me` | none | Geo-ranked solicitors by OSRM driving time |
 | GET | `/health` | none | Liveness probe |
 | GET | `/health/report-bridge` | none | Bridge reachability check |
 | GET | `/stats` | none | Uptime + request counts |
@@ -72,6 +73,9 @@ Rate limits (Postgres-backed, per API key):
 | `RAG_SHADOW` | No | `1` enables P9 shadow logging: fire-and-forget OG-RAG run alongside every FST query, logged to `eval_run` table. Never affects user response. |
 | `ENABLE_DEV_CORS` | Dev only | Enables permissive CORS (never set in prod) |
 | `LOG_LEVEL` | No | Default: INFO |
+| `OSRM_SERVICE_URL` | No | Self-hosted OSRM endpoint (default: `https://osrmproj-production.up.railway.app`). Used by `/api/v1/solicitors/near-me`. |
+| `USE_OSRM` | No | `true` (default) / `false` — off-switch for local dev. When off, near-me returns alphabetical results without distances. |
+| `LEGALSCRAPER_LANDING_PATH` | No | Override path to the bundled `docs/legalscraper_landing.json`. |
 
 ## SSE Streaming
 

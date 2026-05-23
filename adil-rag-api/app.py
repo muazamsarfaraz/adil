@@ -1774,6 +1774,67 @@ async def verify_solicitor(
     return {"solicitor": record, "disclaimer": SOLICITOR_DISCLAIMER}
 
 
+@app.get(
+    "/api/v1/solicitors/near-me",
+    tags=["Solicitor Directory", "Public"],
+    summary="Geo-ranked solicitor finder (OSRM driving time)",
+    responses={
+        200: {"description": "Top solicitors by driving time"},
+        400: {"description": "Invalid postcode"},
+    },
+)
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def solicitors_near_me(
+    request: Request,
+    postcode: str,
+    area: str | None = None,
+    language: str | None = None,
+    muslim_only: bool = False,
+    limit: int = 5,
+):
+    """Return the **5 closest matching solicitors** ranked by real driving time.
+
+    Pipeline: geocode user's postcode (postcodes.io, Postgres-cached) →
+    pull candidates from the bundled LegalScraper directory →
+    OSRM `/table` for the 1×N driving-time matrix → sort by duration.
+
+    **Query params**
+    - `postcode` *(required)* — UK postcode (any case/spacing).
+    - `area` — practice-area substring, e.g. ``"Family"``, ``"Immigration"``.
+    - `language` — declared language, e.g. ``"Urdu"``, ``"Arabic"``.
+    - `muslim_only` — restrict to community-language solicitors (default ``false``).
+    - `limit` — final result count, capped at 50 (default 5).
+
+    Falls back gracefully when OSRM is unavailable: results without distances,
+    ordered alphabetically, with ``osrm_available: false``.
+
+    🔐 **Requires `X-API-Key` header.**
+    """
+    from solicitors_near_me import find_near_me
+
+    limit = max(1, min(int(limit or 5), 50))
+
+    try:
+        pool = await _get_pool()
+    except Exception:
+        pool = None
+
+    payload = await find_near_me(
+        postcode=postcode,
+        pool=pool,
+        area=area,
+        language=language,
+        muslim_only=muslim_only,
+        limit=limit,
+    )
+
+    if not payload.get("ok") and payload.get("error") == "invalid_postcode":
+        raise HTTPException(status_code=400, detail=payload.get("message"))
+
+    payload["disclaimer"] = SOLICITOR_DISCLAIMER
+    return payload
+
+
 # =============================================================================
 # UPLOAD RECORD ENDPOINT
 # =============================================================================
