@@ -52,7 +52,18 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from solicitor_directory import DISCLAIMER as SOLICITOR_DISCLAIMER  # noqa: E402
-from solicitor_directory import get_solicitors, refresh_from_db  # noqa: E402
+from solicitor_directory import (  # noqa: E402
+    get_solicitors,
+    refresh_from_db,
+    search_solicitors,
+    verify_solicitor_by_sra_id,
+)
+from solicitor_directory import (
+    list_languages as list_solicitor_languages,
+)
+from solicitor_directory import (
+    list_practice_areas as list_solicitor_practice_areas,
+)
 
 from content_extractor import ContentExtractor
 from conversation_log import log_conversation
@@ -1654,6 +1665,113 @@ async def list_solicitors(
         "total": len(results),
         "disclaimer": SOLICITOR_DISCLAIMER,
     }
+
+
+@app.get(
+    "/api/v1/solicitors/search",
+    tags=["Solicitor Directory"],
+    summary="Search per-solicitor index (LegalScraper data)",
+    responses={
+        200: {"description": "List of solicitor profiles matching filters"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+    },
+)
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def search_solicitors_endpoint(
+    request: Request,
+    area: str | None = None,
+    language: str | None = None,
+    postcode: str | None = None,
+    name: str | None = None,
+    muslim_only: bool = False,
+    limit: int = 50,
+    _api_key: str = Security(verify_api_key),
+):
+    """
+    **Search the per-solicitor index** sourced from the sibling LegalScraper
+    project (SRA Register + archived Law Society profiles). Returns enriched
+    profiles with practice areas, languages, accreditations and SRA IDs.
+
+    **Filters (all optional):**
+    - `area` — practice area substring, e.g. ``"Family - general"``,
+      ``"Immigration"``, ``"Crime"``.
+    - `language` — declared language, e.g. ``"Urdu"``, ``"Arabic"``,
+      ``"Bengali"``.
+    - `postcode` — outward postcode prefix, e.g. ``"M1"``, ``"E1"``, ``"EC2N"``.
+    - `name` — solicitor name substring.
+    - `muslim_only` — restrict to solicitors who declared a Muslim-community
+      language (Urdu, Arabic, Bengali, Punjabi, Persian, Turkish, Sylheti,
+      Gujarati, Pashto, Somali, Kurdish, Malay, Indonesian).
+    - `limit` — max results, capped at 200 (default 50).
+
+    🔐 **Requires `X-API-Key` header.**
+    """
+    results = search_solicitors(
+        area=area,
+        language=language,
+        postcode_prefix=postcode,
+        name=name,
+        muslim_only=muslim_only,
+        limit=limit,
+    )
+    return {
+        "solicitors": results,
+        "total": len(results),
+        "disclaimer": SOLICITOR_DISCLAIMER,
+    }
+
+
+@app.get(
+    "/api/v1/solicitors/facets",
+    tags=["Solicitor Directory"],
+    summary="List distinct practice areas + languages in the per-solicitor index",
+    responses={
+        200: {"description": "Facet lists"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+    },
+)
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def solicitor_facets(
+    request: Request,
+    _api_key: str = Security(verify_api_key),
+):
+    """Return the distinct practice areas and languages available for the
+    ``/api/v1/solicitors/search`` filters — useful for building filter UIs."""
+    return {
+        "areas": list_solicitor_practice_areas(),
+        "languages": list_solicitor_languages(),
+    }
+
+
+@app.get(
+    "/api/v1/solicitors/verify/{sra_id}",
+    tags=["Solicitor Directory"],
+    summary="Verify a solicitor by SRA ID",
+    responses={
+        200: {"description": "Verified solicitor record"},
+        401: {"description": "Missing API key"},
+        403: {"description": "Invalid API key"},
+        404: {"description": "SRA ID not found in the bundled directory"},
+    },
+)
+@limiter.limit(RATE_LIMIT_GENERAL)
+async def verify_solicitor(
+    request: Request,
+    sra_id: str,
+    _api_key: str = Security(verify_api_key),
+):
+    """Look up a solicitor by SRA ID against the bundled LegalScraper export.
+
+    Not present means *not in the bundled subset* (currently ~1,500 enriched
+    profiles); callers that need full SRA Register coverage should fall back
+    to a live SRA HTTP lookup.
+    """
+    record = verify_solicitor_by_sra_id(sra_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail=f"SRA ID '{sra_id}' not found in bundled directory")
+    return {"solicitor": record, "disclaimer": SOLICITOR_DISCLAIMER}
 
 
 # =============================================================================

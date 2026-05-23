@@ -1,13 +1,20 @@
 """Curated solicitor directory for AskAdil.
 
-Sources (priority order):
+Firm-level sources (priority order):
 1. Postgres solicitor_firms table — populated monthly by adil-document-uploader's
    scrape_solicitors arq task. Always preferred when available and non-empty.
 2. Bundled SRA JSON — adil-rag-api/docs/sra_firms.json (static fallback).
 3. Manually curated seed database — docs/plans/muslim-solicitors-seed-database.json
 
-All firms are pending outreach — none have consented to be listed.
-Contact details are from publicly available sources only.
+Solicitor-level (per-person) source for ``search_solicitors`` /
+``/api/v1/solicitors/search``:
+4. LegalScraper landing export — adil-rag-api/docs/legalscraper_landing.json,
+   ~1,500 enriched solicitor profiles with practice areas, languages,
+   accreditations and SRA IDs. Provided by the sibling LegalScraper project;
+   refresh recipe is in LegalScraper/INTEGRATION.md §4.3.
+
+All firms and solicitors are pending outreach — none have consented to be
+listed. Contact details are from publicly available sources only.
 SRA data: "data supplied by the Solicitors Regulation Authority"
 """
 
@@ -128,7 +135,9 @@ def _load_seed_database() -> list[dict]:
     sra_path = module_dir / "docs" / "sra_firms.json"
     if sra_path.exists():
         try:
-            with open(sra_path, encoding="utf-8") as f:
+            # SRA pages occasionally yield Windows smart quotes (0x91/0x92);
+            # `errors="replace"` keeps load resilient against odd bytes.
+            with open(sra_path, encoding="utf-8", errors="replace") as f:
                 sra_raw = json.load(f)
             sra_firms = [_sra_to_firm(r) for r in sra_raw]
             # Deduplicate by name against seed
@@ -136,7 +145,7 @@ def _load_seed_database() -> list[dict]:
             new_sra = [f for f in sra_firms if f["name"].lower() not in seed_names]
             all_firms.extend(new_sra)
             logger.info("Loaded %d SRA firms (%d new after dedup)", len(sra_firms), len(new_sra))
-        except (json.JSONDecodeError, OSError) as e:
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError) as e:
             logger.error("Failed to load SRA firms: %s", e)
 
     if not all_firms:
@@ -237,3 +246,192 @@ def get_solicitors(
         results = [f for f in results if any(location_lower in loc.lower() for loc in f.get("locations", []))]
 
     return [_public_firm(f) for f in results]
+
+
+# =============================================================================
+# Per-solicitor search (LegalScraper landing data)
+# =============================================================================
+
+# Languages we treat as "Muslim community" signals — mirrors LegalScraper's
+# DirectoryClient.MUSLIM_LANGUAGES. Source: LegalScraper/src/directory_client.py.
+MUSLIM_LANGUAGES = (
+    "Urdu",
+    "Arabic",
+    "Bengali",
+    "Punjabi",
+    "Persian",
+    "Turkish",
+    "Sylheti",
+    "Gujarati",
+    "Pashto",
+    "Somali",
+    "Kurdish",
+    "Malay",
+    "Indonesian",
+)
+_MUSLIM_LANGUAGES_LOWER = {lang.lower() for lang in MUSLIM_LANGUAGES}
+
+SOLICITOR_PUBLIC_FIELDS = (
+    "sra_id",
+    "name",
+    "firm",
+    "role",
+    "address",
+    "postcode",
+    "telephone",
+    "email",
+    "areas",
+    "languages",
+    "accreditations",
+    "muslim_language",
+)
+
+_solicitors: list[dict] = []
+
+
+def _load_landing_solicitors() -> list[dict]:
+    """Load per-solicitor records from the bundled LegalScraper landing export.
+
+    Returns an empty list if the file is missing or malformed.
+    """
+    # Allow override for ops / tests.
+    override = os.getenv("LEGALSCRAPER_LANDING_PATH")
+    if override:
+        path = Path(override)
+    else:
+        module_dir = Path(os.path.dirname(os.path.abspath(__file__)))
+        path = module_dir / "docs" / "legalscraper_landing.json"
+
+    if not path.exists():
+        logger.warning("LegalScraper landing JSON not found at %s", path)
+        return []
+
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError) as e:
+        logger.error("Failed to load LegalScraper landing JSON: %s", e)
+        return []
+
+    raw = data.get("solicitors") if isinstance(data, dict) else data
+    if not isinstance(raw, list):
+        logger.warning("LegalScraper landing JSON missing 'solicitors' list")
+        return []
+
+    logger.info("Loaded %d solicitor profiles from LegalScraper landing export", len(raw))
+    return raw
+
+
+def _ensure_solicitors_loaded() -> list[dict]:
+    global _solicitors
+    if not _solicitors:
+        _solicitors = _load_landing_solicitors()
+    return _solicitors
+
+
+def _public_solicitor(s: dict) -> dict:
+    return {k: s.get(k) for k in SOLICITOR_PUBLIC_FIELDS if k in s}
+
+
+def _postcode_outward(value: str | None) -> str:
+    """Normalise a postcode-ish string to its outward code prefix (e.g. 'M11AA' -> 'M1', 'EC2N 4AY' -> 'EC2N')."""
+    if not value:
+        return ""
+    cleaned = re.sub(r"\s+", "", value).upper()
+    match = re.match(r"^([A-Z]{1,2}\d[A-Z\d]?)", cleaned)
+    return match.group(1) if match else cleaned
+
+
+def search_solicitors(
+    area: str | None = None,
+    language: str | None = None,
+    postcode_prefix: str | None = None,
+    name: str | None = None,
+    muslim_only: bool = False,
+    limit: int = 50,
+) -> list[dict]:
+    """Search the LegalScraper per-solicitor index.
+
+    All filters are case-insensitive partial matches. ``postcode_prefix`` matches
+    against the outward portion of each solicitor's postcode (e.g. ``"M"``,
+    ``"M1"``, ``"EC2N"``). ``muslim_only`` restricts to solicitors who declared
+    any language in :data:`MUSLIM_LANGUAGES`.
+
+    Returns at most ``limit`` records (capped to 200). Each record contains only
+    the fields in :data:`SOLICITOR_PUBLIC_FIELDS`.
+    """
+    capped_limit = max(1, min(int(limit or 50), 200))
+    rows = _ensure_solicitors_loaded()
+    results: list[dict] = []
+
+    area_lc = area.lower().strip() if area else None
+    lang_lc = language.lower().strip() if language else None
+    name_lc = name.lower().strip() if name else None
+    pc_prefix = _postcode_outward(postcode_prefix) if postcode_prefix else None
+
+    for s in rows:
+        if muslim_only and not s.get("muslim_language"):
+            continue
+
+        if area_lc:
+            if not any(area_lc in (a or "").lower() for a in s.get("areas") or []):
+                continue
+
+        if lang_lc:
+            if not any(
+                lang_lc == (lg or "").lower() or lang_lc in (lg or "").lower() for lg in s.get("languages") or []
+            ):
+                continue
+
+        if pc_prefix:
+            outward = _postcode_outward(s.get("postcode"))
+            if not outward.startswith(pc_prefix):
+                continue
+
+        if name_lc:
+            if name_lc not in (s.get("name") or "").lower():
+                continue
+
+        results.append(_public_solicitor(s))
+        if len(results) >= capped_limit:
+            break
+
+    return results
+
+
+def list_practice_areas(limit: int = 200) -> list[str]:
+    """Return the distinct practice-area strings present in the per-solicitor index."""
+    rows = _ensure_solicitors_loaded()
+    seen: set[str] = set()
+    for s in rows:
+        for a in s.get("areas") or []:
+            if a:
+                seen.add(a)
+    return sorted(seen)[:limit]
+
+
+def list_languages(limit: int = 200) -> list[str]:
+    """Return the distinct language strings present in the per-solicitor index."""
+    rows = _ensure_solicitors_loaded()
+    seen: set[str] = set()
+    for s in rows:
+        for lg in s.get("languages") or []:
+            if lg:
+                seen.add(lg)
+    return sorted(seen)[:limit]
+
+
+def verify_solicitor_by_sra_id(sra_id: str) -> dict | None:
+    """Return the public record for the given SRA ID, or None if not found.
+
+    Replacement for adil-outreach-engine's live SRA HTTP call when the
+    bundled LegalScraper export covers the requested ID. Outreach-engine
+    should retain a live fallback for IDs not yet ingested.
+    """
+    if not sra_id:
+        return None
+    needle = str(sra_id).strip()
+    for s in _ensure_solicitors_loaded():
+        if str(s.get("sra_id") or "").strip() == needle:
+            return _public_solicitor(s)
+    return None

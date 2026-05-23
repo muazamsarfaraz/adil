@@ -20,6 +20,10 @@ railway up
 | POST | `/api/v1/report/prefill` | X-API-Key | Extract report fields from conversation history |
 | POST | `/api/v1/submit-report` | X-API-Key | Proxy to adil-report-bridge |
 | GET | `/api/v1/report-targets` | X-API-Key | List available report targets |
+| GET | `/api/v1/solicitors` | X-API-Key | Firm directory (curated + SRA) |
+| GET | `/api/v1/solicitors/search` | X-API-Key | Per-solicitor search (LegalScraper data) |
+| GET | `/api/v1/solicitors/facets` | X-API-Key | Distinct areas + languages |
+| GET | `/api/v1/solicitors/verify/{sra_id}` | X-API-Key | Verify solicitor by SRA ID |
 | GET | `/health` | none | Liveness probe |
 | GET | `/health/report-bridge` | none | Bridge reachability check |
 | GET | `/stats` | none | Uptime + request counts |
@@ -90,10 +94,13 @@ Falls back to empty strings/nulls on any extraction failure so the form still re
 
 ## Solicitor Directory
 
-`solicitor_directory.py` loads from two sources on startup:
+`solicitor_directory.py` loads from three sources on startup:
 
 1. **Curated seed** — `docs/plans/muslim-solicitors-seed-database.json` (manually maintained, Muslim-focus firms)
 2. **SRA register scrape** — `docs/sra_firms.json` (167 law firms, auto-scraped)
+3. **LegalScraper landing export** — `docs/legalscraper_landing.json` (~1,500 per-solicitor profiles with practice areas, languages, accreditations, SRA IDs). Sourced from the sibling `LegalScraper` project. Refresh recipe: `LegalScraper/INTEGRATION.md` §4.3 — re-run `scripts/export_landing_json.py --muslim-only` and copy the file across; override path with `LEGALSCRAPER_LANDING_PATH` env var if needed.
+
+The first two power `/api/v1/solicitors` (firm-level browse). The third powers `/api/v1/solicitors/search` (per-solicitor filter by area + language + postcode prefix + name + `muslim_only`), `/api/v1/solicitors/facets`, and `/api/v1/solicitors/verify/{sra_id}`.
 
 SRA data covers: employment discrimination, equality act, hate crime, mental capacity, human rights, civil liberties, court of protection. Scraped from the public SRA register at `https://www.sra.org.uk/consumers/register/`. **Attribution required**: "data supplied by the Solicitors Regulation Authority".
 
