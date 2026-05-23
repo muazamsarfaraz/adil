@@ -13,6 +13,7 @@ Live at **askadil.org**.
 | `adil-document-uploader/` | TNA case-law fetcher → Gemini FST | deployed from repo root via wrapper |
 | `adil-outreach-engine/` | AI outreach automation (LangGraph + arq) | deployed via `adil-outreach-engine/` subdir |
 | `adil-landing/` | Static landing page | deployed via `adil-landing/` subdir |
+| `adil-whatsapp-bridge/` | Meta WhatsApp Cloud API ⇄ rag-api bridge | deployed via `adil-whatsapp-bridge/` subdir |
 
 ## Deploy
 
