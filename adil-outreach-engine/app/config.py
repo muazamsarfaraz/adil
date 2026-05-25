@@ -38,6 +38,10 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     openai_api_key: str = ""
 
+    # adil-rag-api (solicitor directory lookups for the SRA verification tool)
+    rag_api_base_url: str = "https://api.askadil.org"
+    rag_api_key: str = ""
+
     # Server — Railway provides PORT; fall back to 8001 for local dev
     host: str = "0.0.0.0"
     port: int = 8001

@@ -143,30 +143,82 @@ class TestScrapeWebsite:
 
 
 class TestSearchSraRegister:
-    """Tests for the search_sra_register tool."""
+    """Tests for the search_sra_register tool (rag-api backed)."""
+
+    # Matches settings.rag_api_base_url default
+    BASE = "https://api.askadil.org"
 
     @respx.mock
-    async def test_sra_returns_results(self):
-        """search_sra_register returns parsed SRA details."""
-        html = """
-        <html><body>
-        <div class="search-result">
-            <span>John Smith - SRA ID: 123456 - Active - Smith & Partners</span>
-        </div>
-        </body></html>
-        """
-        respx.get("https://www.sra.org.uk/consumers/register/search/").mock(return_value=httpx.Response(200, text=html))
+    async def test_sra_returns_results_by_name(self):
+        """Name search returns formatted rag-api results."""
+        payload = {
+            "solicitors": [
+                {
+                    "sra_id": "123456",
+                    "name": "John Smith",
+                    "sra_status": "SRA Regulated",
+                    "firm_name": "Smith & Partners",
+                    "role": "Solicitor",
+                    "address": "1 High Street, London",
+                    "practice_areas": ["Family - general"],
+                    "languages": ["English", "Urdu"],
+                    "accreditations": [],
+                }
+            ],
+            "total": 1,
+        }
+        respx.get(f"{self.BASE}/api/v1/solicitors/search").mock(return_value=httpx.Response(200, json=payload))
 
         result = await search_sra_register.ainvoke({"name": "John Smith", "firm": "Smith & Partners"})
 
-        assert "SRA" in result
-        assert "123456" in result
+        assert "SRA Number: 123456" in result
+        assert "John Smith" in result
+        assert "Smith & Partners" in result
+        assert "Urdu" in result
+
+    @respx.mock
+    async def test_sra_verify_by_id(self):
+        """Numeric input hits the /verify/{sra_id} endpoint."""
+        payload = {
+            "solicitor": {
+                "sra_id": "830948",
+                "name": "Faheem Azam Khan",
+                "sra_status": "SRA Regulated",
+                "firm_name": "A-Z LAW SOLICITORS LIMITED",
+                "role": "Director",
+                "address": "Enfield",
+                "practice_areas": ["Immigration - general"],
+                "languages": ["Urdu", "English"],
+                "accreditations": [],
+            },
+            "disclaimer": "test",
+        }
+        respx.get(f"{self.BASE}/api/v1/solicitors/verify/830948").mock(return_value=httpx.Response(200, json=payload))
+
+        result = await search_sra_register.ainvoke({"name": "830948"})
+
+        assert "SRA Register record for 830948" in result
+        assert "Faheem Azam Khan" in result
+        assert "Immigration - general" in result
+
+    @respx.mock
+    async def test_sra_verify_not_found(self):
+        """404 from /verify returns a graceful not-found message."""
+        respx.get(f"{self.BASE}/api/v1/solicitors/verify/999999").mock(
+            return_value=httpx.Response(404, json={"detail": "not found"})
+        )
+
+        result = await search_sra_register.ainvoke({"name": "999999"})
+
+        assert "No SRA registration found" in result
+        assert "999999" in result
 
     @respx.mock
     async def test_sra_no_results(self):
-        """search_sra_register returns not found message when no results."""
-        html = "<html><body><p>No results found</p></body></html>"
-        respx.get("https://www.sra.org.uk/consumers/register/search/").mock(return_value=httpx.Response(200, text=html))
+        """Empty search results return the not-found message."""
+        respx.get(f"{self.BASE}/api/v1/solicitors/search").mock(
+            return_value=httpx.Response(200, json={"solicitors": [], "total": 0})
+        )
 
         result = await search_sra_register.ainvoke({"name": "Nonexistent Person"})
 
@@ -174,8 +226,8 @@ class TestSearchSraRegister:
 
     @respx.mock
     async def test_sra_api_error_returns_graceful_message(self):
-        """search_sra_register returns graceful error on API failure."""
-        respx.get("https://www.sra.org.uk/consumers/register/search/").mock(
+        """500 from rag-api returns the graceful 'proceeding without' fallback."""
+        respx.get(f"{self.BASE}/api/v1/solicitors/search").mock(
             return_value=httpx.Response(500, text="Internal Server Error")
         )
 
@@ -186,10 +238,8 @@ class TestSearchSraRegister:
 
     @respx.mock
     async def test_sra_timeout_returns_graceful_message(self):
-        """search_sra_register returns graceful error on timeout."""
-        respx.get("https://www.sra.org.uk/consumers/register/search/").mock(
-            side_effect=httpx.TimeoutException("timed out")
-        )
+        """Timeout returns the graceful fallback message."""
+        respx.get(f"{self.BASE}/api/v1/solicitors/search").mock(side_effect=httpx.TimeoutException("timed out"))
 
         result = await search_sra_register.ainvoke({"name": "John Smith"})
 
