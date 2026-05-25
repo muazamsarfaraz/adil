@@ -947,7 +947,7 @@ class RAGService:
         # OG-RAG backend opt-in: when RAG_BACKEND=ograg, completely bypass
         # the File Search Tool path. Default ('fst' or unset) keeps the
         # existing behaviour unchanged.
-        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+        if os.environ.get("RAG_BACKEND", "fst").lower() in ("ograg", "ograg_chunks"):
             from ograg.backend import answer as ograg_answer
 
             return await ograg_answer(
@@ -1048,7 +1048,7 @@ class RAGService:
         # OG-RAG backend opt-in: route vision through ograg.backend.answer
         # which attaches image parts to the current turn while retrieving
         # legal context via pgvector (image is supplementary content).
-        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+        if os.environ.get("RAG_BACKEND", "fst").lower() in ("ograg", "ograg_chunks"):
             from ograg.backend import answer as ograg_answer
 
             return await ograg_answer(
@@ -1399,7 +1399,7 @@ class RAGService:
         # OG-RAG backend opt-in: delegate to ograg.backend.answer_stream.
         # The shadow run is skipped when ograg is the primary backend
         # (otherwise we'd be running OG-RAG twice for the same query).
-        if os.environ.get("RAG_BACKEND", "fst").lower() == "ograg":
+        if os.environ.get("RAG_BACKEND", "fst").lower() in ("ograg", "ograg_chunks"):
             from ograg.backend import answer_stream as ograg_answer_stream
 
             async for event in ograg_answer_stream(

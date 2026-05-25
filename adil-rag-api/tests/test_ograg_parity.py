@@ -90,7 +90,9 @@ _FAKE_CHUNKS = [
 ]
 
 
-async def _fake_retrieve(question, k=5):  # noqa: ARG001
+async def _fake_retrieve(question, k=5, **kwargs):  # noqa: ARG001
+    # Accept v2 kwargs (history, k_target_tokens, top_k_candidates) so the
+    # backend's new retrieve(history=...) call signature is satisfied.
     return _FAKE_CHUNKS[:k]
 
 

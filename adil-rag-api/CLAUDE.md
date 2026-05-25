@@ -69,7 +69,10 @@ Rate limits (Postgres-backed, per API key):
 | `TELEGRAM_BOT_TOKEN` | For alerts | Error notification bot |
 | `TELEGRAM_CHAT_ID` | For alerts | Target chat for alerts |
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
-| `RAG_BACKEND` | No | `fst` (default) or `ograg` — routes /query to FST or pgvector OG-RAG |
+| `RAG_BACKEND` | No | `fst` (default), `ograg` (hyperedge cover v2), or `ograg_chunks` (flat MVP retriever — A/B during eval phase, removed in P12) |
+| `OGRAG_ANN_TOP_K` | No | ANN candidate pool size for retriever v2 (default 50) |
+| `OGRAG_TARGET_TOKENS` | No | Algo-1 cover token budget for retriever v2 (default 6000) |
+| `OGRAG_REWRITE_MODEL` | No | Gemini model for multi-turn query rewriting (default `gemini-2.5-flash`) |
 | `RAG_SHADOW` | No | `1` enables P9 shadow logging: fire-and-forget OG-RAG run alongside every FST query, logged to `eval_run` table. Never affects user response. |
 | `ENABLE_DEV_CORS` | Dev only | Enables permissive CORS (never set in prod) |
 | `LOG_LEVEL` | No | Default: INFO |

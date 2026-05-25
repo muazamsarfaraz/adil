@@ -28,7 +28,7 @@ from typing import Any
 from anthropic import AsyncAnthropic
 
 from models import QueryMetadata, Source, SourceType, TokenUsage, ViabilityAssessment
-from ograg.retriever import retrieve
+from ograg.retriever import retrieve, retrieve_chunks
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,22 @@ MAX_TOKENS = 4096
 # Anthropic pricing as of 2026-05 (Sonnet 4.6). Update on price changes.
 PRICE_PER_1K_INPUT = 0.003  # $3 / M tokens
 PRICE_PER_1K_OUTPUT = 0.015  # $15 / M tokens
+
+
+async def _do_retrieve(
+    question: str,
+    *,
+    conversation_history: list[dict[str, str]] | None,
+) -> list[dict[str, Any]]:
+    """Route to the hyperedge or flat-chunk retriever based on RAG_BACKEND.
+
+    ``RAG_BACKEND=ograg_chunks`` → flat MVP retriever (P12 will retire).
+    Anything else (including ``ograg`` / unset) → v2 hyperedge cover.
+    """
+    backend = os.environ.get("RAG_BACKEND", "fst").lower()
+    if backend == "ograg_chunks":
+        return await retrieve_chunks(question, k=DEFAULT_K)
+    return await retrieve(question, history=conversation_history)
 
 
 def _client() -> AsyncAnthropic:
@@ -213,7 +229,7 @@ async def answer(
 
     effective_question = _apply_viability_trigger(question, include_viability)
 
-    chunks = await retrieve(question, k=DEFAULT_K)
+    chunks = await _do_retrieve(question, conversation_history=conversation_history)
     context_block = _format_context(chunks)
     user_prompt = _build_user_prompt(effective_question, context_block, jurisdiction, topic)
 
@@ -289,7 +305,7 @@ async def answer_stream(
 
     effective_question = _apply_viability_trigger(question, include_viability)
 
-    chunks = await retrieve(question, k=DEFAULT_K)
+    chunks = await _do_retrieve(question, conversation_history=conversation_history)
     context_block = _format_context(chunks)
     user_prompt = _build_user_prompt(effective_question, context_block, jurisdiction, topic)
     messages = _build_messages(user_prompt, conversation_history)
