@@ -14,7 +14,10 @@
  */
 import { test, expect } from '@playwright/test';
 
-const SITE_URL = process.env.SMOKE_URL ?? 'https://askadil.org';
+// Use || (not ??) and trim: GitHub Actions injects an *empty string* for an
+// unset `secrets.SMOKE_URL`, which ?? would NOT fall back on — leaving SITE_URL
+// "" and page.goto("") failing with "Cannot navigate to invalid URL".
+const SITE_URL = process.env.SMOKE_URL?.trim() || 'https://askadil.org';
 const PROJECT = 'adil';
 // Phrases that appear ONLY in real legal answers, not the page placeholder.
 // At least one must be present in the streamed Claude response.
