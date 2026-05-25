@@ -93,15 +93,19 @@ test.describe('@adil UI smoke', () => {
       const ewButton = page.getByRole('button', { name: /England & Wales/ });
       await expect(ewButton).toBeVisible({ timeout: 10_000 });
 
-      step = 'jurisdiction-click';
-      await ewButton.click();
-
-      // 3. Chat input becomes enabled
-      step = 'input-enabled';
+      // 3. Clicking the jurisdiction enables the chat input. Retry the click:
+      //    goto(domcontentloaded) returns before Next.js finishes hydrating, so
+      //    an early click may land before React attaches the onClick handler and
+      //    silently no-op (input stays disabled). Re-clicking until the input is
+      //    enabled removes that hydration race without weakening the assertion.
+      step = 'jurisdiction-click+input-enabled';
       const input = page.getByRole('textbox', {
         name: /Ask about discrimination/i,
       });
-      await expect(input).toBeEnabled({ timeout: 5_000 });
+      await expect(async () => {
+        await ewButton.click();
+        await expect(input).toBeEnabled({ timeout: 2_000 });
+      }).toPass({ timeout: 20_000 });
 
       // 4. Submit a real legal query and wait for a substantive streamed reply
       step = 'submit-query';
