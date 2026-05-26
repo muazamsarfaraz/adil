@@ -62,6 +62,9 @@ from solicitor_directory import (
     list_languages as list_solicitor_languages,
 )
 from solicitor_directory import (
+    list_practice_area_groups as list_solicitor_practice_area_groups,
+)
+from solicitor_directory import (
     list_practice_areas as list_solicitor_practice_areas,
 )
 
@@ -1725,7 +1728,7 @@ async def search_solicitors_endpoint(
 @app.get(
     "/api/v1/solicitors/facets",
     tags=["Solicitor Directory"],
-    summary="List distinct practice areas + languages in the per-solicitor index",
+    summary="List practice areas, curated area groups + languages in the per-solicitor index",
     responses={
         200: {"description": "Facet lists"},
         401: {"description": "Missing API key"},
@@ -1738,9 +1741,14 @@ async def solicitor_facets(
     _api_key: str = Security(verify_api_key),
 ):
     """Return the distinct practice areas and languages available for the
-    ``/api/v1/solicitors/search`` filters — useful for building filter UIs."""
+    ``/api/v1/solicitors/search`` filters — useful for building filter UIs.
+
+    ``area_groups`` are the curated rollup categories (with rollout ``wave`` and
+    solicitor ``count``); pass a group label as the ``area`` filter to retrieve
+    everyone in it."""
     return {
         "areas": list_solicitor_practice_areas(),
+        "area_groups": list_solicitor_practice_area_groups(),
         "languages": list_solicitor_languages(),
     }
 

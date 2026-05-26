@@ -22,7 +22,7 @@ railway up
 | GET | `/api/v1/report-targets` | X-API-Key | List available report targets |
 | GET | `/api/v1/solicitors` | X-API-Key | Firm directory (curated + SRA) |
 | GET | `/api/v1/solicitors/search` | X-API-Key | Per-solicitor search (LegalScraper data) |
-| GET | `/api/v1/solicitors/facets` | X-API-Key | Distinct areas + languages |
+| GET | `/api/v1/solicitors/facets` | X-API-Key | Distinct areas, curated area groups (wave-tagged) + languages |
 | GET | `/api/v1/solicitors/verify/{sra_id}` | X-API-Key | Verify solicitor by SRA ID |
 | GET | `/api/v1/solicitors/near-me` | none | Geo-ranked solicitors by OSRM driving time |
 | GET | `/health` | none | Liveness probe |
@@ -108,6 +108,8 @@ Falls back to empty strings/nulls on any extraction failure so the form still re
 3. **LegalScraper landing export** — `docs/legalscraper_landing.json` (~1,500 per-solicitor profiles with practice areas, languages, accreditations, SRA IDs). Sourced from the sibling `LegalScraper` project. Refresh recipe: `LegalScraper/INTEGRATION.md` §4.3 — re-run `scripts/export_landing_json.py --muslim-only` and copy the file across; override path with `LEGALSCRAPER_LANDING_PATH` env var if needed.
 
 The first two power `/api/v1/solicitors` (firm-level browse). The third powers `/api/v1/solicitors/search` (per-solicitor filter by area + language + postcode prefix + name + `muslim_only`), `/api/v1/solicitors/facets`, and `/api/v1/solicitors/verify/{sra_id}`.
+
+**Practice-area groups** (`PRACTICE_AREA_GROUPS` in `solicitor_directory.py`): curated rollups of the ~170 fragmented raw SRA area strings into the rollout categories from LegalScraper's `EXPANSION_PLAN.md` (`wave` 0 = live, 1/2/3 = phased). Wave 1 = "Immigration & Asylum" + "Wills, Probate & Inheritance". `/facets` returns them as `area_groups` (with `wave` + `count`); passing a group label as the `area` search filter expands to all its raw strings.
 
 SRA data covers: employment discrimination, equality act, hate crime, mental capacity, human rights, civil liberties, court of protection. Scraped from the public SRA register at `https://www.sra.org.uk/consumers/register/`. **Attribution required**: "data supplied by the Solicitors Regulation Authority".
 

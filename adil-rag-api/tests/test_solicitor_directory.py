@@ -178,6 +178,71 @@ class TestSolicitorFacetsEndpoint:
         assert isinstance(data.get("areas"), list)
         assert isinstance(data.get("languages"), list)
 
+    def test_facets_includes_area_groups(self, client, api_key):
+        resp = client.get("/api/v1/solicitors/facets", headers={"X-API-Key": api_key})
+        data = resp.json()
+        groups = data.get("area_groups")
+        assert isinstance(groups, list) and len(groups) > 0
+        for g in groups:
+            assert set(g) >= {"group", "wave", "count"}
+            assert g["count"] > 0  # zero-count groups are omitted
+        labels = {g["group"] for g in groups}
+        # Wave-1 categories must be present (data carries immigration + wills areas)
+        assert "Immigration & Asylum" in labels
+        assert "Wills, Probate & Inheritance" in labels
+        wave1 = {g["group"]: g["wave"] for g in groups}
+        assert wave1["Immigration & Asylum"] == 1
+        assert wave1["Wills, Probate & Inheritance"] == 1
+
+
+class TestPracticeAreaGroups:
+    """Direct unit tests for the curated practice-area groups."""
+
+    def test_list_groups_curated_order_preserved(self):
+        from solicitor_directory import PRACTICE_AREA_GROUPS, list_practice_area_groups
+
+        present = list_practice_area_groups()
+        curated_order = [g["group"] for g in PRACTICE_AREA_GROUPS]
+        returned_order = [g["group"] for g in present]
+        # Returned labels appear in the same relative order as the curated tuple.
+        assert returned_order == [g for g in curated_order if g in set(returned_order)]
+
+    def test_group_label_search_expands_matchers(self):
+        from solicitor_directory import search_solicitors
+
+        out = search_solicitors(area="Immigration & Asylum", limit=200)
+        assert len(out) > 0
+        for s in out:
+            assert any(
+                "immigration" in (a or "").lower() or "asylum" in (a or "").lower() for a in s.get("areas") or []
+            )
+
+    def test_group_search_superset_of_single_substring(self):
+        from solicitor_directory import search_solicitors
+
+        # The "Immigration & Asylum" group rolls up every "immigration" raw
+        # string, so it must return at least as many as a bare substring search.
+        grouped = search_solicitors(area="Immigration & Asylum", limit=200)
+        substring = search_solicitors(area="immigration", limit=200)
+        assert len(grouped) >= len(substring)
+
+    def test_wills_group_includes_probate(self):
+        from solicitor_directory import search_solicitors
+
+        out = search_solicitors(area="Wills, Probate & Inheritance", limit=200)
+        assert len(out) > 0
+        # At least one matched solicitor should be a probate (not wills) record,
+        # proving the group rolls up multiple raw strings.
+        assert any(any("probate" in (a or "").lower() for a in s.get("areas") or []) for s in out)
+
+    def test_unknown_area_falls_back_to_substring(self):
+        from solicitor_directory import search_solicitors
+
+        # A non-group string still behaves as a plain substring filter.
+        out = search_solicitors(area="employment", limit=20)
+        for s in out:
+            assert any("employment" in (a or "").lower() for a in s.get("areas") or [])
+
 
 class TestSolicitorVerifyEndpoint:
     def test_verify_known_sra_id(self, client, api_key):

@@ -342,6 +342,78 @@ def _postcode_outward(value: str | None) -> str:
     return match.group(1) if match else cleaned
 
 
+# --- Practice-area groups (LegalScraper EXPANSION_PLAN.md, 2026-05-26) ---
+#
+# The landing export carries ~170 raw SRA practice-area strings, several of
+# which fragment a single user-facing concept (e.g. "Immigration - asylum",
+# "Immigration - general", "Immigration - nationality and citizenship",
+# "Immigration and Asylum - Level 2 Accredited" are all one thing to a user).
+# These curated groups roll the raw strings up into the rollout categories the
+# expansion plan ships in waves, so the product can offer clean filter tiles.
+#
+# ``wave``: 0 = already live/core, 1/2/3 = the plan's phased rollout.
+# ``matchers``: lowercase substrings; a solicitor belongs to the group when any
+# of its raw area strings contains any matcher (same semantics as area search).
+PRACTICE_AREA_GROUPS: tuple[dict, ...] = (
+    {"group": "Employment", "wave": 0, "matchers": ("employment",)},
+    {"group": "Family & Children", "wave": 0, "matchers": ("family", "children")},
+    {"group": "Immigration & Asylum", "wave": 1, "matchers": ("immigration", "asylum")},
+    {
+        "group": "Wills, Probate & Inheritance",
+        "wave": 1,
+        "matchers": ("wills", "probate"),
+    },
+    {
+        "group": "Welfare & Benefits",
+        "wave": 2,
+        "matchers": ("benefits", "allowances"),
+    },
+    {
+        "group": "Housing",
+        "wave": 2,
+        "matchers": ("landlord and tenant", "housing"),
+    },
+    {
+        "group": "Human Rights",
+        "wave": 2,
+        "matchers": ("human rights", "civil liberties"),
+    },
+    {
+        "group": "Criminal Defence",
+        "wave": 3,
+        "matchers": ("crime", "criminal"),
+    },
+    {"group": "Personal Injury", "wave": 3, "matchers": ("personal injury",)},
+    {"group": "Conveyancing", "wave": 3, "matchers": ("conveyancing",)},
+)
+
+_GROUP_BY_LABEL = {g["group"].lower(): g for g in PRACTICE_AREA_GROUPS}
+
+
+def _area_matches_group(areas: list, matchers: tuple) -> bool:
+    """True if any raw area string contains any of the group's matcher substrings."""
+    return any(m in (a or "").lower() for a in areas or [] for m in matchers)
+
+
+def list_practice_area_groups() -> list[dict]:
+    """Return curated practice-area groups present in the per-solicitor index.
+
+    Each entry is ``{"group", "wave", "count"}``. Groups with zero matching
+    solicitors are omitted. Order follows :data:`PRACTICE_AREA_GROUPS` (which
+    is curated, not alphabetical) so the frontend can render rollout priority.
+    Use the ``group`` label as the ``area`` filter on ``search_solicitors`` /
+    ``/api/v1/solicitors/search`` to retrieve everyone in the group.
+    """
+    rows = _ensure_solicitors_loaded()
+    out: list[dict] = []
+    for g in PRACTICE_AREA_GROUPS:
+        matchers = g["matchers"]
+        count = sum(1 for s in rows if _area_matches_group(s.get("areas"), matchers))
+        if count:
+            out.append({"group": g["group"], "wave": g["wave"], "count": count})
+    return out
+
+
 def search_solicitors(
     area: str | None = None,
     language: str | None = None,
@@ -357,6 +429,11 @@ def search_solicitors(
     ``"M1"``, ``"EC2N"``). ``muslim_only`` restricts to solicitors who declared
     any language in :data:`MUSLIM_LANGUAGES`.
 
+    ``area`` matches a raw practice-area substring, OR — when it exactly matches
+    a curated group label from :data:`PRACTICE_AREA_GROUPS` (e.g.
+    ``"Immigration & Asylum"``) — expands to that group's matchers so a single
+    filter rolls up the fragmented raw strings.
+
     Returns at most ``limit`` records (capped to 200). Each record contains only
     the fields in :data:`SOLICITOR_PUBLIC_FIELDS`.
     """
@@ -365,6 +442,8 @@ def search_solicitors(
     results: list[dict] = []
 
     area_lc = area.lower().strip() if area else None
+    # A group label expands to its matcher set; otherwise treat as a raw substring.
+    area_matchers = _GROUP_BY_LABEL[area_lc]["matchers"] if area_lc in _GROUP_BY_LABEL else None
     lang_lc = language.lower().strip() if language else None
     name_lc = name.lower().strip() if name else None
     pc_prefix = _postcode_outward(postcode_prefix) if postcode_prefix else None
@@ -373,7 +452,10 @@ def search_solicitors(
         if muslim_only and not s.get("muslim_language"):
             continue
 
-        if area_lc:
+        if area_matchers is not None:
+            if not _area_matches_group(s.get("areas"), area_matchers):
+                continue
+        elif area_lc:
             if not any(area_lc in (a or "").lower() for a in s.get("areas") or []):
                 continue
 
