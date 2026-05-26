@@ -569,18 +569,31 @@ async def backfill_ograg(
 
     # Wire pass 2 (Claude Haiku) when ANTHROPIC_API_KEY is configured.
     # Absence is non-fatal: the orchestrator simply skips pass 2 and writes
-    # only structural ontology rows. Pass 3 (Gemini Flash) lands separately.
+    # only structural ontology rows.
     pass2_runner = None
     if os.getenv("ANTHROPIC_API_KEY"):
         from app.services.ograg_extract import make_pass2_runner
 
         pass2_runner = make_pass2_runner()
 
+    # Wire pass 3 (Gemini Flash cross-refs + hyperedges) when
+    # GEMINI_API_KEY is configured. Same fail-soft contract as pass 2.
+    # Hyperedge build can be disabled separately via
+    # OGRAG_BUILD_HYPEREDGES=0 so an operator can iterate on cross-ref
+    # classification without paying the embedding cost on every run.
+    pass3_runner = None
+    if os.getenv("GEMINI_API_KEY"):
+        from app.services.ograg_extract import make_pass3_runner
+
+        build_hyperedges_after = os.getenv("OGRAG_BUILD_HYPEREDGES", "1") != "0"
+        pass3_runner = make_pass3_runner(build_hyperedges_after=build_hyperedges_after)
+
     cfg = BackfillConfig(
         kill_switch_usd=kill_switch_usd,
         limit=limit,
         since_id=since_id,
         pass2_runner=pass2_runner,
+        pass3_runner=pass3_runner,
     )
 
     stats = await run_backfill(

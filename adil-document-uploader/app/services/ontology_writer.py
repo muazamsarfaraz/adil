@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from typing import Any
 
 import asyncpg
 
@@ -168,11 +169,15 @@ async def write_case_extraction(
     rag_database_url: str | None,
     result: ExtractionResult,
 ) -> tuple[int, int]:
-    """Write Case + Paragraph nodes and Refs edges for one judgment.
+    """Write Case + Paragraph + (Pass-2/3) nodes + edges + hyperedges.
 
-    Returns ``(nodes_written, edges_written)``. No-op (0, 0) when the rag-api
-    DB or its ``ontology_node`` table is not yet available — same guard as
-    ``write_act_to_ontology`` so the writer activates as soon as P1 ships.
+    Returns ``(nodes_written, edges_written)``. Hyperedges are counted as
+    nodes for the stats summary since each hyperedge owns one row in its
+    own table.
+
+    No-op (0, 0) when the rag-api DB or its ``ontology_node`` table is
+    not yet available — same guard as ``write_act_to_ontology`` so the
+    writer activates as soon as P1 ships.
 
     Idempotent: all writes are ``INSERT ... ON CONFLICT`` against the
     deterministic node IDs already on the dataclass instances.
@@ -191,7 +196,20 @@ async def write_case_extraction(
             return 0, 0
 
         has_edges = await _table_exists(conn, "ontology_edge")
-        return await _write_case_extraction(conn, result, has_edges)
+        has_hyperedge = await _table_exists(conn, "hyperedge")
+        nodes, edges = await _write_case_extraction(conn, result, has_edges)
+        extra_nodes, extra_edges = await _write_pass2_pass3_nodes_and_edges(conn, result, has_edges)
+        nodes += extra_nodes
+        edges += extra_edges
+        if has_hyperedge:
+            nodes += await _write_hyperedges(conn, result)
+        else:
+            logger.debug(
+                "hyperedge table not present — skipping %d hyperedges for %s",
+                len(result.hyperedges),
+                result.case.neutral_citation,
+            )
+        return nodes, edges
     finally:
         await conn.close()
 
@@ -308,6 +326,132 @@ async def _upsert_edge(
         json.dumps(attrs),
     )
     return 1
+
+
+# ---------------------------------------------------------------------------
+# Pass 2 + Pass 3 secondary node/edge writer
+# ---------------------------------------------------------------------------
+
+
+async def _write_pass2_pass3_nodes_and_edges(
+    conn: asyncpg.Connection,
+    result: ExtractionResult,
+    has_edges: bool,
+) -> tuple[int, int]:
+    """Persist Pass-2 (Topic/Party/Judge/Court) and Pass-3 (referenced
+    Case stubs) nodes, plus every entry in ``result.edges`` whose kind is
+    one of the Pass-2/3 relations.
+
+    Pass-1 statute/section refs are still handled inline in
+    ``_write_case_extraction``; this function complements that path.
+    """
+    nodes = 0
+    edges = 0
+
+    def _node_payload(kind: str, ident: uuid.UUID, attrs: dict) -> tuple[uuid.UUID, str, str]:
+        return ident, kind, json.dumps(attrs)
+
+    payloads: list[tuple[uuid.UUID, str, str]] = []
+
+    if result.court is not None:
+        payloads.append(
+            _node_payload(
+                "Court",
+                result.court.node_id,
+                {"code": result.court.code, "division": result.court.division},
+            )
+        )
+    for t in result.topics:
+        payloads.append(_node_payload("Topic", t.node_id, {"slug": t.slug}))
+    for p in result.parties:
+        payloads.append(_node_payload("Party", p.node_id, {"name": p.name, "role": p.role}))
+    for j in result.judges:
+        payloads.append(_node_payload("Judge", j.node_id, {"name": j.name}))
+    for c in result.referenced_cases:
+        payloads.append(
+            _node_payload(
+                "Case",
+                c.node_id,
+                {
+                    "neutral_citation": c.neutral_citation,
+                    "case_name": c.case_name,
+                    "court": c.court,
+                    "year": c.year,
+                    "referenced_only": True,
+                },
+            )
+        )
+
+    async with conn.transaction():
+        for ident, kind, attrs_json in payloads:
+            await conn.execute(
+                """
+                INSERT INTO ontology_node (id, type, attrs)
+                VALUES ($1, $2, $3::jsonb)
+                ON CONFLICT (id) DO UPDATE
+                  SET type = EXCLUDED.type,
+                      attrs = ontology_node.attrs || EXCLUDED.attrs
+                """,
+                ident,
+                kind,
+                attrs_json,
+            )
+            nodes += 1
+
+        if has_edges:
+            for edge in result.edges:
+                attrs: dict[str, Any] = {}
+                if edge.paragraph_id is not None:
+                    attrs["paragraph_id"] = str(edge.paragraph_id)
+                edges += await _upsert_edge(
+                    conn,
+                    edge.source_id,
+                    edge.target_id,
+                    edge.kind,
+                    attrs,
+                )
+
+    return nodes, edges
+
+
+# ---------------------------------------------------------------------------
+# Hyperedge writer
+# ---------------------------------------------------------------------------
+
+
+async def _write_hyperedges(conn: asyncpg.Connection, result: ExtractionResult) -> int:
+    """Persist ``HyperedgeNode`` rows. Idempotent on the deterministic
+    ``node_id`` (UUIDv5 of the paragraph node_id). Re-running pass 3
+    overwrites the embedding + node_ids — schema deliberately allows
+    that so a refreshed embedding model can backfill in place.
+    """
+    if not result.hyperedges:
+        return 0
+
+    count = 0
+    async with conn.transaction():
+        for h in result.hyperedges:
+            await conn.execute(
+                """
+                INSERT INTO hyperedge (
+                    id, node_ids, paragraph_text, source_node_id, embedding, attrs
+                )
+                VALUES ($1, $2::uuid[], $3, $4, $5, $6::jsonb)
+                ON CONFLICT (id) DO UPDATE
+                  SET node_ids = EXCLUDED.node_ids,
+                      paragraph_text = EXCLUDED.paragraph_text,
+                      embedding = EXCLUDED.embedding,
+                      attrs = EXCLUDED.attrs
+                """,
+                h.node_id,
+                list(h.node_ids),
+                h.paragraph_text,
+                h.paragraph_id,
+                h.embedding,
+                json.dumps({"case_id": str(result.case.node_id)}),
+            )
+            count += 1
+    return count
 
 
 async def case_has_ontology_rows(rag_database_url: str | None, case_node_id: uuid.UUID) -> bool:

@@ -24,6 +24,15 @@ from app.services.ograg_extract.pass2_haiku import (
     extract_pass2,
     make_pass2_runner,
 )
+from app.services.ograg_extract.pass3_flash import (
+    FlashExtractionError,
+    HyperedgeNode,
+    HyperedgeStats,
+    Pass3Stats,
+    build_hyperedges,
+    extract_pass3,
+    make_pass3_runner,
+)
 
 __all__ = [
     "CaseNode",
@@ -41,4 +50,11 @@ __all__ = [
     "HaikuExtractionError",
     "extract_pass2",
     "make_pass2_runner",
+    "FlashExtractionError",
+    "HyperedgeNode",
+    "HyperedgeStats",
+    "Pass3Stats",
+    "build_hyperedges",
+    "extract_pass3",
+    "make_pass3_runner",
 ]

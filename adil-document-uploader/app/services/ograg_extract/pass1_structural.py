@@ -273,6 +273,15 @@ class ExtractionResult:
     parties: list[PartyNode] = field(default_factory=list)
     judges: list[JudgeNode] = field(default_factory=list)
     edges: list[Edge] = field(default_factory=list)
+    # ---- Pass 3 (Flash cross-refs) ----
+    # Lightweight Case nodes for judgments this one cites but we may not
+    # have ingested ourselves. ``case_name`` stays blank until/unless the
+    # cited case is itself extracted in a later run.
+    referenced_cases: list[CaseNode] = field(default_factory=list)
+    # Populated by ``build_hyperedges`` after pass 3. Held as ``Any`` here
+    # to avoid a forward-import cycle with ``pass3_flash``; the concrete
+    # type is ``pass3_flash.HyperedgeNode``.
+    hyperedges: list[Any] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
