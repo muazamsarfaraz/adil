@@ -243,6 +243,28 @@ class TestPracticeAreaGroups:
         for s in out:
             assert any("employment" in (a or "").lower() for a in s.get("areas") or [])
 
+    def test_wave2_groups_present_and_searchable(self):
+        # Wave 2 expansion (LegalScraper task 869depba3): Welfare + Housing +
+        # Human Rights must be live, wave-tagged, and resolve to real records.
+        from solicitor_directory import list_practice_area_groups, search_solicitors
+
+        groups = {g["group"]: g for g in list_practice_area_groups()}
+        for label in ("Welfare & Benefits", "Housing", "Human Rights"):
+            assert label in groups, f"Wave 2 group '{label}' missing from directory"
+            assert groups[label]["wave"] == 2
+            assert groups[label]["count"] > 0
+            assert len(search_solicitors(area=label, limit=200)) > 0
+
+    def test_housing_group_rolls_up_landlord_tenant(self):
+        from solicitor_directory import search_solicitors
+
+        # The friendly "Housing" filter must roll up LegalScraper's fragmented
+        # "Landlord and tenant - residential/commercial" raw strings, which a
+        # bare area="housing" substring search would miss entirely.
+        out = search_solicitors(area="Housing", limit=200)
+        assert len(out) > 0
+        assert any(any("landlord and tenant" in (a or "").lower() for a in s.get("areas") or []) for s in out)
+
 
 class TestSolicitorVerifyEndpoint:
     def test_verify_known_sra_id(self, client, api_key):
