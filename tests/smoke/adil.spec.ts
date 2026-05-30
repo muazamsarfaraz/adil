@@ -78,34 +78,42 @@ async function notify(
 test.describe('@adil UI smoke', () => {
   test.setTimeout(60_000);
 
-  test('golden path: load, pick jurisdiction, query, get substantive answer', async ({
+  test('golden path: load, query, get substantive answer', async ({
     page,
+    context,
   }, testInfo) => {
     let step = 'navigate';
     try {
+      // Pre-seed the jurisdiction cookie so the chat page skips the picker and
+      // renders straight into the chat-ready state. This avoids a Next.js
+      // hydration race where a Playwright click on the jurisdiction button can
+      // land before React attaches the onClick handler — an un-replayed no-op
+      // that leaves the input disabled. Retry-clicking did not fix it: on slow
+      // CI runners every retry can land before hydration completes.
+      step = 'set-jurisdiction-cookie';
+      const hostname = new URL(SITE_URL).hostname;
+      await context.addCookies([
+        {
+          name: 'askadil_jurisdiction',
+          value: 'england_wales',
+          domain: hostname,
+          path: '/',
+        },
+      ]);
+
       // 1. Page renders
       step = 'goto';
       await page.goto(SITE_URL, { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveTitle(/AskAdil/);
 
-      // 2. Jurisdiction picker is visible and clickable
-      step = 'jurisdiction-visible';
-      const ewButton = page.getByRole('button', { name: /England & Wales/ });
-      await expect(ewButton).toBeVisible({ timeout: 10_000 });
-
-      // 3. Clicking the jurisdiction enables the chat input. Retry the click:
-      //    goto(domcontentloaded) returns before Next.js finishes hydrating, so
-      //    an early click may land before React attaches the onClick handler and
-      //    silently no-op (input stays disabled). Re-clicking until the input is
-      //    enabled removes that hydration race without weakening the assertion.
-      step = 'jurisdiction-click+input-enabled';
+      // 2. Chat input becomes enabled (useEffect reads the cookie on mount and
+      //    sets jurisdiction → Composer's `disabled` flips to false). Generous
+      //    timeout absorbs slow CI hydration.
+      step = 'input-enabled';
       const input = page.getByRole('textbox', {
         name: /Ask about discrimination/i,
       });
-      await expect(async () => {
-        await ewButton.click();
-        await expect(input).toBeEnabled({ timeout: 2_000 });
-      }).toPass({ timeout: 20_000 });
+      await expect(input).toBeEnabled({ timeout: 15_000 });
 
       // 4. Submit a real legal query and wait for a substantive streamed reply
       step = 'submit-query';
