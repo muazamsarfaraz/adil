@@ -87,6 +87,13 @@ test.describe('@adil UI smoke', () => {
       step = 'goto';
       await page.goto(SITE_URL, { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveTitle(/AskAdil/);
+      // Soft hydration signal — Next.js 16 / React 19 onClick handlers on a
+      // cold CDN edge can attach later than the click-retry budget below
+      // tolerates. networkidle is a best-effort hint; never fail the smoke
+      // on it (Cloudflare keep-alive sometimes prevents it from firing).
+      await page
+        .waitForLoadState('networkidle', { timeout: 10_000 })
+        .catch(() => {});
 
       // 2. Jurisdiction picker is visible and clickable
       step = 'jurisdiction-visible';
@@ -94,10 +101,13 @@ test.describe('@adil UI smoke', () => {
       await expect(ewButton).toBeVisible({ timeout: 10_000 });
 
       // 3. Clicking the jurisdiction enables the chat input. Retry the click:
-      //    goto(domcontentloaded) returns before Next.js finishes hydrating, so
-      //    an early click may land before React attaches the onClick handler and
-      //    silently no-op (input stays disabled). Re-clicking until the input is
-      //    enabled removes that hydration race without weakening the assertion.
+      //    domcontentloaded + networkidle still doesn't guarantee React has
+      //    attached event handlers (Turbopack bundles on a cold CDN edge),
+      //    so an early click may land before onClick binds and silently no-op.
+      //    Re-clicking until the input is enabled removes that hydration race
+      //    without weakening the assertion. 35s chosen empirically — observed
+      //    flakes (3/100 runs) all exceeded a 20s budget but resolved cleanly
+      //    on the next 15-min cron tick.
       step = 'jurisdiction-click+input-enabled';
       const input = page.getByRole('textbox', {
         name: /Ask about discrimination/i,
@@ -105,7 +115,7 @@ test.describe('@adil UI smoke', () => {
       await expect(async () => {
         await ewButton.click();
         await expect(input).toBeEnabled({ timeout: 2_000 });
-      }).toPass({ timeout: 20_000 });
+      }).toPass({ timeout: 35_000 });
 
       // 4. Submit a real legal query and wait for a substantive streamed reply
       step = 'submit-query';
