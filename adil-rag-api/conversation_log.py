@@ -3,10 +3,17 @@
 Logs conversation metadata to Postgres for analytics without storing PII.
 All message content is summarised into topic categories — no raw text stored.
 
-Table: conversation_logs
+Tables:
+  - conversation_logs       (always-on metadata, no raw text)
+  - debug_conversation_logs (raw query/response/sources, gated by DEBUG_LOG_RAW=1)
+
+The debug table is empty by default; flip DEBUG_LOG_RAW=1 on the rag-api
+service only while actively debugging a prod issue, then back to 0. Rows are
+auto-pruned after 7 days regardless.
 """
 
 import asyncio
+import json
 import logging
 import os
 
@@ -15,6 +22,14 @@ logger = logging.getLogger(__name__)
 # Lazy connection pool
 _pool = None
 _pool_lock = asyncio.Lock()
+
+# Gate for raw query/response capture. Off by default — flip to "1" on Railway
+# only while debugging a specific issue.
+DEBUG_LOG_RAW = os.getenv("DEBUG_LOG_RAW", "0") == "1"
+DEBUG_LOG_TTL_DAYS = int(os.getenv("DEBUG_LOG_TTL_DAYS", "7"))
+# Prune roughly every Nth write so cleanup runs without a separate scheduler.
+_DEBUG_PRUNE_EVERY = 100
+_debug_write_counter = 0
 
 TOPIC_KEYWORDS = {
     "workplace_discrimination": [
@@ -220,3 +235,60 @@ async def log_conversation(
     except Exception as e:
         # Never let logging failures affect the user
         logger.debug("Conversation log write failed: %s", e)
+
+
+async def _maybe_prune_debug_logs(conn) -> None:
+    """Delete debug rows older than DEBUG_LOG_TTL_DAYS. Cheap; runs every Nth write."""
+    global _debug_write_counter
+    _debug_write_counter += 1
+    if _debug_write_counter % _DEBUG_PRUNE_EVERY != 1:
+        return
+    try:
+        await conn.execute(
+            "DELETE FROM debug_conversation_logs " "WHERE created_at < NOW() - ($1::text || ' days')::interval",
+            str(DEBUG_LOG_TTL_DAYS),
+        )
+    except Exception as e:
+        logger.debug("Debug log prune failed: %s", e)
+
+
+async def log_conversation_raw(
+    endpoint: str,
+    *,
+    conversation_id: str | None = None,
+    query: str = "",
+    response: str = "",
+    sources: list | None = None,
+    error: str | None = None,
+    response_time_ms: int | None = None,
+) -> None:
+    """Append raw conversation content to debug_conversation_logs.
+
+    No-op when DEBUG_LOG_RAW != "1". Fire-and-forget — never blocks the
+    response and never raises. Rows expire after DEBUG_LOG_TTL_DAYS (default 7).
+    """
+    if not DEBUG_LOG_RAW:
+        return
+    try:
+        pool = await _get_pool()
+        if not pool:
+            return
+        async with pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO debug_conversation_logs
+                    (conversation_id, endpoint, query, response, sources_json,
+                     error, response_time_ms)
+                VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
+                """,
+                conversation_id,
+                endpoint,
+                query or None,
+                response or None,
+                json.dumps(sources) if sources is not None else None,
+                error,
+                response_time_ms,
+            )
+            await _maybe_prune_debug_logs(conn)
+    except Exception as e:
+        logger.debug("Raw conversation log write failed: %s", e)
