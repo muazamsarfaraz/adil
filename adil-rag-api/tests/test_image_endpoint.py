@@ -80,11 +80,34 @@ class TestImageEndpointContract:
 
         We patch the module-level ``API_KEY`` directly so that
         ``verify_api_key`` sees it without needing an ``importlib.reload``.
+        ``app.py`` calls ``load_dotenv(override=True)`` at import time which
+        would otherwise stomp on the env var, so use monkeypatch which is
+        applied at fixture-run time after import has settled.
         """
         import app as app_mod
 
         monkeypatch.setenv("ADIL_API_KEY", API_KEY_VALUE)
         monkeypatch.setattr(app_mod, "API_KEY", API_KEY_VALUE)
+
+    @pytest.fixture(autouse=True)
+    def _bypass_rate_limit(self, monkeypatch):
+        """Bypass the Postgres-backed rate-limit dependency.
+
+        ``enforce()`` returns a closure that calls ``_get_pool()`` (which
+        raises 500 when ``DATABASE_URL`` is unset, as in tests) and then
+        ``check_limits(...)``. Replace both with no-ops at the app-module
+        level so requests can reach the Pydantic validator under test.
+        """
+        import app as app_mod
+
+        async def _noop_get_pool():
+            return None
+
+        async def _noop_check_limits(*args, **kwargs):
+            return None
+
+        monkeypatch.setattr(app_mod, "_get_pool", _noop_get_pool)
+        monkeypatch.setattr(app_mod, "check_limits", _noop_check_limits)
 
     @pytest.fixture
     def client(self):

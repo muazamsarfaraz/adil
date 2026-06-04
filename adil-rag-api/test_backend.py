@@ -22,6 +22,7 @@ Tests cover:
 """
 
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1082,23 +1083,37 @@ def _make_client(
     api_key_value=None,
     rag_service_mock=None,
     content_extractor_mock=None,
+    verify_real_auth: bool = False,
 ):
     """Create a TestClient with mocked globals.
 
     Parameters
     ----------
     api_key_value:
-        Value to assign to ``app.API_KEY``.  ``None`` means "open mode".
+        Test API-key value. When ``verify_real_auth=False`` (the default) the
+        auth dependency is overridden to a no-op so endpoint tests can call
+        protected routes without threading an ``X-API-Key`` header through
+        every request. When ``verify_real_auth=True`` the helper patches
+        ``ADIL_API_KEY`` in ``os.environ`` (which ``verify_api_key`` reads
+        directly) so the real auth path runs — used by ``TestApiSecurity``.
+        ``None`` means "no key configured" — auth.py fails closed with 500.
     rag_service_mock:
         Object to assign to ``app.rag_service``.
     content_extractor_mock:
         Object to assign to ``app.content_extractor``.
+    verify_real_auth:
+        When True, do NOT override the auth dependency — the real
+        ``verify_api_key`` runs against ``os.environ['ADIL_API_KEY']``.
     """
+    from auth import verify_api_key
+
     # Swap the lifespan so we don't need real env vars / Gemini credentials
     original_lifespan = app_module.app.router.lifespan_context
     app_module.app.router.lifespan_context = _noop_lifespan
 
-    # Patch module-level globals
+    # Patch module-level globals (kept for symmetry — verify_api_key now reads
+    # ADIL_API_KEY from os.environ directly, but other code paths still inspect
+    # app.API_KEY for logging / health-status output).
     original_api_key = app_module.API_KEY
     original_rag = app_module.rag_service
     original_ce = app_module.content_extractor
@@ -1107,6 +1122,35 @@ def _make_client(
     app_module.rag_service = rag_service_mock
     app_module.content_extractor = content_extractor_mock
 
+    # Patch the env var that verify_api_key reads.
+    original_env = os.environ.get("ADIL_API_KEY")
+    if api_key_value is None:
+        os.environ.pop("ADIL_API_KEY", None)
+    else:
+        os.environ["ADIL_API_KEY"] = api_key_value
+
+    # By default, bypass auth so endpoint tests don't need to thread headers.
+    # TestApiSecurity opts out of this override to exercise the real path.
+    if not verify_real_auth:
+        app_module.app.dependency_overrides[verify_api_key] = lambda: "test-bypass"
+
+    # Bypass the Postgres rate-limit dependency. ``enforce()`` returns a closure
+    # that calls ``_get_pool()`` (which raises 500 if DATABASE_URL is unset, as
+    # in tests) and then ``check_limits(...)`` against the pool. We replace
+    # both with no-ops at the app-module level — the closure resolves names
+    # against that module, so patching there is enough.
+    original_get_pool = app_module._get_pool
+    original_check_limits = app_module.check_limits
+
+    async def _noop_get_pool():
+        return None
+
+    async def _noop_check_limits(*args, **kwargs):
+        return None
+
+    app_module._get_pool = _noop_get_pool
+    app_module.check_limits = _noop_check_limits
+
     client = TestClient(app_module.app)
 
     def _cleanup():
@@ -1114,6 +1158,13 @@ def _make_client(
         app_module.API_KEY = original_api_key
         app_module.rag_service = original_rag
         app_module.content_extractor = original_ce
+        app_module.app.dependency_overrides.pop(verify_api_key, None)
+        app_module._get_pool = original_get_pool
+        app_module.check_limits = original_check_limits
+        if original_env is None:
+            os.environ.pop("ADIL_API_KEY", None)
+        else:
+            os.environ["ADIL_API_KEY"] = original_env
 
     return client, _cleanup
 
@@ -1122,41 +1173,52 @@ def _make_client(
 
 
 class TestApiSecurity:
-    """Test API key authentication via verify_api_key dependency."""
+    """Test API key authentication via verify_api_key dependency.
 
-    def test_open_mode_when_no_key_configured(self):
-        """When ADIL_API_KEY is not set (API_KEY is None), API runs in open mode."""
-        client, cleanup = _make_client(api_key_value=None)
+    These tests opt out of the dependency-override bypass in ``_make_client``
+    so the real ``verify_api_key`` runs against ``os.environ['ADIL_API_KEY']``.
+
+    Contract (see ``adil-rag-api/auth.py``):
+      - No ``ADIL_API_KEY`` env var configured → 500 ("fail closed, misconfig
+        is an outage, not a free pass").
+      - Configured + missing or wrong header → 401 (one unified failure mode,
+        no separate 403 — see ``verify_api_key`` for rationale).
+      - Configured + correct header → 200.
+    """
+
+    def test_no_key_configured_returns_500(self):
+        """No ADIL_API_KEY → 500 (fail closed, intentional)."""
+        client, cleanup = _make_client(api_key_value=None, verify_real_auth=True)
         try:
-            # /stats is a protected endpoint; it should succeed without any header
             resp = client.get("/stats")
-            assert resp.status_code == 200
+            assert resp.status_code == 500
+            assert "ADIL_API_KEY not configured" in resp.json()["detail"]
         finally:
             cleanup()
 
     def test_missing_key_returns_401(self):
-        """When API_KEY is set but request has no key, return 401."""
-        client, cleanup = _make_client(api_key_value="secret-key-123")
+        """When ADIL_API_KEY is set but request has no header, return 401."""
+        client, cleanup = _make_client(api_key_value="secret-key-123", verify_real_auth=True)
         try:
             resp = client.get("/stats")
             assert resp.status_code == 401
-            assert "Missing API key" in resp.json()["detail"]
+            assert "Invalid or missing X-API-Key" in resp.json()["detail"]
         finally:
             cleanup()
 
-    def test_wrong_key_returns_403(self):
-        """When API_KEY is set and request has wrong key, return 403."""
-        client, cleanup = _make_client(api_key_value="secret-key-123")
+    def test_wrong_key_returns_401(self):
+        """When ADIL_API_KEY is set and request has wrong key, return 401 (not 403)."""
+        client, cleanup = _make_client(api_key_value="secret-key-123", verify_real_auth=True)
         try:
             resp = client.get("/stats", headers={"X-API-Key": "wrong-key"})
-            assert resp.status_code == 403
-            assert "Invalid API key" in resp.json()["detail"]
+            assert resp.status_code == 401
+            assert "Invalid or missing X-API-Key" in resp.json()["detail"]
         finally:
             cleanup()
 
     def test_correct_key_succeeds(self):
         """When correct API key is provided, request proceeds."""
-        client, cleanup = _make_client(api_key_value="secret-key-123")
+        client, cleanup = _make_client(api_key_value="secret-key-123", verify_real_auth=True)
         try:
             resp = client.get("/stats", headers={"X-API-Key": "secret-key-123"})
             assert resp.status_code == 200
@@ -1300,8 +1362,14 @@ class TestQueryEndpoint:
             cleanup()
 
     def test_query_auth_required_when_key_configured(self):
+        # Opt out of the auth-bypass override — this test exercises the real
+        # verify_api_key path.
         mock_rag = self._make_mock_rag()
-        client, cleanup = _make_client(api_key_value="my-secret", rag_service_mock=mock_rag)
+        client, cleanup = _make_client(
+            api_key_value="my-secret",
+            rag_service_mock=mock_rag,
+            verify_real_auth=True,
+        )
         try:
             # No header -> 401
             resp = client.post("/api/v1/query", json={"query": "Test"})
@@ -1419,11 +1487,13 @@ class TestAnalyzeEndpoint:
             cleanup()
 
     def test_analyze_auth_required_when_key_configured(self):
+        # Opt out of the auth-bypass override — exercises real verify_api_key.
         mock_rag, mock_ce = self._make_mocks()
         client, cleanup = _make_client(
             api_key_value="analyze-key",
             rag_service_mock=mock_rag,
             content_extractor_mock=mock_ce,
+            verify_real_auth=True,
         )
         try:
             resp = client.post("/api/v1/analyze", json={"content": "Test"})
