@@ -97,7 +97,7 @@ async def _seed_legislation(store: Store) -> int:
 async def _seed_case_law(store: Store) -> int:
     inserted = 0
     for case_name, meta in UK_CASE_LAW.items():
-        body = f"{case_name} — {meta.get('court', '')} {meta.get('citation', '')}\n\n" f"{meta.get('summary', '')}"
+        body = f"{case_name} — {meta.get('court', '')} {meta.get('citation', '')}\n\n{meta.get('summary', '')}"
         chunks = _chunk_text(body)
         for idx, chunk_text in enumerate(chunks):
             cid = _stable_id("case_law", case_name, idx)

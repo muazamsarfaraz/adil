@@ -145,7 +145,7 @@ async def _cli_main() -> None:
     p50 = summary["p50_ms"]
     p95 = summary["p95_ms"]
     print(
-        f"Wrote {out_path}: " f"ok={summary['ok_runs']}/{summary['total_runs']} " f"P50={p50:.0f}ms P95={p95:.0f}ms"
+        f"Wrote {out_path}: ok={summary['ok_runs']}/{summary['total_runs']} P50={p50:.0f}ms P95={p95:.0f}ms"
         if p50
         else "no ok results"
     )

@@ -236,8 +236,7 @@ async def main_async(args: argparse.Namespace) -> int:
                 jid_short = str(j["id"])[:8]
                 cit = (j.get("neutral_citation") or "")[:25]
                 print(
-                    f"  [{i}/{len(to_process)}] {jid_short} {cit:<25s}"
-                    f" chunks={n_chunks:3d} inserted={n_inserted:3d}",
+                    f"  [{i}/{len(to_process)}] {jid_short} {cit:<25s} chunks={n_chunks:3d} inserted={n_inserted:3d}",
                     flush=True,
                 )
             except Exception as exc:

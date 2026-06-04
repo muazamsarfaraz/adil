@@ -55,7 +55,7 @@ async def main() -> None:
 
     if wn == 0:
         logger.warning(
-            "ontology_node table not present — wrote 0 rows. " "Apply migration 004_ontology_init.sql first.",
+            "ontology_node table not present — wrote 0 rows. Apply migration 004_ontology_init.sql first.",
         )
     else:
         logger.info("Upserted %d nodes, %d edges into ontology tables", wn, we)

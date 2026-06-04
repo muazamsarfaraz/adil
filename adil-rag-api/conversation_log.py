@@ -127,7 +127,7 @@ async def get_analytics_summary() -> dict | None:
         total = await conn.fetchval("SELECT COUNT(*) FROM conversation_logs")
 
         topic_rows = await conn.fetch(
-            "SELECT topic, COUNT(*) as count FROM conversation_logs " "GROUP BY topic ORDER BY count DESC LIMIT 10"
+            "SELECT topic, COUNT(*) as count FROM conversation_logs GROUP BY topic ORDER BY count DESC LIMIT 10"
         )
 
         jurisdiction_rows = await conn.fetch(
@@ -144,11 +144,11 @@ async def get_analytics_summary() -> dict | None:
         )
 
         recent_24h = await conn.fetchval(
-            "SELECT COUNT(*) FROM conversation_logs " "WHERE timestamp > NOW() - INTERVAL '24 hours'"
+            "SELECT COUNT(*) FROM conversation_logs WHERE timestamp > NOW() - INTERVAL '24 hours'"
         )
 
         avg_response = await conn.fetchval(
-            "SELECT AVG(response_time_ms) FROM conversation_logs " "WHERE response_time_ms IS NOT NULL"
+            "SELECT AVG(response_time_ms) FROM conversation_logs WHERE response_time_ms IS NOT NULL"
         )
 
     return {
