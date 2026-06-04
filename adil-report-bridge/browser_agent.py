@@ -1,7 +1,9 @@
 """Browser automation agent for form submission.
 
-Uses browser-use with Gemini Flash to fill multi-step web forms.
+Uses browser-use with Claude Sonnet to fill multi-step web forms.
 The AI agent reads form labels semantically, adapting to UI changes.
+Migrated off Gemini Flash on 2026-06-04 as part of the AskAdil
+Gemini → Claude consolidation (one model vendor across all services).
 """
 
 import asyncio
@@ -10,7 +12,7 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-from browser_use import Agent, Browser, ChatGoogle
+from browser_use import Agent, Browser, ChatAnthropic
 from screenshot import compress_screenshot
 from targets import get_target
 
@@ -93,10 +95,12 @@ async def submit_report(
 
     browser = None
     try:
-        model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        # Use browser-use's native ChatGoogle (drops langchain dependency).
-        # Reads GOOGLE_API_KEY / GEMINI_API_KEY from env.
-        llm = ChatGoogle(model=model)
+        # Default to Claude Sonnet 4.6 — sharper at multi-step semantic form
+        # filling than Haiku in practice, and the per-submission cost is small
+        # (typically <$0.05). Override via BRIDGE_LLM_MODEL if needed.
+        model = os.getenv("BRIDGE_LLM_MODEL", "claude-sonnet-4-6")
+        # browser-use's native ChatAnthropic reads ANTHROPIC_API_KEY from env.
+        llm = ChatAnthropic(model=model)
 
         browser = Browser(headless=True)
         task_prompt = _build_task_prompt(target_config, data)

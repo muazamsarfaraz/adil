@@ -107,8 +107,8 @@ def main():
         },
         "cadence": [{"day": 0, "action": "send_initial", "template": "initial"}],
         "llm_config": {
-            "research": {"provider": "gemini", "model": "gemini-2.0-flash"},
-            "compose": {"provider": "anthropic", "model": "claude-sonnet-4-20250514"},
+            "research": {"provider": "anthropic", "model": "claude-haiku-4-5"},
+            "compose": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
         },
     }
     resp = api("POST", "/api/v1/campaigns", json=campaign_data)

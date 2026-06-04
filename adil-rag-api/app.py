@@ -340,14 +340,33 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.exception("solicitor refresh_from_db failed — using JSON fallback")
 
-    # Validate required environment variables
-    gemini_api_key = os.getenv("GEMINI_API_KEY")
-    file_search_store_id = os.getenv("FILE_SEARCH_STORE_ID")
+    # Validate required environment variables.
+    #
+    # As of 2026-06-04 the production path (RAG_BACKEND=ograg) doesn't touch
+    # Gemini at all — text retrieval + generation goes through OG-RAG / Claude,
+    # and vision goes through ograg.backend.answer (Claude Sonnet 4.6 native
+    # vision). GEMINI_API_KEY is only required when explicitly running the
+    # legacy FST backend; warn otherwise so devs flipping back to fst get a
+    # clear signal but ograg deployments don't trip over a missing key.
+    gemini_api_key = os.getenv("GEMINI_API_KEY", "")
+    file_search_store_id = os.getenv("FILE_SEARCH_STORE_ID", "")
+    rag_backend = os.environ.get("RAG_BACKEND", "fst").lower()
 
-    if not gemini_api_key:
-        raise ValueError("GEMINI_API_KEY environment variable not set. Get one at https://aistudio.google.com/apikey")
-    if not file_search_store_id:
-        raise ValueError("FILE_SEARCH_STORE_ID not set. Run document-uploader first to create a store.")
+    if rag_backend == "fst":
+        if not gemini_api_key:
+            raise ValueError(
+                "GEMINI_API_KEY environment variable not set. Required for RAG_BACKEND=fst. "
+                "Either set RAG_BACKEND=ograg (current prod default — Claude-only) or get a Gemini key at https://aistudio.google.com/apikey"
+            )
+        if not file_search_store_id:
+            raise ValueError("FILE_SEARCH_STORE_ID not set. Run document-uploader first to create a store.")
+    else:
+        if not gemini_api_key:
+            logger.info(
+                "GEMINI_API_KEY not set — fine for RAG_BACKEND=%s (Gemini code paths unreachable).", rag_backend
+            )
+        if not file_search_store_id:
+            logger.info("FILE_SEARCH_STORE_ID not set — fine for RAG_BACKEND=%s (FST unused).", rag_backend)
 
     # Warn if no API key is configured
     if not os.getenv("ADIL_API_KEY"):

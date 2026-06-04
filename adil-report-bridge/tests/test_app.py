@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 os.environ["BRIDGE_API_KEY"] = "test-bridge-key"
-os.environ["GOOGLE_API_KEY"] = "test-google-key"
+os.environ["ANTHROPIC_API_KEY"] = "test-anthropic-key"
 
 from app import app
 

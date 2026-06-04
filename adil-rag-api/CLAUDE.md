@@ -37,7 +37,7 @@ Rate limits (Postgres-backed, per API key):
 ## Key Files
 
 - `app.py` — FastAPI app, all endpoints, CORS gating
-- `rag_service.py` — Gemini File Search Tool Store query logic
+- `rag_service.py` — RAGService class. Vision routes unconditionally through `ograg.backend.answer` (Claude Sonnet 4.6 native vision). Text queries route through OG-RAG when `RAG_BACKEND=ograg` (prod default) and through the legacy Gemini File Search path otherwise — that legacy path is the only remaining Gemini consumer in this service.
 - `rate_limit.py` — Postgres-backed rate limiter
 - `auth.py` — API key verification
 - `models.py` — Pydantic request/response schemas
@@ -57,8 +57,10 @@ Rate limits (Postgres-backed, per API key):
 |-----|----------|-------------|
 | `ADIL_API_KEY` | Yes | Comma-separated valid API keys |
 | `DATABASE_URL` | Yes | Postgres connection string |
-| `GEMINI_API_KEY` | Yes | Google Gemini key |
-| `FILE_SEARCH_STORE_ID` | Yes | Single FST store ID — never create a new one |
+| `ANTHROPIC_API_KEY` | Yes | Claude Sonnet 4.6 (OG-RAG generation + native vision) + Claude Haiku 4.5 (eval judging) |
+| `OPENAI_API_KEY` | Yes (when `RAG_BACKEND=ograg`) | Embeddings (text-embedding-3-small, 1536-d) for the OG-RAG retriever |
+| `GEMINI_API_KEY` | When `RAG_BACKEND=fst` | Legacy FST text-query path only. Not needed in prod (RAG_BACKEND=ograg). |
+| `FILE_SEARCH_STORE_ID` | When `RAG_BACKEND=fst` | Single FST store ID — never create a new one. Not needed in prod (RAG_BACKEND=ograg). |
 | `BRIDGE_URL` | Yes | adil-report-bridge internal URL |
 | `BRIDGE_API_KEY` | Yes | X-Bridge-Key for bridge auth |
 | `R2_ENDPOINT` | For vision | Cloudflare R2 endpoint |
