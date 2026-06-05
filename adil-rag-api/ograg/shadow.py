@@ -19,6 +19,8 @@ import os
 import time
 from typing import Any
 
+from ograg.store import get_pool
+
 logger = logging.getLogger(__name__)
 
 # Tunable upper bound — if OG-RAG hangs or runs very slow we don't want shadow
@@ -221,16 +223,17 @@ async def _insert_row(
     if not dsn:
         logger.warning("ograg shadow: DATABASE_URL not set, dropping log row")
         return
+    # Acquire from the shared bounded pool (same DSN as the retrieval path)
+    # rather than opening a fresh asyncpg.connect() per call. With RAG_SHADOW=1
+    # this insert runs fire-and-forget on EVERY served FST query, so an
+    # unbounded connect here re-exhausted Postgres max_connections under
+    # concurrency even after the retrieval + check_citations paths were pooled —
+    # surfaced as "sorry, too many clients already" via ograg.retrieval_probe.
     try:
-        import asyncpg
-    except Exception as e:  # pragma: no cover — asyncpg is a runtime dep
-        logger.warning("ograg shadow: asyncpg import failed: %s", e)
-        return
-
-    try:
-        conn = await asyncpg.connect(dsn)
+        pool = await get_pool(dsn)
+        conn = await pool.acquire()
     except Exception as e:
-        logger.warning("ograg shadow: asyncpg connect failed: %s", e)
+        logger.warning("ograg shadow: pool acquire failed: %s", e)
         return
     try:
         await conn.execute(
@@ -256,6 +259,6 @@ async def _insert_row(
         logger.warning("ograg shadow: insert failed: %s", e)
     finally:
         try:
-            await conn.close()
+            await pool.release(conn)
         except Exception:
             pass

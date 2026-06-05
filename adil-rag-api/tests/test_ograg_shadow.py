@@ -255,6 +255,52 @@ async def test_shadow_db_insert_failure_is_swallowed(monkeypatch):
     await asyncio.sleep(0.1)
 
 
+async def test_insert_row_uses_bounded_pool_not_raw_connect(monkeypatch):
+    """Regression for ograg.retrieval_probe 'too many clients already': with
+    RAG_SHADOW=1 the shadow logger fires on EVERY FST query, so its eval_run
+    insert MUST acquire from the shared bounded pool and release the connection
+    — never open an unbounded asyncpg.connect() that re-exhausts Postgres
+    max_connections (retrieval/check_citations are already pooled; shadow was
+    the last raw-connect source)."""
+    from unittest.mock import AsyncMock
+
+    import asyncpg
+
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+    _purge_modules()
+    from ograg import shadow as _shadow
+
+    fake_conn = AsyncMock()
+    fake_conn.execute = AsyncMock()
+    pool = AsyncMock()
+    pool.acquire = AsyncMock(return_value=fake_conn)
+    pool.release = AsyncMock()
+
+    get_pool = AsyncMock(return_value=pool)
+    raw_connect = AsyncMock(side_effect=AssertionError("must not open a raw connection"))
+    monkeypatch.setattr(_shadow, "get_pool", get_pool)
+    monkeypatch.setattr(asyncpg, "connect", raw_connect)
+
+    await _shadow._insert_row(
+        backend="ograg_shadow",
+        query_text="q",
+        answer="a",
+        sources_json="[]",
+        latency_ms=1,
+        cost_usd=None,
+        prompt_tokens=None,
+        completion_tokens=None,
+        error=None,
+        history_json=None,
+    )
+
+    get_pool.assert_awaited_once()
+    pool.acquire.assert_awaited_once()
+    pool.release.assert_awaited_once_with(fake_conn)
+    fake_conn.execute.assert_awaited_once()
+    raw_connect.assert_not_called()
+
+
 async def test_shadow_timeout_is_swallowed(monkeypatch):
     """A hung OG-RAG call must not pile up; timeout caps it."""
     monkeypatch.setenv("RAG_SHADOW", "1")
