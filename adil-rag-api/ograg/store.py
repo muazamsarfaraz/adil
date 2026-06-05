@@ -6,33 +6,94 @@ Embeddings are stored as ``vector(768)``; cosine distance is used for ANN.
 
 from __future__ import annotations
 
+import asyncio
 import json
+import os
 import uuid
 from typing import Any
 
 import asyncpg
 from pgvector.asyncpg import register_vector
 
+# ── Shared connection pool ──────────────────────────────────────────────────
+# Every retrieval (one per user query AND one per 5-min health probe) used to
+# open a brand-new ``asyncpg.connect()`` and tear it down. Under any concurrency
+# that creates an unbounded number of simultaneous Postgres connections and
+# exhausts ``max_connections`` → ``FATAL: sorry, too many clients already``
+# (surfaced first by ``ograg.retrieval_probe``). A process-wide bounded pool
+# caps the retrieval path at ``OGRAG_POOL_MAX`` connections; ``acquire()`` waits
+# for a free slot instead of slamming the server with a new connection that gets
+# rejected. The pool is keyed by DSN so tests that point at TEST_DATABASE_URL
+# get their own pool.
+_POOL_MAX = int(os.environ.get("OGRAG_POOL_MAX", "10"))
+_pool: asyncpg.Pool | None = None
+_pool_dsn: str | None = None
+_pool_lock = asyncio.Lock()
+
+
+async def _init_connection(conn: asyncpg.Connection) -> None:
+    """Per-physical-connection setup, run once by the pool on each new conn."""
+    # register_vector lets asyncpg encode list[float] as vector(768).
+    await register_vector(conn)
+    # Probe every IVFFlat list so recall is full while the corpus is small.
+    # With <50k chunks this is effectively a sequential scan and avoids the
+    # "empty result" gotcha when partitions are sparse.
+    await conn.execute("SET ivfflat.probes = 10")
+
+
+async def get_pool(url: str) -> asyncpg.Pool:
+    """Return the shared pool, creating it on first use (per DSN)."""
+    global _pool, _pool_dsn
+    if _pool is not None and _pool_dsn == url:
+        return _pool
+    async with _pool_lock:
+        if _pool is not None and _pool_dsn == url:
+            return _pool
+        if _pool is not None:
+            # DSN changed (e.g. test harness) — retire the old pool.
+            await _pool.close()
+        _pool = await asyncpg.create_pool(
+            url,
+            min_size=1,
+            max_size=_POOL_MAX,
+            init=_init_connection,
+        )
+        _pool_dsn = url
+    return _pool
+
+
+async def close_pool() -> None:
+    """Close the shared pool (used on app shutdown / between test sessions)."""
+    global _pool, _pool_dsn
+    if _pool is not None:
+        await _pool.close()
+        _pool = None
+        _pool_dsn = None
+
 
 class Store:
-    """Thin async wrapper over a single asyncpg connection."""
+    """Thin async wrapper over a pooled asyncpg connection.
+
+    ``connect()`` acquires a connection from the shared, bounded pool and
+    ``close()`` releases it back. Holding a single acquired connection for the
+    Store's lifetime preserves read-your-writes within one Store instance (the
+    seeder relies on this) while capping total concurrent connections.
+    """
 
     def __init__(self) -> None:
         self._conn: asyncpg.Connection | None = None
+        self._pool: asyncpg.Pool | None = None
 
     async def connect(self, url: str) -> None:
-        self._conn = await asyncpg.connect(url)
-        # register_vector lets asyncpg encode list[float] as vector(768).
-        await register_vector(self._conn)
-        # Probe every IVFFlat list so recall is full while the corpus is small.
-        # With <50k chunks this is effectively a sequential scan and avoids
-        # the "empty result" gotcha when partitions are sparse.
-        await self._conn.execute("SET ivfflat.probes = 10")
+        self._pool = await get_pool(url)
+        # vector codec + ivfflat.probes are applied by the pool's init hook.
+        self._conn = await self._pool.acquire()
 
     async def close(self) -> None:
-        if self._conn is not None:
-            await self._conn.close()
-            self._conn = None
+        if self._conn is not None and self._pool is not None:
+            await self._pool.release(self._conn)
+        self._conn = None
+        self._pool = None
 
     def _require_conn(self) -> asyncpg.Connection:
         if self._conn is None:

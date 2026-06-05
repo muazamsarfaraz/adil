@@ -381,6 +381,13 @@ async def lifespan(app: FastAPI):
             await probe_task
         except (asyncio.CancelledError, Exception):
             pass
+    # Close the shared OG-RAG retrieval pool so connections are released cleanly.
+    try:
+        from ograg.store import close_pool as _close_ograg_pool
+
+        await _close_ograg_pool()
+    except Exception:
+        logger.debug("ograg pool close skipped", exc_info=True)
     logger.info("Project Adil RAG API shutdown complete")
 
 
