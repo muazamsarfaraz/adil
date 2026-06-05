@@ -37,6 +37,7 @@ from health_bot import notify
 
 from ograg.embed import embed_one
 from ograg.retriever import retrieve
+from ograg.store import get_pool
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +89,14 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
     url = db_url or os.environ.get("DATABASE_URL")
     if not url:
         return []
+    # Acquire from the shared bounded pool (same DSN as the retrieval path) rather
+    # than opening a fresh asyncpg.connect() per served answer. check_citations runs
+    # on EVERY answer, so an unbounded connect here re-exhausted Postgres
+    # max_connections under concurrency even after the retrieval path was pooled —
+    # surfaced as "sorry, too many clients already" via ograg.retrieval_probe.
     try:
-        conn = await asyncpg.connect(url)
+        pool = await get_pool(url)
+        conn = await pool.acquire()
     except Exception as e:  # connection problem — don't penalise the user request
         logger.debug("check_citations: db connect failed: %s", e)
         return []
@@ -119,7 +126,7 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
         )
         known = {r["nc"] for r in rows if r["nc"]}
     finally:
-        await conn.close()
+        await pool.release(conn)
     unknown = sorted(cites - known)
     if unknown:
         preview = ", ".join(unknown[:3])

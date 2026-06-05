@@ -16,6 +16,15 @@ from ograg import probes
 pytestmark = pytest.mark.asyncio
 
 
+def _fake_pool(conn):
+    """Build an AsyncMock pool whose acquire() yields `conn` and release() is
+    a no-op — mirrors the shared bounded pool check_citations now acquires from."""
+    pool = AsyncMock()
+    pool.acquire = AsyncMock(return_value=conn)
+    pool.release = AsyncMock()
+    return pool
+
+
 # ── Citation regex ─────────────────────────────────────────────────────────
 async def test_citation_regex_matches_common_forms():
     text = "See [2021] UKSC 12, also [2024] EWCA Civ 345 and [2020] UKUT 100 (AAC). " "And [2023] EWHC 1234 (QB)."
@@ -32,7 +41,7 @@ async def test_citation_regex_ignores_non_citations():
 
 # ── check_citations ────────────────────────────────────────────────────────
 async def test_check_citations_no_citations_no_db_call():
-    with patch("ograg.probes.asyncpg.connect", new=AsyncMock()) as m:
+    with patch("ograg.probes.get_pool", new=AsyncMock()) as m:
         result = await probes.check_citations("answer with no citations")
     assert result == []
     m.assert_not_called()
@@ -40,7 +49,7 @@ async def test_check_citations_no_citations_no_db_call():
 
 async def test_check_citations_skipped_when_no_db_url(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
-    with patch("ograg.probes.asyncpg.connect", new=AsyncMock()) as m:
+    with patch("ograg.probes.get_pool", new=AsyncMock()) as m:
         result = await probes.check_citations("Look at [2021] UKSC 12 for guidance")
     assert result == []
     m.assert_not_called()
@@ -61,7 +70,7 @@ async def test_check_citations_flags_unknown_cases(monkeypatch):
         notified.append((severity, kind, message, ctx))
 
     with (
-        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.get_pool", new=AsyncMock(return_value=_fake_pool(fake_conn))),
         patch("ograg.probes.notify", side_effect=fake_notify),
     ):
         unknown = await probes.check_citations(
@@ -92,7 +101,7 @@ async def test_check_citations_message_truncates_long_lists(monkeypatch):
     text = "See [2024] UKSC 1, [2024] UKSC 2, [2024] UKSC 3, " "[2024] UKSC 4 and [2024] UKSC 5."
 
     with (
-        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.get_pool", new=AsyncMock(return_value=_fake_pool(fake_conn))),
         patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
     ):
         await probes.check_citations(text, db_url="postgres://fake")
@@ -121,7 +130,7 @@ async def test_check_citations_passes_whitespace_collapsed_cites_to_db(monkeypat
     fake_conn.close = AsyncMock()
 
     with (
-        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.get_pool", new=AsyncMock(return_value=_fake_pool(fake_conn))),
         patch("ograg.probes.notify"),
     ):
         await probes.check_citations("Cite [ 2021 ]  UKSC  12 here.", db_url="postgres://fake")
@@ -139,13 +148,38 @@ async def test_check_citations_silent_when_ontology_table_missing(monkeypatch):
     notified: list = []
 
     with (
-        patch("ograg.probes.asyncpg.connect", new=AsyncMock(return_value=fake_conn)),
+        patch("ograg.probes.get_pool", new=AsyncMock(return_value=_fake_pool(fake_conn))),
         patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append(a)),
     ):
         result = await probes.check_citations("[2021] UKSC 12", db_url="postgres://fake")
 
     assert result == []
     assert notified == []
+
+
+async def test_check_citations_uses_bounded_pool_not_raw_connect(monkeypatch):
+    """Regression for ograg.retrieval_probe 'too many clients already': every
+    served answer runs check_citations, so it MUST acquire from the shared
+    bounded pool and release the connection — never open an unbounded
+    asyncpg.connect() that re-exhausts Postgres max_connections."""
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+
+    fake_conn = AsyncMock()
+    fake_conn.fetchval = AsyncMock(return_value=True)
+    fake_conn.fetch = AsyncMock(return_value=[{"nc": "[2021] UKSC 12"}])
+    pool = _fake_pool(fake_conn)
+
+    with (
+        patch("ograg.probes.get_pool", new=AsyncMock(return_value=pool)) as gp,
+        patch("ograg.probes.asyncpg.connect", new=AsyncMock()) as raw_connect,
+        patch("ograg.probes.notify"),
+    ):
+        await probes.check_citations("Consider [2021] UKSC 12.", db_url="postgres://fake")
+
+    gp.assert_awaited_once()
+    pool.acquire.assert_awaited_once()
+    pool.release.assert_awaited_once_with(fake_conn)
+    raw_connect.assert_not_called()
 
 
 # ── Empty retrieval probe ──────────────────────────────────────────────────
