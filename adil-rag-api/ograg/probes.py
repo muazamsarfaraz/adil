@@ -142,6 +142,18 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
 
 
 # ── Probe 1: empty retrieval ────────────────────────────────────────────────
+def _ograg_is_serving() -> bool:
+    """True only when OG-RAG (not FST) is the backend actually answering users.
+
+    Prod defaults to ``RAG_BACKEND=fst`` pre-cutover, where the hyperedge
+    retrieval path serves no one — an empty retrieval then has zero user
+    impact and must not page ``error`` every PROBE_INTERVAL_SECS. Mirrors the
+    routing gate used in ``rag_service.py`` / ``ograg.backend`` so the probe's
+    notion of "is this serving?" stays in lock-step with the real router.
+    """
+    return os.environ.get("RAG_BACKEND", "fst").lower() in ("ograg", "ograg_chunks")
+
+
 async def _embedded_hyperedge_count() -> int | None:
     """Return the number of hyperedges that actually carry an embedding, or
     None if the table is absent / DB unreachable.
@@ -183,11 +195,24 @@ async def _empty_retrieval_probe() -> None:
         return
     if hits:
         return
-    # Zero hits. Before paging, decide whether the OG-RAG corpus even exists:
-    # an empty ``hyperedge`` table means the backend hasn't been cut over yet
-    # (prod still serves via FST), which is expected — not an error. Alerting
-    # `error` every PROBE_INTERVAL_SECS in that state is pure noise. Only page
-    # when a corpus IS present but a known-good query still retrieves nothing.
+    # Zero hits. First gate: an empty retrieval is only a *production* error
+    # when OG-RAG is the backend actually serving users. Prod defaults to
+    # RAG_BACKEND=fst (pre-cutover), where the hyperedge path serves no one —
+    # paging `error` every PROBE_INTERVAL_SECS there is pure noise (and the
+    # corpus-size heuristic below is fragile: migration 008 backfilled
+    # hyperedge.embedding with a NOT NULL zero-vector, so `embedding IS NOT
+    # NULL` can count signal-less rows as "embedded", and a transient DB hiccup
+    # returns None → page). Stay silent unless OG-RAG is live.
+    if not _ograg_is_serving():
+        logger.info(
+            "ograg.retrieval probe: 0 hits but RAG_BACKEND is not ograg "
+            "(pre-cutover) — empty-retrieval alert suppressed"
+        )
+        return
+    # OG-RAG IS serving. Before paging, decide whether the corpus even exists:
+    # an empty ``hyperedge`` table / count 0 means the corpus isn't seeded yet,
+    # which is expected — not an error. Only page when a corpus IS present but a
+    # known-good query still retrieves nothing (a genuine, user-visible break).
     count = await _embedded_hyperedge_count()
     if count == 0:
         logger.info("ograg.retrieval probe: hyperedge corpus empty (pre-cutover) — empty-retrieval alert suppressed")

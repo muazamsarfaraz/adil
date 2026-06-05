@@ -183,9 +183,11 @@ async def test_check_citations_uses_bounded_pool_not_raw_connect(monkeypatch):
 
 
 # ── Empty retrieval probe ──────────────────────────────────────────────────
-async def test_empty_retrieval_probe_alerts_when_corpus_present():
-    """Genuine break: a corpus EXISTS (embedded hyperedges present) but a
-    known-good query retrieves nothing → page `error`."""
+async def test_empty_retrieval_probe_alerts_when_corpus_present(monkeypatch):
+    """Genuine break: OG-RAG is serving AND a corpus EXISTS (embedded
+    hyperedges present) but a known-good query retrieves nothing → page
+    `error`."""
+    monkeypatch.setenv("RAG_BACKEND", "ograg")
     notified: list = []
 
     with (
@@ -202,10 +204,11 @@ async def test_empty_retrieval_probe_alerts_when_corpus_present():
     assert kw["corpus_size"] == 1234
 
 
-async def test_empty_retrieval_probe_silent_when_corpus_empty():
-    """Pre-cutover: the hyperedge corpus is empty (count 0 — prod still serves
-    via FST), so zero hits is EXPECTED, not an error. Must not page, else the
+async def test_empty_retrieval_probe_silent_when_corpus_empty(monkeypatch):
+    """OG-RAG serving but the hyperedge corpus is empty (count 0 — not seeded
+    yet), so zero hits is EXPECTED, not an error. Must not page, else the
     probe spams `error` every interval against an unseeded backend."""
+    monkeypatch.setenv("RAG_BACKEND", "ograg")
     notified: list = []
 
     with (
@@ -218,9 +221,11 @@ async def test_empty_retrieval_probe_silent_when_corpus_empty():
     assert notified == []
 
 
-async def test_empty_retrieval_probe_alerts_when_corpus_size_unknown():
-    """If the corpus-size check itself can't determine the count (None — DB
-    transient), don't silently swallow a real empty-retrieval — page anyway."""
+async def test_empty_retrieval_probe_alerts_when_corpus_size_unknown(monkeypatch):
+    """OG-RAG serving: if the corpus-size check itself can't determine the
+    count (None — DB transient), don't silently swallow a real empty-retrieval
+    — page anyway."""
+    monkeypatch.setenv("RAG_BACKEND", "ograg")
     notified: list = []
 
     with (
@@ -232,6 +237,28 @@ async def test_empty_retrieval_probe_alerts_when_corpus_size_unknown():
 
     assert len(notified) == 1
     assert notified[0][0][1] == "ograg.retrieval_empty"
+
+
+async def test_empty_retrieval_probe_silent_when_backend_not_ograg(monkeypatch):
+    """Prod default RAG_BACKEND=fst: OG-RAG serves no users, so an empty
+    hyperedge retrieval has zero user impact and must NOT page `error` — even
+    if the corpus-size check would report a non-zero / unknown count. This is
+    the re-fire regression: the probe was paging `error` against a backend that
+    isn't serving anyone."""
+    monkeypatch.setenv("RAG_BACKEND", "fst")
+    notified: list = []
+
+    with (
+        patch("ograg.probes.retrieve", new=AsyncMock(return_value=[])),
+        # Count would page if reached (non-zero AND unknown both page when
+        # serving) — assert the backend gate short-circuits before it.
+        patch("ograg.probes._embedded_hyperedge_count", new=AsyncMock(return_value=None)) as count,
+        patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
+    ):
+        await probes._empty_retrieval_probe()
+
+    assert notified == []
+    count.assert_not_awaited()
 
 
 async def test_empty_retrieval_probe_silent_when_hits():
