@@ -1116,19 +1116,17 @@ async def _load_uploads_from_r2(
     if conversation_id is None:
         raise HTTPException(status_code=400, detail="conversation_id required when upload_ids provided")
 
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
-
-    conn = await asyncpg.connect(db_url)
-    try:
+    # Acquire from the shared bounded pool rather than opening a fresh
+    # asyncpg.connect() per request. Per-request connects on the upload/vision
+    # paths add to the aggregate against Postgres max_connections and helped
+    # surface "sorry, too many clients already" via ograg.retrieval_probe.
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
         rows = await conn.fetch(
             "SELECT id, object_key, content_type FROM uploads WHERE id = ANY($1::uuid[]) AND conversation_id = $2",
             upload_ids,
             conversation_id,
         )
-    finally:
-        await conn.close()
 
     found_ids = {r["id"] for r in rows}
     missing = set(upload_ids) - found_ids
@@ -1891,12 +1889,10 @@ async def record_upload(
 
     🔐 **Requires `X-API-Key` header.**
     """
-    db_url = os.getenv("DATABASE_URL")
-    if not db_url:
-        raise HTTPException(status_code=500, detail="DATABASE_URL not configured")
-
-    conn = await asyncpg.connect(db_url)
-    try:
+    # Shared bounded pool — see _verify_upload_ownership; avoids per-request
+    # connects that contributed to "sorry, too many clients already".
+    pool = await _get_pool()
+    async with pool.acquire() as conn:
         await conn.execute(
             """
             INSERT INTO uploads (id, conversation_id, object_key, content_type, size_bytes)
@@ -1908,8 +1904,6 @@ async def record_upload(
             body.content_type,
             body.size_bytes,
         )
-    finally:
-        await conn.close()
 
     return UploadRecordResponse(id=body.id)
 
