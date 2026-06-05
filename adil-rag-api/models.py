@@ -20,7 +20,8 @@ import uuid
 from enum import Enum
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from legal_disclaimer import LEGAL_ADVICE_DISCLAIMER
+from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
 class SourceType(str, Enum):
@@ -332,6 +333,18 @@ class QueryResponse(BaseModel):
         description="Dynamic evidence checklist — items the user should gather to strengthen their case. Only populated when viability assessment is requested.",
     )
 
+    @model_serializer(mode="wrap")
+    def _attach_template_disclaimer(self, handler):
+        """Inject the legal-advice disclaimer at serialisation time.
+
+        The LLM cannot suppress this — it runs AFTER generation, at the response
+        boundary. Per portfolio AI-hallucination playbook §2 (template-level
+        emission principle) + §8.2 (adil-rag-api worked example).
+        """
+        data = handler(self)
+        data["disclaimer"] = LEGAL_ADVICE_DISCLAIMER
+        return data
+
 
 class HealthResponse(BaseModel):
     """Health check response from the `/health` endpoint.
@@ -504,6 +517,14 @@ class AnalyzeContentResponse(BaseModel):
         None, description="Platform-specific advice, e.g., how to report under the Online Safety Act 2023."
     )
 
+    @model_serializer(mode="wrap")
+    def _attach_template_disclaimer(self, handler):
+        """See QueryResponse._attach_template_disclaimer — same template-level
+        emission principle applies to /api/v1/analyze responses."""
+        data = handler(self)
+        data["disclaimer"] = LEGAL_ADVICE_DISCLAIMER
+        return data
+
 
 # ============================================================================
 # Report Submission Models
@@ -657,6 +678,14 @@ class GenerateReportResponse(BaseModel):
         description="ISO 8601 timestamp of generation.",
     )
     jurisdiction: str | None = Field(None, description="Jurisdiction used.")
+
+    @model_serializer(mode="wrap")
+    def _attach_template_disclaimer(self, handler):
+        """See QueryResponse._attach_template_disclaimer — same template-level
+        emission principle applies to /api/v1/generate-report responses."""
+        data = handler(self)
+        data["disclaimer"] = LEGAL_ADVICE_DISCLAIMER
+        return data
 
 
 # ============================================================================

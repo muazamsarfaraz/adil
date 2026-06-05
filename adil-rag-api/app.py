@@ -868,6 +868,14 @@ async def query_stream(
         history_dicts = [{"role": turn.role, "content": turn.content} for turn in body.conversation_history]
 
     async def event_source():
+        # Template-level disclaimer FIRST — per portfolio AI-hallucination playbook
+        # §2 cross-cutting principle ("template-level emission"). Emitted at the
+        # adapter boundary so the LLM cannot suppress it. Client should render this
+        # before any answer tokens. See also legal_disclaimer.py + models.py.
+        from legal_disclaimer import LEGAL_ADVICE_DISCLAIMER as _DISCLAIMER
+
+        yield f"event: disclaimer\ndata: {_json.dumps(_DISCLAIMER)}\n\n"
+
         try:
             async for event in rag_service.stream_query(
                 query_text=body.query,
