@@ -57,6 +57,19 @@ async def get_pool(url: str) -> asyncpg.Pool:
             min_size=1,
             max_size=_POOL_MAX,
             init=_init_connection,
+            # Reap our own idle connections after 5 min so a live process never
+            # hoards Postgres slots between probes/queries. This pairs with the
+            # server-side ``idle_session_timeout`` (10 min, set on the railway
+            # db) which reaps connections orphaned by KILLED deploy containers —
+            # the case a client-side timeout can't cover. Together they stop the
+            # zombie-connection accumulation that exhausted ``max_connections``
+            # (99 idle ograg connections, up to 10 days old, surfaced as
+            # ``ograg.retrieval_probe`` "sorry, too many clients already").
+            max_inactive_connection_lifetime=300,
+            # Tag every connection so a future leak is attributable in
+            # pg_stat_activity. The 10-day zombie leak showed an empty
+            # application_name, which made the source hard to pin down.
+            server_settings={"application_name": "adil-rag-api[ograg]"},
         )
         _pool_dsn = url
     return _pool
