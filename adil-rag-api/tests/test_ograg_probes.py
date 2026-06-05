@@ -183,19 +183,55 @@ async def test_check_citations_uses_bounded_pool_not_raw_connect(monkeypatch):
 
 
 # ── Empty retrieval probe ──────────────────────────────────────────────────
-async def test_empty_retrieval_probe_alerts_on_zero_hits():
+async def test_empty_retrieval_probe_alerts_when_corpus_present():
+    """Genuine break: a corpus EXISTS (embedded hyperedges present) but a
+    known-good query retrieves nothing → page `error`."""
     notified: list = []
 
     with (
         patch("ograg.probes.retrieve", new=AsyncMock(return_value=[])),
+        patch("ograg.probes._embedded_hyperedge_count", new=AsyncMock(return_value=1234)),
         patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
     ):
         await probes._empty_retrieval_probe()
 
     assert len(notified) == 1
-    args, _ = notified[0]
+    args, kw = notified[0]
     assert args[0] == "error"
     assert args[1] == "ograg.retrieval_empty"
+    assert kw["corpus_size"] == 1234
+
+
+async def test_empty_retrieval_probe_silent_when_corpus_empty():
+    """Pre-cutover: the hyperedge corpus is empty (count 0 — prod still serves
+    via FST), so zero hits is EXPECTED, not an error. Must not page, else the
+    probe spams `error` every interval against an unseeded backend."""
+    notified: list = []
+
+    with (
+        patch("ograg.probes.retrieve", new=AsyncMock(return_value=[])),
+        patch("ograg.probes._embedded_hyperedge_count", new=AsyncMock(return_value=0)),
+        patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
+    ):
+        await probes._empty_retrieval_probe()
+
+    assert notified == []
+
+
+async def test_empty_retrieval_probe_alerts_when_corpus_size_unknown():
+    """If the corpus-size check itself can't determine the count (None — DB
+    transient), don't silently swallow a real empty-retrieval — page anyway."""
+    notified: list = []
+
+    with (
+        patch("ograg.probes.retrieve", new=AsyncMock(return_value=[])),
+        patch("ograg.probes._embedded_hyperedge_count", new=AsyncMock(return_value=None)),
+        patch("ograg.probes.notify", side_effect=lambda *a, **k: notified.append((a, k))),
+    ):
+        await probes._empty_retrieval_probe()
+
+    assert len(notified) == 1
+    assert notified[0][0][1] == "ograg.retrieval_empty"
 
 
 async def test_empty_retrieval_probe_silent_when_hits():
@@ -208,6 +244,38 @@ async def test_empty_retrieval_probe_silent_when_hits():
         await probes._empty_retrieval_probe()
 
     assert notified == []
+
+
+async def test_embedded_hyperedge_count_none_without_db_url(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("TEST_DATABASE_URL", raising=False)
+    with patch("ograg.probes.get_pool", new=AsyncMock()) as gp:
+        result = await probes._embedded_hyperedge_count()
+    assert result is None
+    gp.assert_not_called()
+
+
+async def test_embedded_hyperedge_count_zero_when_table_absent(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+    fake_conn = AsyncMock()
+    fake_conn.fetchval = AsyncMock(return_value=None)  # to_regclass → table absent
+    pool = _fake_pool(fake_conn)
+    with patch("ograg.probes.get_pool", new=AsyncMock(return_value=pool)):
+        result = await probes._embedded_hyperedge_count()
+    assert result == 0
+    pool.release.assert_awaited_once_with(fake_conn)
+
+
+async def test_embedded_hyperedge_count_returns_embedded_total(monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", "postgres://fake")
+    fake_conn = AsyncMock()
+    # 1st fetchval: table exists; 2nd fetchval: count of embedded rows
+    fake_conn.fetchval = AsyncMock(side_effect=[True, 42])
+    pool = _fake_pool(fake_conn)
+    with patch("ograg.probes.get_pool", new=AsyncMock(return_value=pool)):
+        result = await probes._embedded_hyperedge_count()
+    assert result == 42
+    pool.release.assert_awaited_once_with(fake_conn)
 
 
 async def test_empty_retrieval_probe_reports_raised_exception():

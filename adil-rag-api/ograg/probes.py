@@ -142,19 +142,63 @@ async def check_citations(answer: str, db_url: str | None = None) -> list[str]:
 
 
 # ── Probe 1: empty retrieval ────────────────────────────────────────────────
+async def _embedded_hyperedge_count() -> int | None:
+    """Return the number of hyperedges that actually carry an embedding, or
+    None if the table is absent / DB unreachable.
+
+    Used to distinguish two very different zero-hit states:
+      - corpus not seeded yet (count 0) — expected before OG-RAG cutover,
+        when prod still serves via FST and the ``hyperedge`` table is empty;
+      - corpus present but retrieval returns nothing — a genuine break.
+
+    Mirrors the pre-cutover guard ``check_citations`` already applies for the
+    ``ontology_node`` table.
+    """
+    url = os.environ.get("DATABASE_URL") or os.environ.get("TEST_DATABASE_URL")
+    if not url:
+        return None
+    try:
+        pool = await get_pool(url)
+        conn = await pool.acquire()
+    except Exception as e:
+        logger.debug("retrieval probe: corpus-size db connect failed: %s", e)
+        return None
+    try:
+        exists = await conn.fetchval("SELECT to_regclass('hyperedge') IS NOT NULL")
+        if not exists:
+            return 0
+        return await conn.fetchval("SELECT count(*) FROM hyperedge WHERE embedding IS NOT NULL")
+    except Exception as e:
+        logger.debug("retrieval probe: corpus-size query failed: %s", e)
+        return None
+    finally:
+        await pool.release(conn)
+
+
 async def _empty_retrieval_probe() -> None:
     try:
         hits = await retrieve(KNOWN_GOOD_QUERY, k=5)
     except Exception as e:
         notify("error", "ograg.retrieval_probe", f"retrieval probe raised: {e}", query=KNOWN_GOOD_QUERY)
         return
-    if not hits:
-        notify(
-            "error",
-            "ograg.retrieval_empty",
-            "ANN search returned 0 hyperedges for known-good query",
-            query=KNOWN_GOOD_QUERY,
-        )
+    if hits:
+        return
+    # Zero hits. Before paging, decide whether the OG-RAG corpus even exists:
+    # an empty ``hyperedge`` table means the backend hasn't been cut over yet
+    # (prod still serves via FST), which is expected — not an error. Alerting
+    # `error` every PROBE_INTERVAL_SECS in that state is pure noise. Only page
+    # when a corpus IS present but a known-good query still retrieves nothing.
+    count = await _embedded_hyperedge_count()
+    if count == 0:
+        logger.info("ograg.retrieval probe: hyperedge corpus empty (pre-cutover) — empty-retrieval alert suppressed")
+        return
+    notify(
+        "error",
+        "ograg.retrieval_empty",
+        "ANN search returned 0 hyperedges for known-good query",
+        query=KNOWN_GOOD_QUERY,
+        corpus_size=count,
+    )
 
 
 # ── Probe 2: embedding API health ───────────────────────────────────────────
