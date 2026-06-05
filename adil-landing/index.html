@@ -973,7 +973,189 @@
                 transform: none;
             }
         }
-    </style>
+        /* === Find-a-solicitor embedded section === */
+        .finder {
+            padding: var(--section-pad) 0;
+            background: linear-gradient(180deg, var(--green-50) 0%, var(--body-bg) 100%);
+        }
+        .finder .search-card {
+            margin-top: 0;       /* override the page-level negative margin */
+            margin-bottom: 2rem;
+        }
+
+        .search-card {
+  background:var(--white);
+  border:1px solid var(--slate-200);
+  border-radius:14px;
+  padding:clamp(1.25rem, 3vw, 2rem);
+  margin-top:-3rem;
+  box-shadow:0 12px 40px rgba(13, 59, 30, 0.08);
+  position:relative; z-index:2;
+}
+        .filters-label {
+  font-size:0.8125rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.06em;
+  color:var(--green-700); margin-bottom:0.85rem;
+}
+        .area-tiles {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+  gap:0.5rem;
+  margin-bottom:1.5rem;
+}
+        .area-tile {
+  background:var(--white);
+  border:1.5px solid var(--slate-200);
+  border-radius:10px;
+  padding:0.65rem 0.9rem;
+  font-size:0.875rem; font-weight:600;
+  color:var(--slate-700); text-align:left;
+  cursor:pointer;
+  transition:all 0.2s var(--ease-out);
+  display:flex; align-items:center; gap:0.5rem;
+}
+        .area-tile:hover { border-color:var(--green-500); color:var(--green-900); }
+        .filter-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr auto;
+  gap:0.85rem;
+  align-items:end;
+}
+        .field { display:flex; flex-direction:column; }
+        .field label {
+  font-size:0.85rem; font-weight:600;
+  color:var(--slate-700); margin-bottom:0.35rem;
+}
+        .field input,.field select {
+  padding:0.7rem 0.85rem;
+  border:1px solid var(--slate-300);
+  border-radius:8px;
+  background:var(--white);
+  color:var(--slate-900);
+  font-size:0.9375rem;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+        .field input:focus,.field select:focus {
+  outline:none;
+  border-color:var(--green-700);
+  box-shadow:0 0 0 3px rgba(212, 168, 67, 0.25);
+}
+        .field input::placeholder { color:var(--slate-400); }
+        .toggle-row {
+  display:flex; align-items:center; gap:0.75rem;
+  margin-top:1rem;
+  padding:0.85rem 1rem;
+  background:var(--gold-100);
+  border:1px solid var(--gold-400);
+  border-radius:10px;
+}
+        .toggle-row label {
+  display:flex; align-items:center; gap:0.65rem;
+  cursor:pointer; font-weight:600;
+  color:var(--slate-800);
+}
+        .toggle-row small { display:block; color:var(--slate-600); font-weight:400; font-size:0.85rem; }
+        .status {
+  margin:1.5rem 0 1rem;
+  font-size:0.9375rem; color:var(--slate-600);
+  font-weight:600;
+}
+        .status strong { color:var(--green-900); }
+        .results-grid {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:1rem;
+  margin-top:0.5rem;
+}
+        .solicitor-card {
+  background:var(--white);
+  border:1px solid var(--slate-200);
+  border-radius:12px;
+  padding:1.25rem;
+  display:flex; flex-direction:column; gap:0.65rem;
+  transition:all 0.3s var(--ease-out);
+}
+        .solicitor-card:hover {
+  border-color:var(--green-500);
+  box-shadow:0 12px 30px rgba(0,0,0,0.06);
+  transform:translateY(-2px);
+}
+        .card-firm {
+  font-family:var(--font-display);
+  font-size:1.3rem; font-weight:400;
+  color:var(--green-900);
+  line-height:1.25;
+}
+        .card-name { font-size:0.95rem; color:var(--slate-800); font-weight:600; }
+        .card-role { font-size:0.85rem; color:var(--slate-500); }
+        .card-meta {
+  font-size:0.875rem; color:var(--slate-600);
+  display:flex; flex-direction:column; gap:0.2rem;
+}
+        .card-meta a { color:var(--green-700); }
+        .card-chips {
+  display:flex; flex-wrap:wrap; gap:0.35rem;
+  margin-top:0.25rem;
+}
+        .chip {
+  display:inline-block;
+  padding:0.15rem 0.55rem;
+  border-radius:999px;
+  font-size:0.78rem; font-weight:600;
+  background:var(--green-50); color:var(--green-700);
+}
+        .chip.lang { background:var(--gold-100); color:var(--gold-700); }
+        .chip.accred { background:var(--slate-100); color:var(--slate-700); }
+        .card-sra {
+  font-size:0.8125rem; color:var(--slate-500);
+  margin-top:0.35rem; padding-top:0.65rem;
+  border-top:1px solid var(--slate-100);
+}
+        .card-sra a { color:var(--green-700); font-weight:600; }
+        .empty-state, .no-results {
+  text-align:center;
+  padding:2.5rem 1rem;
+  color:var(--slate-600);
+  background:var(--white);
+  border:1px dashed var(--slate-300);
+  border-radius:12px;
+  margin-top:1rem;
+  grid-column:1 / -1;
+}
+        .empty-state h2, .no-results h2 {
+  font-family:var(--font-display);
+  font-size:1.5rem; font-weight:400;
+  color:var(--green-900); margin-bottom:0.5rem;
+}
+        .no-results a { color:var(--green-700); font-weight:700; }
+        .show-more-wrap { text-align:center; margin-top:1.5rem; }
+        .disclaimer-section {
+  margin-top:2.5rem;
+  display:grid; gap:1rem;
+}
+        .disclaimer {
+  background:var(--slate-50);
+  border-left:4px solid var(--gold-500);
+  padding:1.25rem 1.5rem;
+  border-radius:8px;
+  font-size:0.9375rem;
+  color:var(--slate-700);
+  line-height:1.65;
+}
+        .disclaimer strong { color:var(--slate-900); }
+        .disclaimer.template {
+  border-left-color:var(--green-700);
+  background:var(--green-50);
+}
+
+@media (max-width:760px) {
+  .filter-grid { grid-template-columns:1fr; }
+  .search-card { margin-top:-2rem; }
+}
+
+@media (min-width:720px) { .results-grid { grid-template-columns:repeat(2, 1fr); } }
+
+@media (min-width:1020px) { .results-grid { grid-template-columns:repeat(3, 1fr); } }    </style>
 </head>
 <body>
 
@@ -996,7 +1178,7 @@
                 <li><a href="#how-it-works">How It Works</a></li>
                 <li><a href="#features">Features</a></li>
                 <li><a href="#paths">Your Options</a></li>
-                <li><a href="/find-a-solicitor.html">Find a Solicitor</a></li>
+                <li><a href="#find-a-solicitor">Find a Solicitor</a></li>
                 <li><a href="https://askadil.org" class="btn btn-primary">Start a Conversation</a></li>
             </ul>
         </nav>
@@ -1023,7 +1205,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         Start a Conversation
                     </a>
-                    <a href="/find-a-solicitor.html" class="btn btn-large btn-hero-outline">
+                    <a href="#find-a-solicitor" class="btn btn-large btn-hero-outline">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         Find a Solicitor
                     </a>
@@ -1243,7 +1425,69 @@
                         <li>Viability assessment with Vento compensation band estimates</li>
                         <li>Explains the ACAS &rarr; ET1 process</li>
                     </ul>
-                    <a href="/find-a-solicitor.html" class="btn btn-outline" style="border-color: var(--gold-700); color: var(--gold-700);">Find a Solicitor</a>
+                    <a href="#find-a-solicitor" class="btn btn-outline" style="border-color: var(--gold-700); color: var(--gold-700);">Find a Solicitor</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== FIND A SOLICITOR (embedded) ===================== -->
+    <section class="finder" id="find-a-solicitor" aria-labelledby="finder-heading">
+        <div class="container">
+            <div class="reveal" style="text-align: center; margin-bottom: 2.5rem;">
+                <div class="section-eyebrow">Solicitor Directory</div>
+                <h2 class="section-title" id="finder-heading">Find a UK solicitor who understands you</h2>
+                <p class="section-desc" style="margin-left: auto; margin-right: auto;">
+                    Search 1,477 UK solicitors by practice area, language, postcode, or firm.
+                    Filter to community-language speakers in one click.
+                </p>
+            </div>
+
+            <form class="search-card reveal" id="searchForm" onsubmit="return false" aria-label="Solicitor search filters">
+                <p class="filters-label">Practice areas</p>
+                <div class="area-tiles" id="areaTiles" role="group" aria-label="Filter by practice area"></div>
+
+                <div class="filter-grid">
+                    <div class="field">
+                        <label for="languageSelect">Language</label>
+                        <select id="languageSelect">
+                            <option value="">Any language</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label for="postcodeInput">Postcode</label>
+                        <input id="postcodeInput" type="text" inputmode="text" autocomplete="postal-code"
+                               placeholder="e.g. E1 or B6 6SP" maxlength="8">
+                    </div>
+                    <div class="field">
+                        <label for="nameInput">Firm or name</label>
+                        <input id="nameInput" type="text" autocomplete="off" placeholder="optional">
+                    </div>
+                    <button type="button" class="btn btn-primary" id="clearBtn" aria-label="Clear all filters">Clear</button>
+                </div>
+
+                <div class="toggle-row">
+                    <label for="muslimToggle">
+                        <input id="muslimToggle" type="checkbox">
+                        <span>Show only Muslim-community-language solicitors
+                            <small>Filters to solicitors who declare Urdu, Arabic, Bengali, Mirpuri, Turkish, Pushtu, Sylheti, Farsi, Sindhi, or Malay.</small>
+                        </span>
+                    </label>
+                </div>
+            </form>
+
+            <div class="status" id="status" role="status" aria-live="polite">Scroll into view to load the directory&hellip;</div>
+            <div class="results-grid" id="results" aria-label="Solicitor results"></div>
+            <div class="show-more-wrap" id="showMoreWrap" hidden>
+                <button type="button" class="btn btn-outline" id="showMoreBtn">Show next 60</button>
+            </div>
+
+            <div class="disclaimer-section" aria-label="Disclaimers">
+                <div class="disclaimer">
+                    <strong>Important:</strong> AskAdil does not endorse or guarantee any solicitor. All firms listed are pending outreach &mdash; none have consented to be listed yet. Contact details are from publicly available sources only. Firm data includes information supplied by the Solicitors Regulation Authority.
+                </div>
+                <div class="disclaimer template">
+                    <strong>Information only &mdash; not legal advice.</strong> We help you find a solicitor; we don't represent you.
                 </div>
             </div>
         </div>
@@ -1281,7 +1525,7 @@
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         Start a Conversation
                     </a>
-                    <a href="/find-a-solicitor.html" class="btn btn-large btn-cta">
+                    <a href="#find-a-solicitor" class="btn btn-large btn-cta">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                         Find a Solicitor
                     </a>
@@ -1384,6 +1628,347 @@
             });
         });
 
+
+        /* === Find-a-solicitor (embedded, lazy-loaded) === */
+        (function() {
+          'use strict';
+        
+          var DATA_URL = '/data/solicitors.json';
+          var PAGE_SIZE = 60;
+          var DEBOUNCE_MS = 150;
+        
+          // Wave groups from PRACTICE_AREA_GROUPS audit. Wave 3 (Criminal Defence,
+          // Personal Injury, Conveyancing) intentionally GATED OUT pending MCB sign-off.
+          var WAVE_GROUPS = [
+            { group:'Employment',                     wave:0, matchers:['employment'] },
+            { group:'Family & Children',              wave:0, matchers:['family','children'] },
+            { group:'Immigration & Asylum',           wave:1, matchers:['immigration','asylum'] },
+            { group:'Wills, Probate & Inheritance',   wave:1, matchers:['wills','probate'] },
+            { group:'Welfare & Benefits',             wave:2, matchers:['benefits','allowances'] },
+            { group:'Housing',                        wave:2, matchers:['landlord and tenant','housing'] },
+            { group:'Human Rights',                   wave:2, matchers:['human rights','civil liberties'] }
+          ];
+        
+          // Strong-signal Muslim-community languages (excludes Punjabi/Hindi/Gujarati
+          // which are mixed-community).
+          var MUSLIM_LANG_WHITELIST = new Set([
+            'urdu','arabic','bengali','mirpuri','turkish','pushtu','pashto',
+            'sylheti','farsi (persian)','farsi','persian','sindhi','malay'
+          ]);
+        
+          var ALL = [];
+          var FILTERED = [];
+          var renderedCount = 0;
+          var activeAreaGroup = null;
+          var debTimer = null;
+        
+          function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s)
+              .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+          }
+        
+          function normPostcode(s) {
+            return (s || '').toUpperCase().replace(/\s+/g, '');
+          }
+        
+          function cityFromAddress(addr) {
+            if (!addr) return '';
+            var parts = addr.split(',').map(function(p){ return p.trim(); }).filter(Boolean);
+            if (parts.length >= 4) return parts[parts.length - 4];
+            if (parts.length >= 2) return parts[parts.length - 2];
+            return parts[0] || '';
+          }
+        
+          function areaBelongsToGroup(area, group) {
+            if (!area || !group) return false;
+            var lc = area.toLowerCase();
+            for (var i = 0; i < group.matchers.length; i++) {
+              if (lc.indexOf(group.matchers[i]) !== -1) return true;
+            }
+            return false;
+          }
+        
+          function recordMatchesGroup(rec, group) {
+            if (!rec.areas) return false;
+            for (var i = 0; i < rec.areas.length; i++) {
+              if (areaBelongsToGroup(rec.areas[i], group)) return true;
+            }
+            return false;
+          }
+        
+          function hasMuslimLang(rec) {
+            if (!rec.languages) return false;
+            for (var i = 0; i < rec.languages.length; i++) {
+              if (MUSLIM_LANG_WHITELIST.has(String(rec.languages[i]).toLowerCase())) return true;
+            }
+            return false;
+          }
+        
+          function applyFilters() {
+            var lang = document.getElementById('languageSelect').value;
+            var pcRaw = normPostcode(document.getElementById('postcodeInput').value);
+            var nameQ = (document.getElementById('nameInput').value || '').trim().toLowerCase();
+            var muslimOnly = document.getElementById('muslimToggle').checked;
+            var group = activeAreaGroup
+              ? WAVE_GROUPS.find(function(g){ return g.group === activeAreaGroup; })
+              : null;
+        
+            FILTERED = ALL.filter(function(rec) {
+              if (group && !recordMatchesGroup(rec, group)) return false;
+              if (lang && (!rec.languages || rec.languages.indexOf(lang) === -1)) return false;
+              if (pcRaw) {
+                var pc = normPostcode(rec.postcode);
+                if (pc.indexOf(pcRaw) !== 0) return false;
+              }
+              if (nameQ) {
+                var hay = ((rec.firm || '') + ' ' + (rec.name || '')).toLowerCase();
+                if (hay.indexOf(nameQ) === -1) return false;
+              }
+              if (muslimOnly && !hasMuslimLang(rec)) return false;
+              return true;
+            });
+        
+            FILTERED.sort(function(a, b) {
+              var fa = (a.firm || a.name || '').toLowerCase();
+              var fb = (b.firm || b.name || '').toLowerCase();
+              return fa < fb ? -1 : fa > fb ? 1 : 0;
+            });
+        
+            renderedCount = 0;
+            renderResults(true);
+          }
+        
+          function renderTiles() {
+            var container = document.getElementById('areaTiles');
+            var html = '';
+            WAVE_GROUPS.forEach(function(g) {
+              html += '<button type="button" class="area-tile" data-group="' + escapeHtml(g.group)
+                + '" aria-pressed="false">' + escapeHtml(g.group) + '</button>';
+            });
+            container.innerHTML = html;
+            container.querySelectorAll('.area-tile').forEach(function(btn) {
+              btn.addEventListener('click', function() {
+                var g = btn.dataset.group;
+                activeAreaGroup = (activeAreaGroup === g) ? null : g;
+                container.querySelectorAll('.area-tile').forEach(function(b) {
+                  b.setAttribute('aria-pressed', b.dataset.group === activeAreaGroup ? 'true' : 'false');
+                });
+                applyFilters();
+              });
+            });
+          }
+        
+          function renderLanguages() {
+            var seen = Object.create(null);
+            ALL.forEach(function(rec) {
+              (rec.languages || []).forEach(function(l) {
+                if (l && l !== 'English') seen[l] = (seen[l] || 0) + 1;
+              });
+            });
+            var langs = Object.keys(seen).sort();
+            var sel = document.getElementById('languageSelect');
+            langs.forEach(function(l) {
+              var opt = document.createElement('option');
+              opt.value = l;
+              opt.textContent = l + ' (' + seen[l] + ')';
+              sel.appendChild(opt);
+            });
+          }
+        
+          function renderCard(rec) {
+            var city = cityFromAddress(rec.address);
+            var pcDisplay = rec.postcode || '';
+            var areasHtml = (rec.areas || []).slice(0, 4).map(function(a) {
+              var clean = a.split('  ')[0].trim();
+              return '<span class="chip">' + escapeHtml(clean) + '</span>';
+            }).join('');
+            var langsHtml = (rec.languages || []).filter(function(l){ return l !== 'English'; })
+              .slice(0, 5).map(function(l) {
+                return '<span class="chip lang">' + escapeHtml(l) + '</span>';
+              }).join('');
+            var accredHtml = (rec.accreditations || []).slice(0, 2).map(function(a) {
+              return '<span class="chip accred">' + escapeHtml(a) + '</span>';
+            }).join('');
+        
+            var metaParts = [];
+            if (city || pcDisplay) {
+              metaParts.push('<div>' + escapeHtml(city) + (city && pcDisplay ? ' &middot; ' : '') + escapeHtml(pcDisplay) + '</div>');
+            }
+            if (rec.telephone) {
+              var telHref = 'tel:' + String(rec.telephone).replace(/\s+/g,'');
+              metaParts.push('<div><a href="' + escapeHtml(telHref) + '">' + escapeHtml(rec.telephone) + '</a></div>');
+            }
+            if (rec.email) {
+              metaParts.push('<div><a href="mailto:' + escapeHtml(rec.email) + '">' + escapeHtml(rec.email) + '</a></div>');
+            }
+        
+            var sraUrl = 'https://www.sra.org.uk/consumers/register/solicitor/?sraNumber=' + encodeURIComponent(rec.sra_id || '');
+        
+            return '<article class="solicitor-card">' +
+              '<h3 class="card-firm">' + escapeHtml(rec.firm || rec.name || 'Unknown firm') + '</h3>' +
+              (rec.firm ? '<div class="card-name">' + escapeHtml(rec.name || '') + '</div>' : '') +
+              (rec.role ? '<div class="card-role">' + escapeHtml(rec.role) + '</div>' : '') +
+              '<div class="card-meta">' + metaParts.join('') + '</div>' +
+              (areasHtml || langsHtml || accredHtml
+                ? '<div class="card-chips">' + areasHtml + langsHtml + accredHtml + '</div>' : '') +
+              '<div class="card-sra">SRA #' + escapeHtml(rec.sra_id || '') +
+                ' &middot; <a href="' + sraUrl + '" target="_blank" rel="noopener noreferrer">Verify on SRA register</a>' +
+              '</div>' +
+            '</article>';
+          }
+        
+          function renderResults(reset) {
+            var grid = document.getElementById('results');
+            var status = document.getElementById('status');
+            var moreWrap = document.getElementById('showMoreWrap');
+        
+            if (reset) {
+              grid.innerHTML = '';
+              renderedCount = 0;
+            }
+        
+            var total = FILTERED.length;
+            var hasAnyFilter = !!(activeAreaGroup
+              || document.getElementById('languageSelect').value
+              || document.getElementById('postcodeInput').value
+              || document.getElementById('nameInput').value
+              || document.getElementById('muslimToggle').checked);
+        
+            if (total === 0 && hasAnyFilter) {
+              status.innerHTML = 'No solicitors match your filters.';
+              grid.innerHTML = '<div class="no-results">' +
+                '<h2>No matches found</h2>' +
+                '<p>Try widening your filters &mdash; remove the postcode, or pick a broader practice area.</p>' +
+                '<p>Still stuck? <a href="https://askadil.org">Ask Adil a question</a> and we\'ll help you signpost.</p>' +
+              '</div>';
+              moreWrap.hidden = true;
+              return;
+            }
+        
+            if (total === 0 && !hasAnyFilter) {
+              var first20 = ALL.slice().sort(function(a,b){
+                var fa=(a.firm||a.name||'').toLowerCase(),fb=(b.firm||b.name||'').toLowerCase();
+                return fa<fb?-1:fa>fb?1:0;
+              }).slice(0, 20);
+              status.innerHTML = '<strong>Enter a postcode, area, or language above.</strong> Showing first 20 of ' + ALL.length + ' solicitors alphabetically.';
+              grid.innerHTML = first20.map(renderCard).join('');
+              moreWrap.hidden = true;
+              return;
+            }
+        
+            var end = Math.min(renderedCount + PAGE_SIZE, total);
+            var slice = FILTERED.slice(renderedCount, end);
+            var tmp = document.createElement('div');
+            tmp.innerHTML = slice.map(renderCard).join('');
+            var frag = document.createDocumentFragment();
+            while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+            grid.appendChild(frag);
+            renderedCount = end;
+        
+            status.innerHTML = '<strong>' + total + '</strong> solicitor' + (total === 1 ? '' : 's')
+              + ' match&nbsp;&mdash;&nbsp;showing ' + renderedCount + '.';
+            moreWrap.hidden = renderedCount >= total;
+          }
+        
+          function prefillFromUrl() {
+            try {
+              var params = new URLSearchParams(window.location.search);
+              var pc = params.get('postcode');
+              var area = params.get('area');
+              var lang = params.get('language');
+              if (pc) document.getElementById('postcodeInput').value = pc;
+              if (lang) document.getElementById('languageSelect').value = lang;
+              if (area) {
+                var grp = WAVE_GROUPS.find(function(g){
+                  return g.group.toLowerCase() === area.toLowerCase();
+                });
+                if (grp) {
+                  activeAreaGroup = grp.group;
+                  document.querySelectorAll('.area-tile').forEach(function(b) {
+                    b.setAttribute('aria-pressed', b.dataset.group === activeAreaGroup ? 'true' : 'false');
+                  });
+                }
+              }
+            } catch (e) { /* noop */ }
+          }
+        
+          function debounce(fn) {
+            return function() {
+              clearTimeout(debTimer);
+              debTimer = setTimeout(fn, DEBOUNCE_MS);
+            };
+          }
+        
+          function wireEvents() {
+            document.getElementById('postcodeInput').addEventListener('input', debounce(applyFilters));
+            document.getElementById('nameInput').addEventListener('input', debounce(applyFilters));
+            document.getElementById('languageSelect').addEventListener('change', applyFilters);
+            document.getElementById('muslimToggle').addEventListener('change', applyFilters);
+            document.getElementById('clearBtn').addEventListener('click', function() {
+              document.getElementById('postcodeInput').value = '';
+              document.getElementById('nameInput').value = '';
+              document.getElementById('languageSelect').value = '';
+              document.getElementById('muslimToggle').checked = false;
+              activeAreaGroup = null;
+              document.querySelectorAll('.area-tile').forEach(function(b) {
+                b.setAttribute('aria-pressed', 'false');
+              });
+              applyFilters();
+            });
+            document.getElementById('showMoreBtn').addEventListener('click', function() {
+              renderResults(false);
+            });
+          }
+        
+          function load() {
+            renderTiles();
+            wireEvents();
+            fetch(DATA_URL, { cache: 'no-cache' })
+              .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+              })
+              .then(function(data) {
+                ALL = Array.isArray(data) ? data : (data.solicitors || []);
+                renderLanguages();
+                prefillFromUrl();
+                applyFilters();
+              })
+              .catch(function(err) {
+                document.getElementById('status').innerHTML =
+                  '<span style="color:var(--error-red)">Failed to load solicitor directory. Please refresh.</span>';
+                if (window.console) console.error('Load error:', err);
+              });
+          }
+        
+            // === Lazy-load: only fetch + render when the section scrolls into view ===
+          var __finderTarget = document.getElementById('find-a-solicitor');
+          if (!__finderTarget) return;
+          var __finderFired = false;
+          function boot() {
+            if (__finderFired) return;
+            __finderFired = true;
+            load();
+          }
+          if ('IntersectionObserver' in window) {
+            var __finderIo = new IntersectionObserver(function(entries) {
+              if (entries.some(function(e){ return e.isIntersecting; })) {
+                boot();
+                __finderIo.disconnect();
+              }
+            }, { rootMargin: '200px' });
+            __finderIo.observe(__finderTarget);
+          } else {
+            if (window.requestIdleCallback) requestIdleCallback(boot);
+            else setTimeout(boot, 500);
+          }
+          if (window.location.hash === '#find-a-solicitor') boot();
+          window.addEventListener('hashchange', function() {
+            if (window.location.hash === '#find-a-solicitor') boot();
+          });
+        })();
     </script>
 </body>
 </html>
