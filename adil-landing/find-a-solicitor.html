@@ -1,402 +1,851 @@
 <!DOCTYPE html>
-<html lang="en" dir="ltr">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Find a Solicitor Near You | AskAdil</title>
-    <meta name="description" content="Free search for SRA-registered solicitors near you. Ranked by real driving time. Filter by practice area and declared language.">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Find a UK solicitor — AskAdil</title>
+<meta name="description" content="Find a UK solicitor by postcode, practice area, or language. Search 1,400+ Muslim-community-language solicitors from across England and Wales. Information only — not legal advice.">
+<meta name="robots" content="index, follow">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700&display=swap" rel="stylesheet">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Find a UK solicitor — AskAdil">
+<meta property="og:description" content="Search UK solicitors by postcode, practice area, or community language. AskAdil helps you find legal help that understands you.">
+<meta property="og:image" content="/images/og-image.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:url" content="https://askadil.com/find-a-solicitor.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Find a UK solicitor — AskAdil">
+<meta name="twitter:description" content="Search UK solicitors by postcode, practice area, or community language.">
+<meta name="twitter:image" content="/images/og-image.png">
 
-    <style>
-        :root {
-            --green-900: #0D3B1E;
-            --green-700: #166534;
-            --green-600: #16A34A;
-            --green-100: #DCFCE7;
-            --green-50: #F0FDF4;
-            --gold-700: #8B6914;
-            --gold-500: #D4A843;
-            --gold-100: #FEF9E7;
-            --slate-900: #0F172A;
-            --slate-700: #334155;
-            --slate-600: #475569;
-            --slate-500: #64748B;
-            --slate-300: #CBD5E1;
-            --slate-200: #E2E8F0;
-            --slate-100: #F1F5F9;
-            --slate-50: #F8FAFC;
-            --white: #FFFFFF;
-            --font-display: 'DM Serif Display', Georgia, serif;
-            --font-body: 'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
-            --container-max: 1100px;
-            --container-pad: clamp(1.25rem, 4vw, 2rem);
-        }
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/images/icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/images/icon-512.png">
+<link rel="apple-touch-icon" href="/images/apple-touch-icon.png">
 
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
-        body {
-            font-family: var(--font-body);
-            font-size: 1.0625rem;
-            line-height: 1.7;
-            color: var(--slate-700);
-            background: #FAFAF8;
-        }
-        a { color: var(--green-700); }
-        :focus-visible { outline: 3px solid var(--gold-500); outline-offset: 2px; }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;700&display=swap">
 
-        /* ── HEADER ─────────────────────────────── */
-        header {
-            background: var(--green-900);
-            color: var(--white);
-            padding: 1.25rem var(--container-pad);
-        }
-        .header-inner {
-            max-width: var(--container-max);
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
-        .brand { color: var(--white); font-family: var(--font-display); font-size: 1.5rem; letter-spacing: 0.02em; text-decoration: none; }
-        .brand:hover { text-decoration: none; }
-        .header-nav a { color: var(--gold-500); margin-left: 1rem; font-weight: 600; }
+<link rel="preload" as="image" type="image/webp"
+      imagesrcset="/images/logo-240w.webp 240w, /images/logo-480w.webp 480w, /images/logo-640w.webp 640w"
+      imagesizes="48px" fetchpriority="high">
 
-        /* ── HERO ───────────────────────────────── */
-        .hero {
-            background: linear-gradient(180deg, var(--green-50), #FAFAF8);
-            padding: clamp(2.5rem, 6vw, 5rem) var(--container-pad) clamp(2rem, 5vw, 3.5rem);
-            text-align: center;
-        }
-        .hero-inner { max-width: 760px; margin: 0 auto; }
-        .hero h1 {
-            font-family: var(--font-display);
-            font-size: clamp(2.1rem, 5vw, 3.25rem);
-            font-weight: 400;
-            color: var(--green-900);
-            line-height: 1.15;
-            margin-bottom: 1rem;
-        }
-        .hero p { font-size: 1.15rem; color: var(--slate-600); }
+<style>
+:root {
+  --green-900:#0D3B1E; --green-800:#14532D; --green-700:#166534;
+  --green-600:#16A34A; --green-500:#22C55E; --green-100:#DCFCE7; --green-50:#F0FDF4;
+  --gold-700:#8B6914; --gold-600:#B8860B; --gold-500:#D4A843; --gold-400:#E5C76B; --gold-100:#FEF9E7;
+  --slate-900:#0F172A; --slate-800:#1E293B; --slate-700:#334155; --slate-600:#475569;
+  --slate-500:#64748B; --slate-400:#94A3B8; --slate-300:#CBD5E1; --slate-200:#E2E8F0;
+  --slate-100:#F1F5F9; --slate-50:#F8FAFC;
+  --white:#FFFFFF; --body-bg:#FAFAF8; --error-red:#B91C1C;
+  --container-max:1100px;
+  --container-pad:clamp(1.25rem, 4vw, 2rem);
+  --section-pad:clamp(3rem, 6vw, 5rem);
+  --font-display:'DM Serif Display', Georgia, 'Times New Roman', serif;
+  --font-body:'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --font-arabic:'Noto Naskh Arabic', serif;
+  --ease-out:cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-        /* ── MAIN ───────────────────────────────── */
-        main { max-width: var(--container-max); margin: 0 auto; padding: 0 var(--container-pad) 4rem; }
+*,*::before,*::after { box-sizing:border-box; }
+* { margin:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:var(--font-body);
+  font-size:1.0625rem; line-height:1.7;
+  color:var(--slate-700);
+  background:var(--body-bg);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img,picture,svg { display:block; max-width:100%; }
+button,input,select { font:inherit; color:inherit; }
 
-        .card {
-            background: var(--white);
-            border: 1px solid var(--slate-200);
-            border-radius: 14px;
-            padding: clamp(1.5rem, 3vw, 2rem);
-            box-shadow: 0 8px 24px rgba(0,0,0,0.04);
-        }
+a { color:var(--green-700); text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:2px; }
+a:hover { color:var(--green-900); }
 
-        /* Search form */
-        .search { margin-top: -3rem; position: relative; z-index: 2; }
-        .filters {
-            display: grid;
-            grid-template-columns: 2fr 2fr 2fr 1.2fr;
-            gap: 0.75rem;
-            align-items: end;
-        }
-        @media (max-width: 760px) { .filters { grid-template-columns: 1fr; } }
-        .field label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--slate-700);
-            margin-bottom: 0.35rem;
-        }
-        .field input, .field select {
-            width: 100%;
-            padding: 0.7rem 0.85rem;
-            border: 1px solid var(--slate-300);
-            border-radius: 8px;
-            font: inherit;
-            color: var(--slate-900);
-            background: var(--white);
-        }
-        .field input:focus, .field select:focus { outline: 3px solid var(--gold-500); outline-offset: 1px; border-color: var(--green-700); }
-        .submit {
-            padding: 0.75rem 1.1rem;
-            background: var(--green-700);
-            color: var(--white);
-            border: none;
-            border-radius: 8px;
-            font-weight: 700;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .submit:hover { background: var(--green-900); }
-        .submit:disabled { background: var(--slate-500); cursor: progress; }
+:focus-visible { outline:3px solid var(--gold-500); outline-offset:2px; border-radius:4px; }
 
-        /* Results */
-        .status {
-            margin: 1.5rem 0 0.75rem;
-            color: var(--slate-600);
-            font-size: 0.95rem;
-            min-height: 1.5rem;
-        }
-        .status.error { color: #B91C1C; font-weight: 600; }
-        .status.warn { color: var(--gold-700); }
+.skip-link {
+  position:absolute; top:-100%; left:1rem;
+  background:var(--green-900); color:var(--white);
+  padding:0.75rem 1.25rem; border-radius:0 0 8px 8px;
+  font-weight:700; text-decoration:none;
+  z-index:1000; transition:top 0.2s var(--ease-out);
+}
+.skip-link:focus { top:0; color:var(--white); }
 
-        .results { display: grid; gap: 1rem; margin-top: 1rem; }
-        .solicitor {
-            background: var(--white);
-            border: 1px solid var(--slate-200);
-            border-radius: 12px;
-            padding: 1.25rem 1.4rem;
-            display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 0.5rem 1rem;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        }
-        .solicitor h3 {
-            font-family: var(--font-display);
-            font-weight: 400;
-            font-size: 1.3rem;
-            color: var(--green-900);
-            line-height: 1.25;
-            margin-bottom: 0.2rem;
-        }
-        .solicitor .firm { color: var(--slate-700); font-weight: 600; }
-        .solicitor .meta { color: var(--slate-500); font-size: 0.9rem; margin-top: 0.25rem; }
-        .solicitor .contact { display: flex; flex-wrap: wrap; gap: 0.75rem 1.25rem; margin-top: 0.5rem; font-size: 0.95rem; }
-        .solicitor .contact a { font-weight: 600; }
-        .tags { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
-        .tag {
-            display: inline-block;
-            background: var(--green-50);
-            color: var(--green-700);
-            padding: 0.15rem 0.6rem;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .tag.lang { background: var(--gold-100); color: var(--gold-700); }
-        .badge {
-            justify-self: end;
-            text-align: right;
-            min-width: 110px;
-        }
-        .badge .time {
-            font-family: var(--font-display);
-            font-size: 1.6rem;
-            color: var(--green-700);
-            line-height: 1;
-        }
-        .badge .label { font-size: 0.78rem; color: var(--slate-500); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
+.container {
+  max-width:var(--container-max);
+  margin:0 auto;
+  padding-left:var(--container-pad);
+  padding-right:var(--container-pad);
+}
 
-        /* Disclaimer + footer */
-        .disclaimer {
-            margin-top: 2.5rem;
-            font-size: 0.9rem;
-            color: var(--slate-500);
-            background: var(--slate-50);
-            border-left: 3px solid var(--gold-500);
-            padding: 1rem 1.25rem;
-            border-radius: 4px;
-        }
-        footer {
-            border-top: 1px solid var(--slate-200);
-            padding: 2rem var(--container-pad);
-            text-align: center;
-            color: var(--slate-500);
-            font-size: 0.9rem;
-        }
-        footer a { font-weight: 600; }
-    </style>
+.site-header {
+  background:var(--green-900);
+  color:var(--white);
+  padding:1rem 0;
+  position:relative;
+  z-index:10;
+}
+.site-header::before {
+  content:""; position:absolute; inset:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'><path d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='%23E5C76B' stroke-width='0.5' opacity='0.5'/></svg>");
+  opacity:0.04; pointer-events:none;
+}
+.site-header > .container { position:relative; z-index:1; }
+.nav { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+.nav-logo { display:flex; align-items:center; gap:0.75rem; text-decoration:none; color:var(--white); }
+.nav-logo:hover { color:var(--white); }
+.nav-logo-img {
+  width:48px; height:48px; flex-shrink:0;
+  border-radius:8px; overflow:hidden;
+  background-color:rgba(255,255,255,0.08);
+  background-image:url(data:image/webp;base64,UklGRoQAAABXRUJQVlA4IHgAAAAQBACdASoYABgAPxF0s1EsJqSiqA1RgCIJZQAALnT5dA42NZXfF8dLMAD+7TdR4f1avWQ/UzfmRsJK1RoN56GaB80Kg1mo9eksXstLoeZhaJ+U+GZQdJoRv/Dgb9g0By43/1kp+xV0mmOqw1uq20tPR9qM/o2cIAA=);
+  background-size:cover; background-position:center;
+}
+.nav-logo-img img { width:100%; height:100%; object-fit:cover; }
+.nav-wordmark { display:flex; align-items:baseline; gap:0.5rem; line-height:1; }
+.brand-name { font-family:var(--font-display); font-size:1.5rem; color:var(--white); letter-spacing:-0.01em; }
+.arabic-name { font-family:var(--font-arabic); font-size:1.1rem; color:var(--gold-400); }
+.nav-links { list-style:none; padding:0; margin:0; display:flex; gap:1.5rem; align-items:center; flex-wrap:wrap; }
+.nav-links a { color:var(--white); text-decoration:none; font-weight:600; font-size:0.9375rem; }
+.nav-links a:hover { color:var(--gold-400); }
+.nav-cta {
+  display:inline-block; padding:0.55rem 1.25rem;
+  background:var(--gold-500); color:var(--green-900) !important;
+  border-radius:8px; font-weight:700; transition:all 0.25s var(--ease-out);
+}
+.nav-cta:hover { background:var(--gold-400); transform:translateY(-1px); }
+
+.hero {
+  background:linear-gradient(180deg, var(--green-50) 0%, var(--body-bg) 100%);
+  padding:clamp(2.5rem, 6vw, 4.5rem) 0 clamp(3.5rem, 8vw, 5.5rem);
+  text-align:center;
+}
+.eyebrow {
+  font-size:0.8125rem; font-weight:700;
+  color:var(--green-700); text-transform:uppercase;
+  letter-spacing:0.08em; margin-bottom:1rem;
+}
+.hero h1 {
+  font-family:var(--font-display); font-weight:400;
+  font-size:clamp(2.1rem, 5vw, 3.25rem);
+  line-height:1.15; color:var(--green-900);
+  margin:0 auto 1rem; max-width:780px;
+  letter-spacing:-0.01em;
+}
+.hero h1 em { font-style:italic; color:var(--gold-700); }
+.hero-lead {
+  font-size:1.125rem; color:var(--slate-600);
+  max-width:640px; margin:0 auto;
+}
+
+main { padding-bottom:var(--section-pad); }
+
+.search-card {
+  background:var(--white);
+  border:1px solid var(--slate-200);
+  border-radius:14px;
+  padding:clamp(1.25rem, 3vw, 2rem);
+  margin-top:-3rem;
+  box-shadow:0 12px 40px rgba(13, 59, 30, 0.08);
+  position:relative; z-index:2;
+}
+.filters-label {
+  font-size:0.8125rem; font-weight:700;
+  text-transform:uppercase; letter-spacing:0.06em;
+  color:var(--green-700); margin-bottom:0.85rem;
+}
+
+.area-tiles {
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+  gap:0.5rem;
+  margin-bottom:1.5rem;
+}
+.area-tile {
+  background:var(--white);
+  border:1.5px solid var(--slate-200);
+  border-radius:10px;
+  padding:0.65rem 0.9rem;
+  font-size:0.875rem; font-weight:600;
+  color:var(--slate-700); text-align:left;
+  cursor:pointer;
+  transition:all 0.2s var(--ease-out);
+  display:flex; align-items:center; gap:0.5rem;
+}
+.area-tile:hover { border-color:var(--green-500); color:var(--green-900); }
+.area-tile[aria-pressed="true"] {
+  background:var(--green-50);
+  border-color:var(--green-700);
+  color:var(--green-900);
+}
+.area-tile[aria-pressed="true"]::before {
+  content:"\2713"; color:var(--green-700); font-weight:700;
+}
+
+.filter-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr auto;
+  gap:0.85rem;
+  align-items:end;
+}
+@media (max-width:760px) {
+  .filter-grid { grid-template-columns:1fr; }
+  .search-card { margin-top:-2rem; }
+}
+.field { display:flex; flex-direction:column; }
+.field label {
+  font-size:0.85rem; font-weight:600;
+  color:var(--slate-700); margin-bottom:0.35rem;
+}
+.field input,.field select {
+  padding:0.7rem 0.85rem;
+  border:1px solid var(--slate-300);
+  border-radius:8px;
+  background:var(--white);
+  color:var(--slate-900);
+  font-size:0.9375rem;
+  transition:border-color 0.2s, box-shadow 0.2s;
+}
+.field input:focus,.field select:focus {
+  outline:none;
+  border-color:var(--green-700);
+  box-shadow:0 0 0 3px rgba(212, 168, 67, 0.25);
+}
+.field input::placeholder { color:var(--slate-400); }
+
+.toggle-row {
+  display:flex; align-items:center; gap:0.75rem;
+  margin-top:1rem;
+  padding:0.85rem 1rem;
+  background:var(--gold-100);
+  border:1px solid var(--gold-400);
+  border-radius:10px;
+}
+.toggle-row label {
+  display:flex; align-items:center; gap:0.65rem;
+  cursor:pointer; font-weight:600;
+  color:var(--slate-800);
+}
+.toggle-row input[type="checkbox"] {
+  width:1.15rem; height:1.15rem;
+  accent-color:var(--green-700);
+  cursor:pointer;
+}
+.toggle-row small { display:block; color:var(--slate-600); font-weight:400; font-size:0.85rem; }
+
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:0.5rem;
+  padding:0.7rem 1.5rem; border:none; border-radius:8px;
+  font-weight:700; font-size:0.9375rem; cursor:pointer;
+  transition:all 0.25s var(--ease-out);
+  text-decoration:none;
+}
+.btn-primary { background:var(--green-800); color:var(--white); }
+.btn-primary:hover { background:var(--green-700); transform:translateY(-1px); color:var(--white); }
+.btn-outline {
+  background:transparent; color:var(--green-800);
+  border:2px solid var(--green-800);
+}
+.btn-outline:hover { background:var(--green-50); color:var(--green-900); }
+
+.status {
+  margin:1.5rem 0 1rem;
+  font-size:0.9375rem; color:var(--slate-600);
+  font-weight:600;
+}
+.status strong { color:var(--green-900); }
+
+.results-grid {
+  display:grid;
+  grid-template-columns:1fr;
+  gap:1rem;
+  margin-top:0.5rem;
+}
+@media (min-width:720px) { .results-grid { grid-template-columns:repeat(2, 1fr); } }
+@media (min-width:1020px) { .results-grid { grid-template-columns:repeat(3, 1fr); } }
+
+.solicitor-card {
+  background:var(--white);
+  border:1px solid var(--slate-200);
+  border-radius:12px;
+  padding:1.25rem;
+  display:flex; flex-direction:column; gap:0.65rem;
+  transition:all 0.3s var(--ease-out);
+}
+.solicitor-card:hover {
+  border-color:var(--green-500);
+  box-shadow:0 12px 30px rgba(0,0,0,0.06);
+  transform:translateY(-2px);
+}
+.card-firm {
+  font-family:var(--font-display);
+  font-size:1.3rem; font-weight:400;
+  color:var(--green-900);
+  line-height:1.25;
+}
+.card-name { font-size:0.95rem; color:var(--slate-800); font-weight:600; }
+.card-role { font-size:0.85rem; color:var(--slate-500); }
+.card-meta {
+  font-size:0.875rem; color:var(--slate-600);
+  display:flex; flex-direction:column; gap:0.2rem;
+}
+.card-meta a { color:var(--green-700); }
+.card-chips {
+  display:flex; flex-wrap:wrap; gap:0.35rem;
+  margin-top:0.25rem;
+}
+.chip {
+  display:inline-block;
+  padding:0.15rem 0.55rem;
+  border-radius:999px;
+  font-size:0.78rem; font-weight:600;
+  background:var(--green-50); color:var(--green-700);
+}
+.chip.lang { background:var(--gold-100); color:var(--gold-700); }
+.chip.accred { background:var(--slate-100); color:var(--slate-700); }
+.card-sra {
+  font-size:0.8125rem; color:var(--slate-500);
+  margin-top:0.35rem; padding-top:0.65rem;
+  border-top:1px solid var(--slate-100);
+}
+.card-sra a { color:var(--green-700); font-weight:600; }
+
+.empty-state, .no-results {
+  text-align:center;
+  padding:2.5rem 1rem;
+  color:var(--slate-600);
+  background:var(--white);
+  border:1px dashed var(--slate-300);
+  border-radius:12px;
+  margin-top:1rem;
+  grid-column:1 / -1;
+}
+.empty-state h2, .no-results h2 {
+  font-family:var(--font-display);
+  font-size:1.5rem; font-weight:400;
+  color:var(--green-900); margin-bottom:0.5rem;
+}
+.no-results a { color:var(--green-700); font-weight:700; }
+
+.show-more-wrap { text-align:center; margin-top:1.5rem; }
+
+.disclaimer-section {
+  margin-top:2.5rem;
+  display:grid; gap:1rem;
+}
+.disclaimer {
+  background:var(--slate-50);
+  border-left:4px solid var(--gold-500);
+  padding:1.25rem 1.5rem;
+  border-radius:8px;
+  font-size:0.9375rem;
+  color:var(--slate-700);
+  line-height:1.65;
+}
+.disclaimer strong { color:var(--slate-900); }
+.disclaimer.template {
+  border-left-color:var(--green-700);
+  background:var(--green-50);
+}
+
+.site-footer {
+  background:var(--green-900); color:var(--slate-200);
+  padding:2.5rem 0 2rem;
+  position:relative;
+}
+.site-footer::before {
+  content:""; position:absolute; inset:0;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60' viewBox='0 0 60 60'><path d='M30 0L60 30L30 60L0 30Z' fill='none' stroke='%23E5C76B' stroke-width='0.5' opacity='0.5'/></svg>");
+  opacity:0.03; pointer-events:none;
+}
+.site-footer > .container { position:relative; z-index:1; }
+.footer-grid {
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+  gap:2rem;
+  margin-bottom:2rem;
+}
+.footer-col h3 {
+  font-family:var(--font-display); font-weight:400;
+  font-size:1.1rem; color:var(--gold-400);
+  margin-bottom:0.75rem;
+}
+.footer-col ul { list-style:none; padding:0; margin:0; }
+.footer-col li { margin-bottom:0.4rem; font-size:0.9375rem; }
+.footer-col a { color:var(--slate-200); text-decoration:none; }
+.footer-col a:hover { color:var(--gold-400); }
+.footer-bottom {
+  border-top:1px solid rgba(255,255,255,0.1);
+  padding-top:1.25rem;
+  display:flex; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+  font-size:0.875rem; color:var(--slate-400);
+}
+.footer-bottom a { color:var(--slate-200); }
+
+@media (prefers-reduced-motion: reduce) {
+  *,*::before,*::after {
+    animation-duration:0.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.01ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+</style>
 </head>
 <body>
+<a href="#main-content" class="skip-link">Skip to main content</a>
 
-<header>
-    <div class="header-inner">
-        <a href="/" class="brand">AskAdil</a>
-        <nav class="header-nav" aria-label="Primary">
-            <a href="https://askadil.org">Start a Conversation</a>
-        </nav>
-    </div>
+<header class="site-header" role="banner">
+  <div class="container">
+    <nav class="nav" aria-label="Primary">
+      <a href="/" class="nav-logo" aria-label="AskAdil homepage">
+        <span class="nav-logo-img" aria-hidden="true">
+          <picture>
+            <source type="image/webp" srcset="/images/logo-240w.webp 240w, /images/logo-480w.webp 480w, /images/logo-640w.webp 640w" sizes="48px">
+            <img src="/images/logo-240w.webp" alt="" width="48" height="48" loading="eager" fetchpriority="high" decoding="async">
+          </picture>
+        </span>
+        <span class="nav-wordmark">
+          <span class="brand-name">AskAdil</span>
+          <span class="arabic-name" lang="ar" dir="rtl">(عادل)</span>
+        </span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="/">Home</a></li>
+        <li><a href="https://askadil.org" class="nav-cta">Ask Adil</a></li>
+      </ul>
+    </nav>
+  </div>
 </header>
 
 <section class="hero">
-    <div class="hero-inner">
-        <h1>Find a Solicitor Near You</h1>
-        <p>Search SRA-registered solicitors, ranked by real driving time from your postcode. Filter by practice area and declared language.</p>
-    </div>
+  <div class="container">
+    <p class="eyebrow">Solicitor directory</p>
+    <h1>Find a <em>UK solicitor</em> who understands you</h1>
+    <p class="hero-lead">Search over 1,400 solicitors across England and Wales by postcode, practice area, or community language. Free, independent, and built for the Muslim community.</p>
+  </div>
 </section>
 
-<main>
-    <form id="searchForm" class="card search" novalidate>
-        <div class="filters">
-            <div class="field">
-                <label for="postcode">Your postcode</label>
-                <input id="postcode" name="postcode" type="text" autocomplete="postal-code"
-                       placeholder="e.g. M14 5AB" required>
-            </div>
-            <div class="field">
-                <label for="area">Practice area</label>
-                <select id="area" name="area">
-                    <option value="">Any area</option>
-                </select>
-            </div>
-            <div class="field">
-                <label for="language">Language</label>
-                <select id="language" name="language">
-                    <option value="">Any language</option>
-                </select>
-            </div>
-            <button class="submit" type="submit" id="submitBtn">Find solicitors</button>
+<main id="main-content" role="main" aria-label="Page content">
+  <div class="container">
+
+    <form class="search-card" id="searchForm" onsubmit="return false" aria-label="Solicitor search filters">
+      <p class="filters-label">Practice areas</p>
+      <div class="area-tiles" id="areaTiles" role="group" aria-label="Filter by practice area"></div>
+
+      <div class="filter-grid">
+        <div class="field">
+          <label for="languageSelect">Language</label>
+          <select id="languageSelect">
+            <option value="">Any language</option>
+          </select>
         </div>
+        <div class="field">
+          <label for="postcodeInput">Postcode</label>
+          <input id="postcodeInput" type="text" inputmode="text" autocomplete="postal-code"
+                 placeholder="e.g. E1 or B6 6SP" maxlength="8">
+        </div>
+        <div class="field">
+          <label for="nameInput">Firm or name</label>
+          <input id="nameInput" type="text" autocomplete="off" placeholder="optional">
+        </div>
+        <button type="button" class="btn btn-primary" id="clearBtn" aria-label="Clear all filters">Clear</button>
+      </div>
+
+      <div class="toggle-row">
+        <label for="muslimToggle">
+          <input id="muslimToggle" type="checkbox">
+          <span>Show only Muslim-community-language solicitors
+            <small>Filters to solicitors who declare Urdu, Arabic, Bengali, Mirpuri, Turkish, Pushtu, Sylheti, Farsi, Sindhi, or Malay.</small>
+          </span>
+        </label>
+      </div>
     </form>
 
-    <div id="status" class="status" role="status" aria-live="polite"></div>
-    <div id="results" class="results"></div>
+    <div class="status" id="status" role="status" aria-live="polite">Loading directory&hellip;</div>
+    <div class="results-grid" id="results" aria-label="Solicitor results"></div>
+    <div class="show-more-wrap" id="showMoreWrap" hidden>
+      <button type="button" class="btn btn-outline" id="showMoreBtn">Show next 60</button>
+    </div>
 
-    <div id="disclaimer" class="disclaimer" hidden></div>
+    <div class="disclaimer-section" aria-label="Disclaimers">
+      <div class="disclaimer">
+        <strong>Important:</strong> AskAdil does not endorse or guarantee any solicitor. All firms listed are pending outreach &mdash; none have consented to be listed yet. Contact details are from publicly available sources only. Firm data includes information supplied by the Solicitors Regulation Authority.
+      </div>
+      <div class="disclaimer template">
+        <strong>Information only &mdash; not legal advice.</strong> We help you find a solicitor; we don't represent you.
+      </div>
+    </div>
+
+  </div>
 </main>
 
-<footer>
-    <p>Solicitor registration data supplied by the Solicitors Regulation Authority. Practice area and language data is from each solicitor's public Law Society Find-a-Solicitor profile. AskAdil is not affiliated with the SRA or the Law Society.</p>
-    <p style="margin-top:0.5rem;"><a href="/">Home</a> &middot; <a href="https://askadil.org">Chat with AskAdil</a> &middot; <a href="/accessibility.html">Accessibility</a></p>
+<footer class="site-footer" role="contentinfo" aria-label="Site footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h3>AskAdil <span class="arabic-name" lang="ar" dir="rtl">(عادل)</span></h3>
+        <p style="font-size:0.9375rem; color:var(--slate-300);">Free, independent legal signposting for the UK Muslim community.</p>
+      </div>
+      <div class="footer-col">
+        <h3>Tools</h3>
+        <ul>
+          <li><a href="/find-a-solicitor.html">Find a solicitor</a></li>
+          <li><a href="https://askadil.org">Ask a question</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3>About</h3>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="/accessibility.html">Accessibility</a></li>
+        </ul>
+      </div>
+      <div class="footer-col">
+        <h3>Need urgent help?</h3>
+        <ul>
+          <li><a href="tel:999">Emergency: 999</a></li>
+          <li><a href="tel:101">Police non-emergency: 101</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 AskAdil. Information only &mdash; not legal advice.</span>
+      <span><a href="/accessibility.html">Accessibility</a> &middot; <a href="https://askadil.org">askadil.org</a></span>
+    </div>
+  </div>
 </footer>
 
 <script>
-(() => {
-    const API_BASE = (window.ASKADIL_API_BASE || 'https://api.askadil.org').replace(/\/$/, '');
-    const FACETS_URL = `${API_BASE}/api/v1/solicitors/facets`;
-    const NEAR_ME_URL = `${API_BASE}/api/v1/solicitors/near-me`;
+(function() {
+  'use strict';
 
-    const $ = (id) => document.getElementById(id);
-    const form = $('searchForm');
-    const submitBtn = $('submitBtn');
-    const statusEl = $('status');
-    const resultsEl = $('results');
-    const disclaimerEl = $('disclaimer');
-    const areaSel = $('area');
-    const langSel = $('language');
-    const pcInput = $('postcode');
+  var DATA_URL = '/data/solicitors.json';
+  var PAGE_SIZE = 60;
+  var DEBOUNCE_MS = 150;
 
-    // ---- Facets (best-effort; falls back to free-text) ---------------
-    fetch(FACETS_URL)
-        .then(r => r.ok ? r.json() : null)
-        .then(data => {
-            if (!data) return;
-            (data.areas || []).slice(0, 200).forEach(a => areaSel.add(new Option(a, a)));
-            (data.languages || []).slice(0, 100).forEach(l => langSel.add(new Option(l, l)));
-        })
-        .catch(() => { /* facets are optional */ });
+  // Wave groups from PRACTICE_AREA_GROUPS audit. Wave 3 (Criminal Defence,
+  // Personal Injury, Conveyancing) intentionally GATED OUT pending MCB sign-off.
+  var WAVE_GROUPS = [
+    { group:'Employment',                     wave:0, matchers:['employment'] },
+    { group:'Family & Children',              wave:0, matchers:['family','children'] },
+    { group:'Immigration & Asylum',           wave:1, matchers:['immigration','asylum'] },
+    { group:'Wills, Probate & Inheritance',   wave:1, matchers:['wills','probate'] },
+    { group:'Welfare & Benefits',             wave:2, matchers:['benefits','allowances'] },
+    { group:'Housing',                        wave:2, matchers:['landlord and tenant','housing'] },
+    { group:'Human Rights',                   wave:2, matchers:['human rights','civil liberties'] }
+  ];
 
-    // ---- Pre-populate from query string ------------------------------
-    const params = new URLSearchParams(location.search);
-    if (params.get('postcode')) pcInput.value = params.get('postcode');
-    const pendingArea = params.get('area');
-    const pendingLang = params.get('language');
+  // Strong-signal Muslim-community languages (excludes Punjabi/Hindi/Gujarati
+  // which are mixed-community).
+  var MUSLIM_LANG_WHITELIST = new Set([
+    'urdu','arabic','bengali','mirpuri','turkish','pushtu','pashto',
+    'sylheti','farsi (persian)','farsi','persian','sindhi','malay'
+  ]);
 
-    function selectWhenAvailable(sel, value) {
-        if (!value) return;
-        const tryNow = () => {
-            for (const opt of sel.options) if (opt.value === value) { sel.value = value; return true; }
-            return false;
-        };
-        if (!tryNow()) setTimeout(() => tryNow(), 600);
+  var ALL = [];
+  var FILTERED = [];
+  var renderedCount = 0;
+  var activeAreaGroup = null;
+  var debTimer = null;
+
+  function escapeHtml(s) {
+    if (s == null) return '';
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function normPostcode(s) {
+    return (s || '').toUpperCase().replace(/\s+/g, '');
+  }
+
+  function cityFromAddress(addr) {
+    if (!addr) return '';
+    var parts = addr.split(',').map(function(p){ return p.trim(); }).filter(Boolean);
+    if (parts.length >= 4) return parts[parts.length - 4];
+    if (parts.length >= 2) return parts[parts.length - 2];
+    return parts[0] || '';
+  }
+
+  function areaBelongsToGroup(area, group) {
+    if (!area || !group) return false;
+    var lc = area.toLowerCase();
+    for (var i = 0; i < group.matchers.length; i++) {
+      if (lc.indexOf(group.matchers[i]) !== -1) return true;
     }
-    selectWhenAvailable(areaSel, pendingArea);
-    selectWhenAvailable(langSel, pendingLang);
+    return false;
+  }
 
-    // ---- Render ------------------------------------------------------
-    const escapeHtml = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => (
-        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
-    ));
+  function recordMatchesGroup(rec, group) {
+    if (!rec.areas) return false;
+    for (var i = 0; i < rec.areas.length; i++) {
+      if (areaBelongsToGroup(rec.areas[i], group)) return true;
+    }
+    return false;
+  }
 
-    function renderResults(payload) {
-        const list = payload.results || [];
-        resultsEl.innerHTML = '';
-        if (!list.length) {
-            statusEl.textContent = `No matching solicitors found near ${payload.user?.postcode || ''}. Try widening your filters.`;
-            statusEl.className = 'status warn';
-            return;
-        }
+  function hasMuslimLang(rec) {
+    if (!rec.languages) return false;
+    for (var i = 0; i < rec.languages.length; i++) {
+      if (MUSLIM_LANG_WHITELIST.has(String(rec.languages[i]).toLowerCase())) return true;
+    }
+    return false;
+  }
 
-        const osrm = payload.osrm_available !== false;
-        statusEl.textContent = osrm
-            ? `Top ${list.length} solicitor${list.length === 1 ? '' : 's'} by driving time from ${payload.user?.postcode}.`
-            : `Showing ${list.length} solicitor${list.length === 1 ? '' : 's'} near ${payload.user?.postcode}. Driving-time service is currently unavailable — results are alphabetical.`;
-        statusEl.className = osrm ? 'status' : 'status warn';
+  function applyFilters() {
+    var lang = document.getElementById('languageSelect').value;
+    var pcRaw = normPostcode(document.getElementById('postcodeInput').value);
+    var nameQ = (document.getElementById('nameInput').value || '').trim().toLowerCase();
+    var muslimOnly = document.getElementById('muslimToggle').checked;
+    var group = activeAreaGroup
+      ? WAVE_GROUPS.find(function(g){ return g.group === activeAreaGroup; })
+      : null;
 
-        const cards = list.map((s) => {
-            const tagsArea = (s.areas || []).slice(0, 4)
-                .map(a => `<span class="tag">${escapeHtml(a)}</span>`).join('');
-            const tagsLang = (s.languages || []).slice(0, 6)
-                .map(l => `<span class="tag lang">${escapeHtml(l)}</span>`).join('');
-            const tel = s.telephone ? `<a href="tel:${escapeHtml(s.telephone)}">📞 ${escapeHtml(s.telephone)}</a>` : '';
-            const mail = s.email ? `<a href="mailto:${escapeHtml(s.email)}">✉️ ${escapeHtml(s.email)}</a>` : '';
-            const sra = s.regulator_url ? `<a href="${escapeHtml(s.regulator_url)}" target="_blank" rel="noopener">SRA record</a>` : '';
-            const badge = s.duration_human
-                ? `<div class="badge"><div class="time">${escapeHtml(s.duration_human)}</div><div class="label">drive</div></div>`
-                : '';
+    FILTERED = ALL.filter(function(rec) {
+      if (group && !recordMatchesGroup(rec, group)) return false;
+      if (lang && (!rec.languages || rec.languages.indexOf(lang) === -1)) return false;
+      if (pcRaw) {
+        var pc = normPostcode(rec.postcode);
+        if (pc.indexOf(pcRaw) !== 0) return false;
+      }
+      if (nameQ) {
+        var hay = ((rec.firm || '') + ' ' + (rec.name || '')).toLowerCase();
+        if (hay.indexOf(nameQ) === -1) return false;
+      }
+      if (muslimOnly && !hasMuslimLang(rec)) return false;
+      return true;
+    });
 
-            return `
-                <article class="solicitor">
-                    <div>
-                        <h3>${escapeHtml(s.name || 'Unnamed solicitor')}</h3>
-                        <div class="firm">${escapeHtml(s.firm_name || '')}${s.role ? ' &middot; ' + escapeHtml(s.role) : ''}</div>
-                        <div class="meta">${escapeHtml(s.address || '')}</div>
-                        <div class="contact">${tel}${mail}${sra}</div>
-                        <div class="tags">${tagsArea}${tagsLang}</div>
-                    </div>
-                    ${badge}
-                </article>
-            `;
+    FILTERED.sort(function(a, b) {
+      var fa = (a.firm || a.name || '').toLowerCase();
+      var fb = (b.firm || b.name || '').toLowerCase();
+      return fa < fb ? -1 : fa > fb ? 1 : 0;
+    });
+
+    renderedCount = 0;
+    renderResults(true);
+  }
+
+  function renderTiles() {
+    var container = document.getElementById('areaTiles');
+    var html = '';
+    WAVE_GROUPS.forEach(function(g) {
+      html += '<button type="button" class="area-tile" data-group="' + escapeHtml(g.group)
+        + '" aria-pressed="false">' + escapeHtml(g.group) + '</button>';
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.area-tile').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var g = btn.dataset.group;
+        activeAreaGroup = (activeAreaGroup === g) ? null : g;
+        container.querySelectorAll('.area-tile').forEach(function(b) {
+          b.setAttribute('aria-pressed', b.dataset.group === activeAreaGroup ? 'true' : 'false');
         });
+        applyFilters();
+      });
+    });
+  }
 
-        resultsEl.innerHTML = cards.join('');
+  function renderLanguages() {
+    var seen = Object.create(null);
+    ALL.forEach(function(rec) {
+      (rec.languages || []).forEach(function(l) {
+        if (l && l !== 'English') seen[l] = (seen[l] || 0) + 1;
+      });
+    });
+    var langs = Object.keys(seen).sort();
+    var sel = document.getElementById('languageSelect');
+    langs.forEach(function(l) {
+      var opt = document.createElement('option');
+      opt.value = l;
+      opt.textContent = l + ' (' + seen[l] + ')';
+      sel.appendChild(opt);
+    });
+  }
+
+  function renderCard(rec) {
+    var city = cityFromAddress(rec.address);
+    var pcDisplay = rec.postcode || '';
+    var areasHtml = (rec.areas || []).slice(0, 4).map(function(a) {
+      var clean = a.split('  ')[0].trim();
+      return '<span class="chip">' + escapeHtml(clean) + '</span>';
+    }).join('');
+    var langsHtml = (rec.languages || []).filter(function(l){ return l !== 'English'; })
+      .slice(0, 5).map(function(l) {
+        return '<span class="chip lang">' + escapeHtml(l) + '</span>';
+      }).join('');
+    var accredHtml = (rec.accreditations || []).slice(0, 2).map(function(a) {
+      return '<span class="chip accred">' + escapeHtml(a) + '</span>';
+    }).join('');
+
+    var metaParts = [];
+    if (city || pcDisplay) {
+      metaParts.push('<div>' + escapeHtml(city) + (city && pcDisplay ? ' &middot; ' : '') + escapeHtml(pcDisplay) + '</div>');
+    }
+    if (rec.telephone) {
+      var telHref = 'tel:' + String(rec.telephone).replace(/\s+/g,'');
+      metaParts.push('<div><a href="' + escapeHtml(telHref) + '">' + escapeHtml(rec.telephone) + '</a></div>');
+    }
+    if (rec.email) {
+      metaParts.push('<div><a href="mailto:' + escapeHtml(rec.email) + '">' + escapeHtml(rec.email) + '</a></div>');
     }
 
-    function showError(message) {
-        statusEl.textContent = message;
-        statusEl.className = 'status error';
-        resultsEl.innerHTML = '';
+    var sraUrl = 'https://www.sra.org.uk/consumers/register/solicitor/?sraNumber=' + encodeURIComponent(rec.sra_id || '');
+
+    return '<article class="solicitor-card">' +
+      '<h3 class="card-firm">' + escapeHtml(rec.firm || rec.name || 'Unknown firm') + '</h3>' +
+      (rec.firm ? '<div class="card-name">' + escapeHtml(rec.name || '') + '</div>' : '') +
+      (rec.role ? '<div class="card-role">' + escapeHtml(rec.role) + '</div>' : '') +
+      '<div class="card-meta">' + metaParts.join('') + '</div>' +
+      (areasHtml || langsHtml || accredHtml
+        ? '<div class="card-chips">' + areasHtml + langsHtml + accredHtml + '</div>' : '') +
+      '<div class="card-sra">SRA #' + escapeHtml(rec.sra_id || '') +
+        ' &middot; <a href="' + sraUrl + '" target="_blank" rel="noopener noreferrer">Verify on SRA register</a>' +
+      '</div>' +
+    '</article>';
+  }
+
+  function renderResults(reset) {
+    var grid = document.getElementById('results');
+    var status = document.getElementById('status');
+    var moreWrap = document.getElementById('showMoreWrap');
+
+    if (reset) {
+      grid.innerHTML = '';
+      renderedCount = 0;
     }
 
-    // ---- Submit handler ---------------------------------------------
-    async function search() {
-        const postcode = pcInput.value.trim();
-        if (!postcode) { showError('Please enter a UK postcode.'); pcInput.focus(); return; }
+    var total = FILTERED.length;
+    var hasAnyFilter = !!(activeAreaGroup
+      || document.getElementById('languageSelect').value
+      || document.getElementById('postcodeInput').value
+      || document.getElementById('nameInput').value
+      || document.getElementById('muslimToggle').checked);
 
-        const qs = new URLSearchParams({ postcode, limit: '5' });
-        if (areaSel.value) qs.set('area', areaSel.value);
-        if (langSel.value) qs.set('language', langSel.value);
+    if (total === 0 && hasAnyFilter) {
+      status.innerHTML = 'No solicitors match your filters.';
+      grid.innerHTML = '<div class="no-results">' +
+        '<h2>No matches found</h2>' +
+        '<p>Try widening your filters &mdash; remove the postcode, or pick a broader practice area.</p>' +
+        '<p>Still stuck? <a href="https://askadil.org">Ask Adil a question</a> and we\'ll help you signpost.</p>' +
+      '</div>';
+      moreWrap.hidden = true;
+      return;
+    }
 
-        statusEl.textContent = 'Searching…';
-        statusEl.className = 'status';
-        submitBtn.disabled = true;
+    if (total === 0 && !hasAnyFilter) {
+      var first20 = ALL.slice().sort(function(a,b){
+        var fa=(a.firm||a.name||'').toLowerCase(),fb=(b.firm||b.name||'').toLowerCase();
+        return fa<fb?-1:fa>fb?1:0;
+      }).slice(0, 20);
+      status.innerHTML = '<strong>Enter a postcode, area, or language above.</strong> Showing first 20 of ' + ALL.length + ' solicitors alphabetically.';
+      grid.innerHTML = first20.map(renderCard).join('');
+      moreWrap.hidden = true;
+      return;
+    }
 
-        try {
-            const resp = await fetch(`${NEAR_ME_URL}?${qs.toString()}`);
-            const data = await resp.json().catch(() => ({}));
-            if (!resp.ok) {
-                showError(data.detail || data.message || `Request failed (${resp.status}).`);
-                return;
-            }
-            renderResults(data);
-            if (data.disclaimer) {
-                disclaimerEl.textContent = data.disclaimer;
-                disclaimerEl.hidden = false;
-            }
-        } catch (e) {
-            showError('Network error — please try again.');
-        } finally {
-            submitBtn.disabled = false;
+    var end = Math.min(renderedCount + PAGE_SIZE, total);
+    var slice = FILTERED.slice(renderedCount, end);
+    var tmp = document.createElement('div');
+    tmp.innerHTML = slice.map(renderCard).join('');
+    var frag = document.createDocumentFragment();
+    while (tmp.firstChild) frag.appendChild(tmp.firstChild);
+    grid.appendChild(frag);
+    renderedCount = end;
+
+    status.innerHTML = '<strong>' + total + '</strong> solicitor' + (total === 1 ? '' : 's')
+      + ' match&nbsp;&mdash;&nbsp;showing ' + renderedCount + '.';
+    moreWrap.hidden = renderedCount >= total;
+  }
+
+  function prefillFromUrl() {
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var pc = params.get('postcode');
+      var area = params.get('area');
+      var lang = params.get('language');
+      if (pc) document.getElementById('postcodeInput').value = pc;
+      if (lang) document.getElementById('languageSelect').value = lang;
+      if (area) {
+        var grp = WAVE_GROUPS.find(function(g){
+          return g.group.toLowerCase() === area.toLowerCase();
+        });
+        if (grp) {
+          activeAreaGroup = grp.group;
+          document.querySelectorAll('.area-tile').forEach(function(b) {
+            b.setAttribute('aria-pressed', b.dataset.group === activeAreaGroup ? 'true' : 'false');
+          });
         }
-    }
+      }
+    } catch (e) { /* noop */ }
+  }
 
-    form.addEventListener('submit', (e) => { e.preventDefault(); search(); });
-    if (pcInput.value.trim()) search();
+  function debounce(fn) {
+    return function() {
+      clearTimeout(debTimer);
+      debTimer = setTimeout(fn, DEBOUNCE_MS);
+    };
+  }
+
+  function wireEvents() {
+    document.getElementById('postcodeInput').addEventListener('input', debounce(applyFilters));
+    document.getElementById('nameInput').addEventListener('input', debounce(applyFilters));
+    document.getElementById('languageSelect').addEventListener('change', applyFilters);
+    document.getElementById('muslimToggle').addEventListener('change', applyFilters);
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      document.getElementById('postcodeInput').value = '';
+      document.getElementById('nameInput').value = '';
+      document.getElementById('languageSelect').value = '';
+      document.getElementById('muslimToggle').checked = false;
+      activeAreaGroup = null;
+      document.querySelectorAll('.area-tile').forEach(function(b) {
+        b.setAttribute('aria-pressed', 'false');
+      });
+      applyFilters();
+    });
+    document.getElementById('showMoreBtn').addEventListener('click', function() {
+      renderResults(false);
+    });
+  }
+
+  function load() {
+    renderTiles();
+    wireEvents();
+    fetch(DATA_URL, { cache: 'no-cache' })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        ALL = Array.isArray(data) ? data : (data.solicitors || []);
+        renderLanguages();
+        prefillFromUrl();
+        applyFilters();
+      })
+      .catch(function(err) {
+        document.getElementById('status').innerHTML =
+          '<span style="color:var(--error-red)">Failed to load solicitor directory. Please refresh.</span>';
+        if (window.console) console.error('Load error:', err);
+      });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', load);
+  } else {
+    load();
+  }
 })();
 </script>
+
+<!-- nginx Cache-Control headers for /data/solicitors.json should be no-cache (data may refresh) but /images/* should be public, immutable, max-age=31536000 -->
 </body>
 </html>
