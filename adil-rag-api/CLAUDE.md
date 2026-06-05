@@ -71,7 +71,7 @@ Rate limits (Postgres-backed, per API key):
 | `GEMINI_MODEL` | No | Default: `gemini-2.5-flash` |
 | `RAG_BACKEND` | No | `fst` (default), `ograg` (hyperedge cover v2), or `ograg_chunks` (flat MVP retriever — A/B during eval phase, removed in P12) |
 | `OGRAG_ANN_TOP_K` | No | ANN candidate pool size for retriever v2 (default 50) |
-| `OGRAG_POOL_MAX` | No | Max connections in the shared OG-RAG retrieval pool (`ograg/store.py`, default 10). Bounds DB connections from the query + probe path so concurrency can't exhaust Postgres `max_connections`. |
+| `OGRAG_POOL_MAX` | No | Max connections in the shared OG-RAG retrieval pool (`ograg/store.py`, default 10). Bounds DB connections from the query + probe path so concurrency can't exhaust Postgres `max_connections`. The pool reaps its own idle conns at 300s and tags them `application_name=adil-rag-api[ograg]`. **Server-side guard** (set once on the `railway` db, not per-deploy): `idle_session_timeout=600000` + `idle_in_transaction_session_timeout=120000` reap connections orphaned by *killed* deploy containers — the zombie leak (99 idle ograg conns, up to 10 days old) that surfaced as `ograg.retrieval_probe` "sorry, too many clients already". |
 | `OGRAG_TARGET_TOKENS` | No | Algo-1 cover token budget for retriever v2 (default 6000) |
 | `OGRAG_REWRITE_MODEL` | No | Gemini model for multi-turn query rewriting (default `gemini-2.5-flash`) |
 | `RAG_SHADOW` | No | `1` enables P9 shadow logging: fire-and-forget OG-RAG run alongside every FST query, logged to `eval_run` table. Never affects user response. |

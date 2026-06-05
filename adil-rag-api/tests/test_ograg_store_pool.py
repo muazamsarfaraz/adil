@@ -64,6 +64,43 @@ async def test_get_pool_is_bounded_with_init_hook(monkeypatch):
     assert kwargs["init"] is store_mod._init_connection
 
 
+async def test_get_pool_reaps_idle_and_tags_application_name(monkeypatch):
+    """Regression for the 10-day zombie-connection leak.
+
+    99 idle ograg connections (up to 10 days old) accumulated from killed deploy
+    containers and exhausted Postgres max_connections, surfacing as
+    ``ograg.retrieval_probe`` "sorry, too many clients already". The pool must:
+
+      - cap how long it holds its OWN idle connections
+        (``max_inactive_connection_lifetime``), so a live process never hoards
+        slots between the 5-min probes, and
+      - tag every connection with an ``application_name`` so a future leak is
+        attributable in pg_stat_activity (the leaked connections showed an empty
+        application_name, which made the source impossible to pin down).
+
+    The complementary server-side ``idle_session_timeout`` (which reaps
+    connections orphaned by dead containers) lives on the database, not in code.
+    """
+    fake_pool = _make_fake_pool()
+    create = AsyncMock(return_value=fake_pool)
+    monkeypatch.setattr(store_mod.asyncpg, "create_pool", create)
+
+    await store_mod.get_pool("postgres://fake/db")
+
+    _args, kwargs = create.call_args
+    # Client-side idle reaping is set and finite (not None = keep-forever).
+    assert kwargs.get("max_inactive_connection_lifetime"), (
+        "ograg pool must set max_inactive_connection_lifetime so a live process "
+        "reaps its own idle connections instead of hoarding Postgres slots"
+    )
+    assert kwargs["max_inactive_connection_lifetime"] <= 600
+    # Connections are attributable in pg_stat_activity.
+    app_name = (kwargs.get("server_settings") or {}).get("application_name", "")
+    assert "adil-rag-api" in app_name and "ograg" in app_name, (
+        "ograg pool connections must carry an application_name so a future leak " f"is attributable; got {app_name!r}"
+    )
+
+
 async def test_changing_dsn_retires_old_pool(monkeypatch):
     first = _make_fake_pool()
     second = _make_fake_pool()
