@@ -220,6 +220,12 @@ class Store:
         ``paragraph_text``, ``source_node_id``, ``attrs``, ``distance``
         (cosine distance, 0..2) and ``similarity`` (= ``1 - distance``,
         higher is more similar — what Algo-1 cover scoring expects).
+
+        Filters out rows with NULL ``embedding`` defensively — same hazard as
+        ``search()``: a dimension resize / vendor pivot NULLs existing rows
+        until the seeder re-populates, and without this filter those rows
+        sort in with a NULL distance, making ``float(r['distance'])`` raise
+        TypeError instead of cleanly returning the (real) embedded matches.
         """
         conn = self._require_conn()
         rows = await conn.fetch(
@@ -231,6 +237,7 @@ class Store:
                    attrs,
                    embedding <=> $1 AS distance
             FROM hyperedge
+            WHERE embedding IS NOT NULL
             ORDER BY embedding <=> $1
             LIMIT $2
             """,
