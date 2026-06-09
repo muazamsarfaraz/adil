@@ -45,7 +45,7 @@ async def _cache_get(pool: Any, postcode: str) -> tuple[float, float] | None:
     try:
         async with pool.acquire() as conn:
             row = await conn.fetchrow(
-                "SELECT lat, lng FROM postcode_cache " "WHERE postcode = $1 AND cached_at > $2",
+                "SELECT lat, lng FROM postcode_cache WHERE postcode = $1 AND cached_at > $2",
                 postcode,
                 cutoff,
             )

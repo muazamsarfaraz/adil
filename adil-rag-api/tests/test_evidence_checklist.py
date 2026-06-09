@@ -25,20 +25,13 @@ class TestParseEvidenceChecklist:
         assert items == []
 
     def test_strips_checklist_block_from_answer(self):
-        text = (
-            "Analysis.\n\n"
-            "---EVIDENCE_CHECKLIST---\n"
-            "- Item 1\n"
-            "- Item 2\n"
-            "---END_CHECKLIST---\n\n"
-            "More text."
-        )
+        text = "Analysis.\n\n---EVIDENCE_CHECKLIST---\n- Item 1\n- Item 2\n---END_CHECKLIST---\n\nMore text."
         cleaned = RAGService._strip_evidence_checklist(text)
         assert "---EVIDENCE_CHECKLIST---" not in cleaned
         assert "Analysis." in cleaned
         assert "More text." in cleaned
 
     def test_handles_items_without_dashes(self):
-        text = "---EVIDENCE_CHECKLIST---\n" "Save screenshots\n" "Note dates\n" "---END_CHECKLIST---"
+        text = "---EVIDENCE_CHECKLIST---\nSave screenshots\nNote dates\n---END_CHECKLIST---"
         items = RAGService._parse_evidence_checklist(text)
         assert len(items) == 2

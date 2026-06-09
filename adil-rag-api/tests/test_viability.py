@@ -102,11 +102,7 @@ class TestParseViability:
 
     def test_handles_malformed_score(self):
         text = (
-            "---VIABILITY_ASSESSMENT---\n"
-            "SCORE: not_a_number\n"
-            "VENTO_BAND: middle\n"
-            "REASONING: Test.\n"
-            "---END_VIABILITY---"
+            "---VIABILITY_ASSESSMENT---\nSCORE: not_a_number\nVENTO_BAND: middle\nREASONING: Test.\n---END_VIABILITY---"
         )
         result = RAGService._parse_viability(text)
         # Should either return None or handle gracefully
@@ -114,30 +110,20 @@ class TestParseViability:
 
     def test_clamps_score_to_valid_range(self):
         text = (
-            "---VIABILITY_ASSESSMENT---\n"
-            "SCORE: 150\n"
-            "VENTO_BAND: upper\n"
-            "REASONING: Over the top.\n"
-            "---END_VIABILITY---"
+            "---VIABILITY_ASSESSMENT---\nSCORE: 150\nVENTO_BAND: upper\nREASONING: Over the top.\n---END_VIABILITY---"
         )
         result = RAGService._parse_viability(text)
         assert result is not None
         assert result.score <= 100
 
     def test_requires_hitl_always_true(self):
-        text = (
-            "---VIABILITY_ASSESSMENT---\n"
-            "SCORE: 50\n"
-            "VENTO_BAND: middle\n"
-            "REASONING: Test.\n"
-            "---END_VIABILITY---"
-        )
+        text = "---VIABILITY_ASSESSMENT---\nSCORE: 50\nVENTO_BAND: middle\nREASONING: Test.\n---END_VIABILITY---"
         result = RAGService._parse_viability(text)
         assert result is not None
         assert result.requires_hitl is True
 
     def test_handles_missing_optional_fields(self):
-        text = "---VIABILITY_ASSESSMENT---\n" "SCORE: 40\n" "REASONING: Minimal info.\n" "---END_VIABILITY---"
+        text = "---VIABILITY_ASSESSMENT---\nSCORE: 40\nREASONING: Minimal info.\n---END_VIABILITY---"
         result = RAGService._parse_viability(text)
         assert result is not None
         assert result.score == 40

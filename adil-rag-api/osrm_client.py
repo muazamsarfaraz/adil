@@ -59,7 +59,7 @@ async def driving_table(
     # OSRM coords are "lng,lat" — easy to swap by mistake.
     coords = ";".join([f"{origin[1]},{origin[0]}"] + [f"{d[1]},{d[0]}" for d in destinations])
     dest_indices = ";".join(str(i + 1) for i in range(len(destinations)))
-    url = f"{base}/table/v1/{profile}/{coords}" f"?sources=0&destinations={dest_indices}&annotations=duration,distance"
+    url = f"{base}/table/v1/{profile}/{coords}?sources=0&destinations={dest_indices}&annotations=duration,distance"
 
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

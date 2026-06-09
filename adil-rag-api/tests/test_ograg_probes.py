@@ -27,7 +27,7 @@ def _fake_pool(conn):
 
 # ── Citation regex ─────────────────────────────────────────────────────────
 async def test_citation_regex_matches_common_forms():
-    text = "See [2021] UKSC 12, also [2024] EWCA Civ 345 and [2020] UKUT 100 (AAC). " "And [2023] EWHC 1234 (QB)."
+    text = "See [2021] UKSC 12, also [2024] EWCA Civ 345 and [2020] UKUT 100 (AAC). And [2023] EWHC 1234 (QB)."
     found = [probes._normalize_citation(m.group(0)) for m in probes.CITATION_REGEX.finditer(text)]
     assert "[2021] UKSC 12" in found
     assert "[2024] EWCA CIV 345" in found
@@ -98,7 +98,7 @@ async def test_check_citations_message_truncates_long_lists(monkeypatch):
     fake_conn.close = AsyncMock()
 
     notified: list = []
-    text = "See [2024] UKSC 1, [2024] UKSC 2, [2024] UKSC 3, " "[2024] UKSC 4 and [2024] UKSC 5."
+    text = "See [2024] UKSC 1, [2024] UKSC 2, [2024] UKSC 3, [2024] UKSC 4 and [2024] UKSC 5."
 
     with (
         patch("ograg.probes.get_pool", new=AsyncMock(return_value=_fake_pool(fake_conn))),

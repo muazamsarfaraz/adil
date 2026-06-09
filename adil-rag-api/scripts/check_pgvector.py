@@ -15,7 +15,7 @@ async def main() -> None:
     conn = await asyncpg.connect(url)
     try:
         rows = await conn.fetch(
-            "SELECT name, default_version, installed_version " "FROM pg_available_extensions WHERE name LIKE '%vector%'"
+            "SELECT name, default_version, installed_version FROM pg_available_extensions WHERE name LIKE '%vector%'"
         )
         for r in rows:
             print(f"  {r['name']:20s} default={r['default_version']}  installed={r['installed_version']}")

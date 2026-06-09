@@ -17,14 +17,14 @@ All models include OpenAPI examples for comprehensive Swagger documentation.
 """
 
 import uuid
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 from legal_disclaimer import LEGAL_ADVICE_DISCLAIMER
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
 
-class SourceType(str, Enum):
+class SourceType(StrEnum):
     """Type of legal source referenced in the response.
 
     - **statute** — UK Act of Parliament (e.g., Equality Act 2010)
@@ -41,7 +41,7 @@ class SourceType(str, Enum):
     ECHR = "echr_judgment"
 
 
-class VentoBand(str, Enum):
+class VentoBand(StrEnum):
     """Vento compensation bands for injury to feelings (2025/26 update).
 
     These bands are used by Employment Tribunals to assess compensation
@@ -405,7 +405,7 @@ class StatsResponse(BaseModel):
 # ============================================================================
 
 
-class ContentType(str, Enum):
+class ContentType(StrEnum):
     """Type of content submitted for analysis.
 
     - **url** — A web page URL
@@ -595,7 +595,7 @@ class SubmitReportResponse(BaseModel):
 # ============================================================================
 
 
-class ReportType(str, Enum):
+class ReportType(StrEnum):
     """Type of report to generate from conversation history.
 
     - **incident_summary** — Structured summary for self-service reporting

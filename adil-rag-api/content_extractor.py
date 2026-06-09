@@ -20,7 +20,7 @@ import ipaddress
 import logging
 import re
 import socket
-from enum import Enum
+from enum import StrEnum
 from urllib.parse import urljoin, urlparse
 
 import httpx
@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 # =============================================================================
 
 
-class ContentType(str, Enum):
+class ContentType(StrEnum):
     """Type of extracted content"""
 
     TEXT = "text"

@@ -107,7 +107,7 @@ async def main_async(args: argparse.Namespace) -> int:
         f"Wrote {len(candidates)} candidates to {args.out} "
         f"({flagged} still match a PII regex after redaction — review carefully)."
     )
-    print("Next: manually skim every line, then copy 30 reviewed lines into " "evals/queries.jsonl.")
+    print("Next: manually skim every line, then copy 30 reviewed lines into evals/queries.jsonl.")
     return 0
 
 

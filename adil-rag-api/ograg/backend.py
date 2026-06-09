@@ -268,8 +268,7 @@ async def answer(
     if not ans:
         logger.warning("Anthropic response had no text content")
         ans = (
-            "I apologise, but I was unable to generate a response for this query. "
-            "Please try rephrasing your question."
+            "I apologise, but I was unable to generate a response for this query. Please try rephrasing your question."
         )
 
     ans, viability, evidence_checklist = _parse_and_strip_blocks(ans, include_viability)

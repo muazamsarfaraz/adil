@@ -195,7 +195,7 @@ async def main_async(args: argparse.Namespace) -> int:
 
     n_total = len(queries) * len(BACKENDS)
     n_done = 0
-    print(f"Run {run_id}: {len(queries)} queries × {len(BACKENDS)} backends " f"= {n_total} calls")
+    print(f"Run {run_id}: {len(queries)} queries × {len(BACKENDS)} backends = {n_total} calls")
 
     try:
         with raw_path.open("w", encoding="utf-8") as fh:
