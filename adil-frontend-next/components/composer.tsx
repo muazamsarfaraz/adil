@@ -184,6 +184,21 @@ export default function Composer({ conversationId, disabled, onSubmit }: Props) 
           <span style={{ color: "var(--color-gold)" }}>❃</span>{" "}
           AskAdil is an educational tool, not a law firm. Always consult a qualified solicitor before taking action.
         </p>
+        <p
+          className="font-ui text-[10px] text-center"
+          style={{
+            color: "var(--color-ink-faded)",
+            opacity: 0.55,
+            letterSpacing: "0.04em",
+            marginTop: 4,
+          }}
+          // Build stamp: surfaced in the UI so anyone can verify which deploy
+          // they're looking at. Auto-bumps on every Railway deploy via
+          // RAILWAY_GIT_COMMIT_SHA injected in next.config.ts.
+          aria-label="Build version"
+        >
+          v{process.env.NEXT_PUBLIC_BUILD_DATE} · {process.env.NEXT_PUBLIC_BUILD_SHA}
+        </p>
       </div>
     </form>
   );
