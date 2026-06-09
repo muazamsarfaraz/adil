@@ -67,8 +67,13 @@ export default function Composer({ conversationId, disabled, onSubmit }: Props) 
 
   const submit = (e: FormEvent | React.KeyboardEvent) => {
     e.preventDefault();
-    if (!text.trim() && images.length === 0) return;
-    onSubmit({ text: text.trim(), images, url: pastedUrl ?? undefined });
+    const trimmed = text.trim();
+    if (!trimmed && images.length === 0) return;
+    // Backend rejects empty `query` (Zod min(1)). When the user sends an
+    // image-only message (common via paste/upload), synthesise a default
+    // prompt so vision still runs.
+    const finalText = trimmed || "What is shown in this image? Please advise.";
+    onSubmit({ text: finalText, images, url: pastedUrl ?? undefined });
     setText("");
     setImages([]);
     setPastedUrl(null);
