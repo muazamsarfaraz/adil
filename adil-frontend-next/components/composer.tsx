@@ -132,7 +132,7 @@ export default function Composer({ conversationId, disabled, onSubmit }: Props) 
             value={text}
             onChange={(e) => setText(e.target.value)}
             onPaste={handlePaste}
-            placeholder="Ask about discrimination, hate crime, deputyship, or Court of Protection…"
+            placeholder="Ask about discrimination, hate crime, or deputyship — attach a photo or paste a link…"
             disabled={disabled}
             className="flex-1 min-h-10 max-h-40 p-2 bg-transparent border-0 resize-none outline-none font-body"
             style={{

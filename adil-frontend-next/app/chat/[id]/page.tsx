@@ -267,7 +267,22 @@ export default function ChatPage() {
                   }}
                 >
                   Ask about discrimination at work, hate crime, religious leave, or
-                  deputyship for an adult with learning disabilities. Type{" "}
+                  deputyship for an adult with learning disabilities. You can also{" "}
+                  <strong
+                    className="font-display"
+                    style={{ color: "var(--color-ink)", fontWeight: 600 }}
+                  >
+                    attach a photo
+                  </strong>{" "}
+                  of a letter or post, or{" "}
+                  <strong
+                    className="font-display"
+                    style={{ color: "var(--color-ink)", fontWeight: 600 }}
+                  >
+                    paste a link
+                  </strong>{" "}
+                  to a Facebook, YouTube, X, or Instagram post — or any web article
+                  — and we&apos;ll read it for context. Type{" "}
                   <strong
                     className="font-display"
                     style={{ color: "var(--color-ink)", fontWeight: 600 }}
