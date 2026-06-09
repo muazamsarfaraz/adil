@@ -16,7 +16,6 @@ Implements the "Educate First, Litigate Second" philosophy.
 """
 
 import asyncio
-import base64
 import logging
 import os
 import re
@@ -675,10 +674,15 @@ class RAGService:
     """Service for handling RAG queries with Gemini File Search"""
 
     def __init__(self, gemini_api_key: str, file_search_store_id: str):
-        self.client = genai.Client(api_key=gemini_api_key)
+        # Gemini client is only used by the legacy FST text-query path
+        # (RAG_BACKEND=fst). With RAG_BACKEND=ograg in prod, this client is
+        # never touched — accept an empty key gracefully and only construct
+        # the SDK client when a real key is provided. Vision is also handled
+        # entirely by ograg.backend.answer() (Claude Sonnet 4.6 native vision)
+        # as of 2026-06-04 — see query_with_images() below.
+        self.client = genai.Client(api_key=gemini_api_key) if gemini_api_key else None
         self.file_search_store_id = file_search_store_id
         self.model_name = "gemini-2.5-flash"
-        self.vision_model_name = os.getenv("GEMINI_MODEL_VISION", "gemini-3-flash-preview")
 
         # Pricing (Gemini 2.5 Flash as of Jan 2026)
         self.price_per_1k_input_tokens = 0.00015
@@ -1033,7 +1037,13 @@ class RAGService:
         include_viability: bool = False,
         conversation_history: list[dict[str, str]] | None = None,
     ) -> tuple[str, list[Source], TokenUsage, QueryMetadata, ViabilityAssessment | None, list[str]]:
-        """Execute multimodal RAG query with images using Gemini 3 Flash.
+        """Execute multimodal RAG query with images via OG-RAG (Claude Sonnet 4.6).
+
+        Vision is routed unconditionally through ``ograg.backend.answer`` which
+        attaches base64 image content blocks to the current turn while retrieving
+        legal context via pgvector. The previous Gemini-3-Flash code path was
+        removed on 2026-06-04 — Claude Sonnet 4.6 handles vision natively and we
+        no longer need a Gemini key for this endpoint.
 
         Args:
             images: List of dicts with 'mime_type' and 'data' (base64 string).
@@ -1045,109 +1055,15 @@ class RAGService:
         Returns:
             Tuple of (answer, sources, usage, metadata, viability, evidence_checklist).
         """
-        # OG-RAG backend opt-in: route vision through ograg.backend.answer
-        # which attaches image parts to the current turn while retrieving
-        # legal context via pgvector (image is supplementary content).
-        if os.environ.get("RAG_BACKEND", "fst").lower() in ("ograg", "ograg_chunks"):
-            from ograg.backend import answer as ograg_answer
+        from ograg.backend import answer as ograg_answer
 
-            return await ograg_answer(
-                query_text or "Please analyse this image for any potential UK discrimination law issues.",
-                max_sources=max_sources,
-                include_viability=include_viability,
-                conversation_history=conversation_history,
-                images=images,
-            )
-
-        from google.genai import types as genai_types
-
-        start_time = time.time()
-
-        # Build content parts: images first, then text
-        parts = []
-        for img in images:
-            image_bytes = base64.b64decode(img["data"])
-            parts.append(
-                genai_types.Part.from_bytes(
-                    data=image_bytes,
-                    mime_type=img["mime_type"],
-                )
-            )
-
-        # Add text query if provided, otherwise use a default prompt
-        text = query_text or "Please analyse this image for any potential UK discrimination law issues."
-        if include_viability:
-            text = "INCLUDE VIABILITY ASSESSMENT. " + text
-        parts.append(genai_types.Part.from_text(text=text))
-
-        # Build multi-turn contents with image parts on the current turn
-        contents: list = []
-        if conversation_history:
-            for turn in conversation_history:
-                contents.append(
-                    {
-                        "role": turn["role"],
-                        "parts": [{"text": turn["content"]}],
-                    }
-                )
-        # Current user turn with images + text
-        contents.append(
-            {
-                "role": "user",
-                "parts": parts,
-            }
+        return await ograg_answer(
+            query_text or "Please analyse this image for any potential UK discrimination law issues.",
+            max_sources=max_sources,
+            include_viability=include_viability,
+            conversation_history=conversation_history,
+            images=images,
         )
-
-        # Config: same system instruction and file search tool
-        config = {
-            "system_instruction": SYSTEM_INSTRUCTION,
-            "tools": [{"file_search": {"file_search_store_names": [self.file_search_store_id]}}],
-        }
-
-        try:
-            response = await asyncio.to_thread(
-                self.client.models.generate_content,
-                model=self.vision_model_name,
-                contents=contents,
-                config=config,
-            )
-        except Exception as e:
-            logger.error(f"Gemini Vision API error: {e}")
-            raise RuntimeError("Failed to generate response from AI model") from e
-
-        # Extract answer
-        try:
-            answer = response.text or ""
-        except (ValueError, AttributeError):
-            logger.warning("Gemini vision response had no text (possibly safety-blocked)")
-            answer = (
-                "I apologise, but I was unable to analyse this image. "
-                "Please try with a different image or describe the content in text."
-            )
-
-        # Parse viability assessment if requested
-        viability = None
-        evidence_checklist: list[str] = []
-        if include_viability:
-            evidence_checklist = self._parse_evidence_checklist(answer)
-            answer = self._strip_evidence_checklist(answer)
-            viability = self._parse_viability(answer)
-            answer = self._strip_viability_block(answer)
-
-        # Extract sources from citations in the answer
-        sources = self._extract_sources_from_answer(answer, max_sources)
-
-        # Calculate usage
-        usage = self._calculate_usage(response)
-
-        processing_time = int((time.time() - start_time) * 1000)
-        metadata = QueryMetadata(
-            original_language="en",
-            processing_time_ms=processing_time,
-            model_used=self.vision_model_name,
-        )
-
-        return answer, sources, usage, metadata, viability, evidence_checklist
 
     def _get_legislation_snippet(self, act_name: str, section: str) -> str:
         """

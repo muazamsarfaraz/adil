@@ -112,8 +112,8 @@ CAMPAIGN_DATA = {
         {"day": 28, "action": "close"},
     ],
     "llm_config": {
-        "provider": "gemini",
-        "model": "gemini-2.5-flash",
+        "provider": "anthropic",
+        "model": "claude-haiku-4-5",
         "temperature": 0.3,
         "personalisation": "low",
         "tone": "respectful-peer",

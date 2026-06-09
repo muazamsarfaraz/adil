@@ -116,8 +116,8 @@ class TestDefaultLlmConfig:
         assert DEFAULT_LLM_CONFIG["research"]["provider"] != "modified"
 
     def test_default_config_providers(self):
-        """Default config uses expected providers."""
+        """Default config uses expected providers — all-Anthropic stack as of 2026-06-04."""
         config = get_default_llm_config()
-        assert config["research"]["provider"] == "gemini"
+        assert config["research"]["provider"] == "anthropic"
         assert config["compose"]["provider"] == "anthropic"
-        assert config["classify"]["provider"] == "gemini"
+        assert config["classify"]["provider"] == "anthropic"

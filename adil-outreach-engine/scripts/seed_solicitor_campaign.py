@@ -78,9 +78,9 @@ CAMPAIGN_DATA = {
         {"day": 14, "action": "close"},
     ],
     "llm_config": {
-        "research": {"provider": "gemini", "model": "gemini-2.5-flash"},
+        "research": {"provider": "anthropic", "model": "claude-haiku-4-5"},
         "compose": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
-        "classify": {"provider": "gemini", "model": "gemini-2.5-flash"},
+        "classify": {"provider": "anthropic", "model": "claude-haiku-4-5"},
     },
     "research_instructions": (
         "Visit the firm's website and find: the best contact person for partnership enquiries "

@@ -1,10 +1,15 @@
 from langchain_core.language_models.chat_models import BaseChatModel
 
 
+# Default-stack pivot 2026-06-04: research + classify swapped from gemini-2.5-flash
+# to claude-haiku-4-5 so the entire outreach engine talks to one model vendor.
+# Compose stays on Sonnet for higher-quality drafting. Per-campaign llm_config
+# can still override any node back to gemini if a specific tone/persona prefers
+# it — get_llm() supports all three providers.
 DEFAULT_LLM_CONFIG = {
-    "research": {"provider": "gemini", "model": "gemini-2.5-flash"},
+    "research": {"provider": "anthropic", "model": "claude-haiku-4-5"},
     "compose": {"provider": "anthropic", "model": "claude-sonnet-4-6"},
-    "classify": {"provider": "gemini", "model": "gemini-2.5-flash"},
+    "classify": {"provider": "anthropic", "model": "claude-haiku-4-5"},
 }
 
 
