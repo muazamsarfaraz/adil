@@ -69,7 +69,7 @@ from solicitor_directory import (
 )
 
 from content_extractor import ContentExtractor
-from conversation_log import log_conversation
+from conversation_log import log_conversation, log_conversation_raw
 from email_receipt import send_receipt
 from models import (
     ALLOWED_IMAGE_MIMES,
@@ -821,6 +821,17 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
                 token_count=usage.total_tokens,
             )
         )
+        # Raw query/response/sources — gated by DEBUG_LOG_RAW=1, 7-day TTL.
+        asyncio.create_task(
+            log_conversation_raw(
+                endpoint="query",
+                conversation_id=str(getattr(body, "conversation_id", None) or "") or None,
+                query=body.query,
+                response=answer,
+                sources=[s.model_dump() if hasattr(s, "model_dump") else s for s in (sources or [])],
+                response_time_ms=metadata.processing_time_ms,
+            )
+        )
 
         return QueryResponse(
             answer=answer,
@@ -895,6 +906,13 @@ async def query_stream(
 
         yield f"event: disclaimer\ndata: {_json.dumps(_DISCLAIMER)}\n\n"
 
+        # Accumulators for the gated raw debug log. Built only as we already
+        # have the data in hand — the work is a string concat per token, so it
+        # adds nothing measurable to per-request cost when DEBUG_LOG_RAW=0.
+        _raw_tokens: list[str] = []
+        _raw_sources: list = []
+        _raw_error: str | None = None
+        _raw_started_ms = int(time.time() * 1000)
         try:
             async for event in rag_service.stream_query(
                 query_text=body.query,
@@ -904,10 +922,15 @@ async def query_stream(
                 conversation_id=getattr(body, "conversation_id", None),
             ):
                 data = event["data"]
+                if event["event"] == "token" and isinstance(data, str):
+                    _raw_tokens.append(data)
+                elif event["event"] == "source":
+                    _raw_sources.append(data)
                 data_json = _json.dumps(data, default=str)
                 yield f"event: {event['event']}\ndata: {data_json}\n\n"
         except Exception as exc:
             logger.exception("query_stream error")
+            _raw_error = str(exc)[:500]
             err_payload = _json.dumps({"code": "INTERNAL", "message": str(exc)[:200]})
             yield f"event: error\ndata: {err_payload}\n\n"
             try:
@@ -916,6 +939,20 @@ async def query_stream(
                 await notify_error("adil-rag-api", "/api/v1/query/stream", exc)
             except Exception:
                 logger.exception("telegram notify failed (non-fatal)")
+        finally:
+            # Raw debug log — gated by DEBUG_LOG_RAW=1, 7-day TTL. The function
+            # short-circuits when the flag is off, so this is free in prod.
+            asyncio.create_task(
+                log_conversation_raw(
+                    endpoint="query_stream",
+                    conversation_id=str(getattr(body, "conversation_id", None) or "") or None,
+                    query=body.query,
+                    response="".join(_raw_tokens),
+                    sources=_raw_sources or None,
+                    error=_raw_error,
+                    response_time_ms=int(time.time() * 1000) - _raw_started_ms,
+                )
+            )
 
     return StreamingResponse(
         event_source(),
@@ -1098,6 +1135,17 @@ async def analyze_content(request: Request, body: AnalyzeContentRequest, _api_ke
                 response_time_ms=metadata.processing_time_ms,
                 model_used=metadata.model_used,
                 token_count=usage.total_tokens,
+            )
+        )
+        # Raw query/response/sources — gated by DEBUG_LOG_RAW=1, 7-day TTL.
+        asyncio.create_task(
+            log_conversation_raw(
+                endpoint="analyze",
+                conversation_id=str(getattr(body, "conversation_id", None) or "") or None,
+                query=body.content,
+                response=answer,
+                sources=[s.model_dump() if hasattr(s, "model_dump") else s for s in (sources or [])],
+                response_time_ms=metadata.processing_time_ms,
             )
         )
 

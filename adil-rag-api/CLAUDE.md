@@ -79,6 +79,8 @@ Rate limits (Postgres-backed, per API key):
 | `RAG_SHADOW` | No | `1` enables P9 shadow logging: fire-and-forget OG-RAG run alongside every FST query, logged to `eval_run` table. Never affects user response. |
 | `ENABLE_DEV_CORS` | Dev only | Enables permissive CORS (never set in prod) |
 | `LOG_LEVEL` | No | Default: INFO |
+| `DEBUG_LOG_RAW` | No | `1` enables raw query/response/sources capture in `debug_conversation_logs` (7-day TTL). Off by default — flip on for live debugging of a specific prod issue, then back off. Privacy posture is unchanged when off. See `conversation_log.log_conversation_raw`. |
+| `DEBUG_LOG_TTL_DAYS` | No | TTL for `debug_conversation_logs` rows (default 7). |
 | `OSRM_SERVICE_URL` | No | Self-hosted OSRM endpoint (default: `https://osrmproj-production.up.railway.app`). Used by `/api/v1/solicitors/near-me`. |
 | `USE_OSRM` | No | `true` (default) / `false` — off-switch for local dev. When off, near-me returns alphabetical results without distances. |
 | `LEGALSCRAPER_LANDING_PATH` | No | Override path to the bundled `docs/legalscraper_landing.json`. |
