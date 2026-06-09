@@ -12,6 +12,11 @@ WORKDIR /app
 # on the service, but Docker requires explicit ARG declarations.
 ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
 ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+# Railway injects RAILWAY_GIT_COMMIT_SHA into the build context — without
+# this ARG declaration it would only be visible at runtime, and `next build`
+# would see it as undefined (causing the build stamp to fall back to "dev").
+ARG RAILWAY_GIT_COMMIT_SHA
+ENV RAILWAY_GIT_COMMIT_SHA=$RAILWAY_GIT_COMMIT_SHA
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
