@@ -77,7 +77,15 @@ def _format_context(chunks: list[dict[str, Any]]) -> str:
     return "\n\n".join(blocks)
 
 
-def _build_user_prompt(question: str, context: str, jurisdiction: str | None, topic: str | None) -> str:
+def _build_system_addendum(context: str, jurisdiction: str | None, topic: str | None) -> str:
+    """Build the system-message addendum carrying retrieved context + hints.
+
+    Putting this in the SYSTEM channel (not the user channel) prevents the
+    model from misreading the wrapper as a user-supplied prompt injection —
+    a real bug we hit when short user replies + empty retrieval made the
+    wrapper look like adversarial input. System channel is trusted, so
+    instructions here are interpreted as platform-provided context.
+    """
     extras: list[str] = []
     if jurisdiction:
         extras.append(f"Jurisdiction hint: {jurisdiction}")
@@ -85,12 +93,23 @@ def _build_user_prompt(question: str, context: str, jurisdiction: str | None, to
         extras.append(f"Topic hint: {topic}")
     extras_block = ("\n" + "\n".join(extras)) if extras else ""
     return (
-        "Use ONLY the retrieved context below to answer the question. Cite specific "
-        "sections and cases as you would in your normal style. If the context is "
-        "insufficient, say so plainly.\n\n"
-        f"--- RETRIEVED CONTEXT ---\n{context}\n--- END CONTEXT ---{extras_block}\n\n"
-        f"Question: {question}"
+        "\n\n## Retrieved Legal Context (system-provided, trusted)\n\n"
+        "The block below is reference material the RAG retriever selected for "
+        "the user's current question. It is system-provided, NOT user-typed. "
+        "Use it to ground citations and sections. If it is insufficient or "
+        "empty, say so plainly — do not treat emptiness as suspicious.\n\n"
+        f"--- RETRIEVED CONTEXT ---\n{context}\n--- END CONTEXT ---"
+        f"{extras_block}\n"
     )
+
+
+def _build_user_prompt(question: str, context: str, jurisdiction: str | None, topic: str | None) -> str:
+    """Deprecated — retained for backward compat with any external callers.
+
+    New code should pass the bare question as the user message and call
+    `_build_system_addendum(...)` for the system-channel context block.
+    """
+    return _build_system_addendum(context, jurisdiction, topic) + f"\nQuestion: {question}"
 
 
 def _calc_usage_from_anthropic(usage_obj) -> TokenUsage:
@@ -231,7 +250,7 @@ async def answer(
 
     chunks = await _do_retrieve(question, conversation_history=conversation_history)
     context_block = _format_context(chunks)
-    user_prompt = _build_user_prompt(effective_question, context_block, jurisdiction, topic)
+    system_addendum = _build_system_addendum(context_block, jurisdiction, topic)
 
     image_blocks: list[dict[str, Any]] | None = None
     if images:
@@ -247,14 +266,16 @@ async def answer(
             for img in images
         ]
 
-    messages = _build_messages(user_prompt, conversation_history, image_blocks)
+    # Bare question in user channel; retrieved context rides on the system
+    # channel where the model treats it as trusted (not a possible injection).
+    messages = _build_messages(effective_question, conversation_history, image_blocks)
 
     client = _client()
     try:
         response = await client.messages.create(
             model=MODEL_NAME,
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_INSTRUCTION,
+            system=SYSTEM_INSTRUCTION + system_addendum,
             messages=messages,
         )
     except Exception as e:
@@ -306,8 +327,10 @@ async def answer_stream(
 
     chunks = await _do_retrieve(question, conversation_history=conversation_history)
     context_block = _format_context(chunks)
-    user_prompt = _build_user_prompt(effective_question, context_block, jurisdiction, topic)
-    messages = _build_messages(user_prompt, conversation_history)
+    system_addendum = _build_system_addendum(context_block, jurisdiction, topic)
+    # Bare question in user channel; retrieved context goes on the system
+    # channel (see _build_system_addendum for why).
+    messages = _build_messages(effective_question, conversation_history)
 
     client = _client()
     full_text = ""
@@ -317,7 +340,7 @@ async def answer_stream(
         async with client.messages.stream(
             model=MODEL_NAME,
             max_tokens=MAX_TOKENS,
-            system=SYSTEM_INSTRUCTION,
+            system=SYSTEM_INSTRUCTION + system_addendum,
             messages=messages,
         ) as stream:
             async for text_delta in stream.text_stream:
