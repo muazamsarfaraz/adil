@@ -481,12 +481,12 @@ async def send_email_task(ctx, contact_id: str, cadence_step: int):
         plain_text = draft_event.content or ""
         escaped = html_mod.escape(plain_text)
         html_body = (
-            '<!DOCTYPE html><html><body>'
+            "<!DOCTYPE html><html><body>"
             '<div style="font-family: Arial, sans-serif; font-size: 14px; '
-            'line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; '
+            "line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; "
             'padding: 20px;">'
-            f'{escaped.replace(chr(10), "<br>" + chr(10))}'
-            '</div></body></html>'
+            f"{escaped.replace(chr(10), '<br>' + chr(10))}"
+            "</div></body></html>"
         )
 
         # --- Send ---
@@ -821,10 +821,12 @@ async def classify_reply(ctx, contact_id: str) -> dict:
 
             category = result_state.get("classification", "question")
             confidence = 0.8  # Default confidence from node
+            sponsorship_interest = bool(result_state.get("sponsorship_interest", False))
 
             classification = {
                 "category": category,
                 "confidence": confidence,
+                "sponsorship_interest": sponsorship_interest,
                 "extracted_data": {},
             }
 
@@ -837,9 +839,17 @@ async def classify_reply(ctx, contact_id: str) -> dict:
                 metadata={
                     "category": classification["category"],
                     "confidence": classification["confidence"],
+                    "sponsorship_interest": classification["sponsorship_interest"],
                     "extracted_data": classification.get("extracted_data"),
                 },
             )
+
+            # Wave-1 Q2 — when the classifier flags a sponsorship-affirmative
+            # reply, insert a sponsorship_interests row keyed to (contact, reply
+            # event). Idempotent via the unique constraint; re-classifying the
+            # same reply will not duplicate.
+            if sponsorship_interest:
+                await _persist_sponsorship_interest(db, contact.id, reply_event.id)
 
             # Route based on classification
             await route_classification(ctx, db, contact, campaign, classification)
@@ -848,7 +858,36 @@ async def classify_reply(ctx, contact_id: str) -> dict:
                 "status": "classified",
                 "category": classification["category"],
                 "confidence": classification["confidence"],
+                "sponsorship_interest": classification["sponsorship_interest"],
             }
+
+
+async def _persist_sponsorship_interest(
+    db: AsyncSession,
+    contact_id: uuid.UUID,
+    reply_event_id: uuid.UUID,
+) -> None:
+    """Insert a sponsorship_interests row, idempotent on (contact, reply event).
+
+    Uses ON CONFLICT DO NOTHING against the unique constraint
+    `uq_sponsorship_contact_reply` so this is safe to call repeatedly
+    when classify_reply gets retried by arq.
+    """
+    from sqlalchemy.dialects.postgresql import insert
+
+    from app.models import SponsorshipInterest, SponsorshipInterestStatus
+
+    stmt = (
+        insert(SponsorshipInterest)
+        .values(
+            contact_id=contact_id,
+            raw_reply_event_id=reply_event_id,
+            status=SponsorshipInterestStatus.new,
+        )
+        .on_conflict_do_nothing(constraint="uq_sponsorship_contact_reply")
+    )
+    await db.execute(stmt)
+    await db.commit()
 
 
 async def route_classification(

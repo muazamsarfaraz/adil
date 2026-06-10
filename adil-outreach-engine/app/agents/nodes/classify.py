@@ -28,6 +28,19 @@ Classify the following reply into exactly one of these categories:
 - out_of_office: Auto-reply / out of office message
 - bounce: Delivery failure / invalid email
 
+In addition, the Wave-1 outreach to UK Muslim solicitors asks TWO things:
+  Q1) Would you like a free listing in the AskAdil solicitor directory?
+  Q2) Would you also be willing to sponsor / support AskAdil financially?
+
+Independently of the main `category`, detect whether the contact has
+affirmatively answered Q2 (sponsorship). Examples that COUNT as Q2-yes:
+"happy to sponsor", "yes I'd donate", "we can support you", "send me payment
+details", "willing to contribute". Examples that DO NOT count: "interested
+in the listing" (that's Q1, not Q2), "I'll think about sponsoring later"
+(uncertain), "depends on the cost" (uncertain).
+
+Default `sponsorship_interest` to false unless the affirmative is clear.
+
 Reply text:
 {reply_text}
 
@@ -38,9 +51,24 @@ Return a JSON object:
 {{
   "category": "<one of the categories above>",
   "confidence": <0.0-1.0>,
+  "sponsorship_interest": <true or false>,
   "extracted_data": {{<any relevant extracted info like return date for OOO, specific questions, etc.>}}
 }}
 """
+
+
+def _normalise(result: dict) -> dict:
+    """Guarantee `sponsorship_interest` exists and is bool. Default False.
+
+    The LLM may omit the field or return a truthy string. Force the type so
+    downstream callers don't have to guard.
+    """
+    raw = result.get("sponsorship_interest", False)
+    if isinstance(raw, str):
+        result["sponsorship_interest"] = raw.strip().lower() in {"true", "yes", "1"}
+    else:
+        result["sponsorship_interest"] = bool(raw)
+    return result
 
 
 def _parse_classification(text: str) -> dict:
@@ -49,7 +77,7 @@ def _parse_classification(text: str) -> dict:
     try:
         result = json.loads(text)
         if isinstance(result, dict) and result.get("category") in VALID_CATEGORIES:
-            return result
+            return _normalise(result)
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -59,7 +87,7 @@ def _parse_classification(text: str) -> dict:
         try:
             result = json.loads(match.group(1).strip())
             if isinstance(result, dict) and result.get("category") in VALID_CATEGORIES:
-                return result
+                return _normalise(result)
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -70,26 +98,31 @@ def _parse_classification(text: str) -> dict:
         try:
             result = json.loads(text[brace_start : brace_end + 1])
             if isinstance(result, dict) and result.get("category") in VALID_CATEGORIES:
-                return result
+                return _normalise(result)
         except (json.JSONDecodeError, TypeError):
             pass
 
-    # String matching fallback
+    # String matching fallback — never claims sponsorship_interest in this
+    # path (we'd need to actually understand the text to be confident).
     text_lower = text.lower()
     for category in VALID_CATEGORIES:
         if category in text_lower:
-            return {
-                "category": category,
-                "confidence": 0.5,
-                "extracted_data": {"parse_method": "string_match"},
-            }
+            return _normalise(
+                {
+                    "category": category,
+                    "confidence": 0.5,
+                    "extracted_data": {"parse_method": "string_match"},
+                }
+            )
 
-    # Ultimate fallback — safest default routes to human review
-    return {
-        "category": "question",
-        "confidence": 0.0,
-        "extracted_data": {"parse_method": "fallback", "raw_response": text[:200]},
-    }
+    # Ultimate fallback — safest default routes to human review.
+    return _normalise(
+        {
+            "category": "question",
+            "confidence": 0.0,
+            "extracted_data": {"parse_method": "fallback", "raw_response": text[:200]},
+        }
+    )
 
 
 async def classify_node(state: OutreachState) -> dict:
@@ -155,6 +188,10 @@ async def classify_node(state: OutreachState) -> dict:
         return {
             "classification": category,
             "current_step": "classify",
+            # Wave-1 Q2 sponsorship signal — surfaced separately from the main
+            # `classification` enum so it can route to the sponsorship_interest
+            # table without disturbing the existing graph branches.
+            "sponsorship_interest": bool(parsed.get("sponsorship_interest", False)),
         }
 
     except Exception as e:
@@ -163,5 +200,6 @@ async def classify_node(state: OutreachState) -> dict:
         return {
             "classification": "question",
             "current_step": "classify",
+            "sponsorship_interest": False,
             "error": f"Classify failed: {e}",
         }
