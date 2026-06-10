@@ -32,6 +32,15 @@ class Settings(BaseSettings):
     sendgrid_api_key: str = ""
     sendgrid_webhook_verification_key: str = ""
     sendgrid_webhook_verify_enabled: bool = True
+    # SendGrid Inbound Parse does NOT use the same ECDSA signing as Event
+    # Webhook — there is no upstream signature to verify. We instead require
+    # a shared bearer token that SendGrid sends in either the URL query string
+    # (configured in the Parse settings as
+    # `https://api.askadil.org/api/v1/outreach/webhooks/sendgrid/inbound?token=...`)
+    # or in the `Authorization: Bearer <token>` header. Constant-time compared.
+    # Leave empty to disable the check (DEV ONLY) — production deploys MUST set it.
+    sendgrid_inbound_token: str = ""
+    sendgrid_inbound_verify_enabled: bool = True
 
     # LLM API keys
     gemini_api_key: str = ""

@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.webhook_verify import require_sendgrid_signature
+from app.auth.webhook_verify import require_sendgrid_inbound_token, require_sendgrid_signature
 from app.database import get_db
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.contact import Contact, ContactStatus
@@ -163,16 +163,22 @@ async def handle_sendgrid_events(
     return {"status": "ok"}
 
 
-@router.post("/sendgrid/inbound")
+@router.post(
+    "/sendgrid/inbound",
+    dependencies=[Depends(require_sendgrid_inbound_token)],
+)
 async def handle_sendgrid_inbound(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Handle SendGrid inbound parse webhook (reply capture).
 
-    SendGrid inbound parse sends multipart/form-data, NOT JSON.
-    Note: Inbound parse does not use SendGrid ECDSA signature verification;
-    security is via the parse URL itself being secret.
+    SendGrid Inbound Parse sends multipart/form-data and does NOT offer
+    ECDSA-style signing (that is Event Webhook only). We instead require a
+    shared bearer token sent via `?token=` query param (configured in the
+    Parse settings) or `Authorization: Bearer ...` header. Validated by
+    `require_sendgrid_inbound_token` — constant-time compare; rejects with
+    403 on mismatch.
     """
     form = await request.form()
 

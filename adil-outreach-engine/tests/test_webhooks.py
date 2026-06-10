@@ -198,6 +198,21 @@ def mock_sendgrid_signature():
 
 
 @pytest.fixture
+def mock_sendgrid_inbound_token():
+    """Bypass inbound bearer-token verification for tests.
+
+    Token verification itself is exercised by the dedicated tests at the
+    bottom of this file. Every test that POSTs to /sendgrid/inbound for
+    business-logic reasons should depend on this fixture.
+    """
+    with patch(
+        "app.auth.webhook_verify.verify_sendgrid_inbound_token",
+        return_value=True,
+    ):
+        yield
+
+
+@pytest.fixture
 def auth_headers() -> dict:
     return {"X-API-Key": settings.api_key}
 
@@ -357,6 +372,7 @@ async def test_dropped_event(
 
 @pytest.mark.asyncio
 async def test_inbound_reply(
+    mock_sendgrid_inbound_token,
     client: AsyncClient,
     db_session: AsyncSession,
     emailed_contact: Contact,
@@ -393,7 +409,7 @@ async def test_inbound_reply(
 
 
 @pytest.mark.asyncio
-async def test_inbound_reply_unknown_sender(client: AsyncClient):
+async def test_inbound_reply_unknown_sender(mock_sendgrid_inbound_token, client: AsyncClient):
     """Inbound reply from unknown sender should return ignored status."""
     response = await client.post(
         "/api/v1/outreach/webhooks/sendgrid/inbound",
@@ -635,6 +651,7 @@ async def test_events_timeline_not_found(
 
 @pytest.mark.asyncio
 async def test_late_reply_from_unresponsive(
+    mock_sendgrid_inbound_token,
     client: AsyncClient,
     db_session: AsyncSession,
     unresponsive_contact: Contact,
@@ -936,3 +953,139 @@ class AsyncIterator:
             return next(self.items)
         except StopIteration:
             raise StopAsyncIteration
+
+
+# ---------------------------------------------------------------------------
+# Test: SendGrid inbound token verification (the actual security boundary)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_inbound_rejects_missing_token(client: AsyncClient):
+    """No token in URL or header → 403, no DB writes."""
+    original = settings.sendgrid_inbound_token
+    original_enabled = settings.sendgrid_inbound_verify_enabled
+    settings.sendgrid_inbound_token = "test-secret-token"
+    settings.sendgrid_inbound_verify_enabled = True
+    try:
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound",
+            data={
+                "from": "Test <test@example.com>",
+                "to": "outreach@askadil.org",
+                "subject": "Re: AskAdil",
+                "text": "hi",
+            },
+        )
+        assert resp.status_code == 403
+        assert "Invalid inbound webhook token" in resp.text
+    finally:
+        settings.sendgrid_inbound_token = original
+        settings.sendgrid_inbound_verify_enabled = original_enabled
+
+
+@pytest.mark.asyncio
+async def test_inbound_rejects_wrong_token(client: AsyncClient):
+    """Token presented but wrong → 403."""
+    original = settings.sendgrid_inbound_token
+    original_enabled = settings.sendgrid_inbound_verify_enabled
+    settings.sendgrid_inbound_token = "test-secret-token"
+    settings.sendgrid_inbound_verify_enabled = True
+    try:
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound?token=wrong",
+            data={
+                "from": "Test <test@example.com>",
+                "to": "outreach@askadil.org",
+                "subject": "Re: AskAdil",
+                "text": "hi",
+            },
+        )
+        assert resp.status_code == 403
+    finally:
+        settings.sendgrid_inbound_token = original
+        settings.sendgrid_inbound_verify_enabled = original_enabled
+
+
+@pytest.mark.asyncio
+async def test_inbound_accepts_token_in_query(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    emailed_contact: Contact,
+):
+    """Correct token in `?token=` → 200, business logic runs."""
+    original = settings.sendgrid_inbound_token
+    original_enabled = settings.sendgrid_inbound_verify_enabled
+    settings.sendgrid_inbound_token = "test-secret-token"
+    settings.sendgrid_inbound_verify_enabled = True
+    try:
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound?token=test-secret-token",
+            data={
+                "from": f"Contact <{emailed_contact.email}>",
+                "to": "outreach@askadil.org",
+                "subject": "Re: AskAdil",
+                "text": "yes I'm interested",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["status"] == "ok"
+    finally:
+        settings.sendgrid_inbound_token = original
+        settings.sendgrid_inbound_verify_enabled = original_enabled
+
+
+@pytest.mark.asyncio
+async def test_inbound_accepts_token_in_authorization_header(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    emailed_contact: Contact,
+):
+    """Correct token in `Authorization: Bearer ...` → 200."""
+    original = settings.sendgrid_inbound_token
+    original_enabled = settings.sendgrid_inbound_verify_enabled
+    settings.sendgrid_inbound_token = "test-secret-token"
+    settings.sendgrid_inbound_verify_enabled = True
+    try:
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound",
+            headers={"Authorization": "Bearer test-secret-token"},
+            data={
+                "from": f"Contact <{emailed_contact.email}>",
+                "to": "outreach@askadil.org",
+                "subject": "Re: AskAdil",
+                "text": "yes",
+            },
+        )
+        assert resp.status_code == 200, resp.text
+    finally:
+        settings.sendgrid_inbound_token = original
+        settings.sendgrid_inbound_verify_enabled = original_enabled
+
+
+@pytest.mark.asyncio
+async def test_inbound_rejects_when_token_unset_in_config(client: AsyncClient):
+    """Verify enabled but no shared secret configured → reject everything.
+
+    This is the secure-by-default posture: an empty `sendgrid_inbound_token`
+    with verification on means a misconfiguration, and we refuse rather than
+    silently letting traffic through.
+    """
+    original = settings.sendgrid_inbound_token
+    original_enabled = settings.sendgrid_inbound_verify_enabled
+    settings.sendgrid_inbound_token = ""
+    settings.sendgrid_inbound_verify_enabled = True
+    try:
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound?token=anything",
+            data={
+                "from": "Test <test@example.com>",
+                "to": "outreach@askadil.org",
+                "subject": "Re: AskAdil",
+                "text": "hi",
+            },
+        )
+        assert resp.status_code == 403
+    finally:
+        settings.sendgrid_inbound_token = original
+        settings.sendgrid_inbound_verify_enabled = original_enabled

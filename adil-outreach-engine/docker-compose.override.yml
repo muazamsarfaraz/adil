@@ -1,0 +1,9 @@
+# Local-only override. Avoids port collision with other dev projects on 5433/6380.
+# Do not commit.
+services:
+  postgres:
+    ports: !override
+      - "5434:5432"
+  redis:
+    ports: !override
+      - "6381:6379"

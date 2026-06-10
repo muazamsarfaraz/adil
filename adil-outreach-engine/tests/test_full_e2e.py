@@ -331,16 +331,19 @@ async def test_full_outreach_funnel(
     # -----------------------------------------------------------------------
     # Step 11: Simulate reply received via SendGrid inbound parse
     # -----------------------------------------------------------------------
-    resp = await client.post(
-        "/api/v1/outreach/webhooks/sendgrid/inbound",
-        data={
-            "from": "Sarah Khan <sarah@khanlaw.co.uk>",
-            "to": "outreach@askadil.com",
-            "subject": "Re: AskAdil — free legal-tech platform for Khan & Partners Solicitors",
-            "text": "Hi, this sounds interesting! Could you tell me more about the platform and how it integrates with our existing systems?",
-            "html": "",
-        },
-    )
+    # Inbound parse requires a shared bearer token (?token=... or Authorization
+    # header). Bypass via the same patch the unit tests use.
+    with patch("app.auth.webhook_verify.verify_sendgrid_inbound_token", return_value=True):
+        resp = await client.post(
+            "/api/v1/outreach/webhooks/sendgrid/inbound",
+            data={
+                "from": "Sarah Khan <sarah@khanlaw.co.uk>",
+                "to": "outreach@askadil.com",
+                "subject": "Re: AskAdil — free legal-tech platform for Khan & Partners Solicitors",
+                "text": "Hi, this sounds interesting! Could you tell me more about the platform and how it integrates with our existing systems?",
+                "html": "",
+            },
+        )
     assert resp.status_code == 200, f"Inbound reply failed: {resp.text}"
     assert resp.json()["status"] == "ok"
     assert resp.json()["contact_id"] == sarah_id
