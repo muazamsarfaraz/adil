@@ -44,6 +44,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from geolocation import detect_jurisdiction_from_ip, extract_client_ip
+from handoff import HANDOFF_TEXT as _MCB_MH_HANDOFF_TEXT
+from handoff import MCB_MH_URL as _MCB_MH_URL
+from handoff import apply_handoff as _apply_clinical_handoff  # P6-02 MCB MH cross-link
+from handoff import detect as _detect_clinical_handoff
 from health_bot import notify as msentry_notify  # MSentry health-bot
 from r2_client import R2Client
 from rate_limit import Limit, check_limits
@@ -795,6 +799,11 @@ async def query(request: Request, body: QueryRequest, _api_key: str = Security(v
             if body.include_viability_score:
                 stats["viability_assessments"] += 1
 
+        # P6-02 reverse cross-link: if the message is really a clinical /
+        # wellbeing / crisis query, append a one-line handoff to the MCB Mental
+        # Health signpost. Additive — never withholds the legal answer.
+        answer = _apply_clinical_handoff(answer, body.query)
+
         # Check if litigation was mentioned
         litigation_mentioned = _check_litigation_mentioned(answer)
 
@@ -905,6 +914,26 @@ async def query_stream(
         from legal_disclaimer import LEGAL_ADVICE_DISCLAIMER as _DISCLAIMER
 
         yield f"event: disclaimer\ndata: {_json.dumps(_DISCLAIMER)}\n\n"
+
+        # P6-02 reverse cross-link: emit a discrete handoff event for clinical /
+        # wellbeing / crisis queries so the UI can surface the MCB MH signpost.
+        # Emitted BEFORE any answer tokens — additive, never withholds the
+        # legal answer. See handoff.py for category detection.
+        _clin_cat = _detect_clinical_handoff(body.query)
+        if _clin_cat is not None:
+            yield (
+                "event: handoff\ndata: "
+                + _json.dumps(
+                    {
+                        "target": "mcb_mental_health",
+                        "category": _clin_cat.key,
+                        "label": _clin_cat.label,
+                        "text": _MCB_MH_HANDOFF_TEXT,
+                        "url": _MCB_MH_URL,
+                    }
+                )
+                + "\n\n"
+            )
 
         # Accumulators for the gated raw debug log. Built only as we already
         # have the data in hand — the work is a string concat per token, so it
