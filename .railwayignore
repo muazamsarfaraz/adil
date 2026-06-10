@@ -23,13 +23,13 @@ venv/
 env/
 .playwright-mcp/
 # Per-deploy: leave the deploying service uncommented and comment its line.
-# Currently configured for: adil-rag-api
-# adil-rag-api/
+# Currently configured for: adil-landing
+adil-rag-api/
 adil-outreach-engine/
 adil-frontend/
 adil-frontend-next/
 adil-document-uploader/
 adil-report-bridge/
-adil-landing/
+# adil-landing/
 scripts/
 tests/
