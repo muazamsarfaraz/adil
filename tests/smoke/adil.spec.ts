@@ -141,17 +141,31 @@ test.describe('@adil UI smoke', () => {
         ci_run: process.env.GITHUB_RUN_ID ?? 'local',
       });
     } catch (err) {
+      // Only PAGE the operator (critical Telegram + MSentry) once ALL retries are
+      // exhausted. CI runs with --retries=2 (3 attempts). A single transient blip —
+      // an edge/Cloudflare hiccup or a Railway redeploy serving a momentary blank
+      // page (empty <title>) — fails the first attempt, but the retry re-navigates
+      // against the now-healthy site and passes, so the job ends green. Without this
+      // gate, notify() fired on every failed attempt and paged `critical` on every
+      // transient even when the run recovered — a self-inflicted false alarm.
+      // Fallback: when retries==0 (e.g. local `npx playwright test`), retry(0) >=
+      // retries(0) is true, so behaviour is unchanged — page on first failure.
+      const isFinalAttempt = testInfo.retry >= testInfo.project.retries;
       const screenshotPath = testInfo.outputPath('failure.png');
       await page.screenshot({ path: screenshotPath, fullPage: true }).catch(() => {});
-      await notify(
-        'critical',
-        `UI smoke FAILED at step \`${step}\`: ${(err as Error).message}`,
-        {
-          url: SITE_URL,
-          step,
-          ci_run: process.env.GITHUB_RUN_ID ?? 'local',
-        },
-      );
+      if (isFinalAttempt) {
+        await notify(
+          'critical',
+          `UI smoke FAILED at step \`${step}\`: ${(err as Error).message}`,
+          {
+            url: SITE_URL,
+            step,
+            attempt: testInfo.retry + 1,
+            max_attempts: testInfo.project.retries + 1,
+            ci_run: process.env.GITHUB_RUN_ID ?? 'local',
+          },
+        );
+      }
       throw err;
     }
   });

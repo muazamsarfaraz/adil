@@ -46,7 +46,14 @@ jobs:
           MSENTRY_FEEDBACK_URL: ${{ secrets.MSENTRY_FEEDBACK_URL }}
           MSENTRY_FEEDBACK_SECRET: ${{ secrets.MSENTRY_FEEDBACK_SECRET }}
           MSENTRY_PROJECT: AskAdil/adil
-        run: npx playwright test tests/smoke/adil.spec.ts --reporter=line
+        # --retries=2 (3 attempts total): the smoke runs from the repo root, where
+        # there is NO playwright.config.ts, so Playwright defaults to retries:0.
+        # A single transient blip (edge/Cloudflare hiccup, Railway redeploy serving
+        # a momentary blank page → empty <title>) would otherwise fire a *critical*
+        # page on the first failure even though the next 15-min run is green. Each
+        # retry re-navigates with a fresh browser, so one-off transients self-heal
+        # in-job, while a genuine multi-minute outage still fails all 3 and pages.
+        run: npx playwright test tests/smoke/adil.spec.ts --reporter=line --retries=2
 
       - name: Upload failure artifacts
         if: failure()
