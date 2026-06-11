@@ -58,6 +58,15 @@ export default function Nav() {
           <Link href="/" className="hover:text-[color:var(--color-ink)] transition-colors">
             New enquiry
           </Link>
+          <a
+            href="https://ansarpool.org/pool/donate?client=askadil"
+            target="_blank"
+            rel="noopener"
+            aria-label="Donate to AskAdil via AnsarPool (opens in new tab)"
+            className="hover:text-[color:var(--color-ink)] transition-colors"
+          >
+            Donate
+          </a>
           <Link href="/privacy" className="hover:text-[color:var(--color-ink)] transition-colors">
             Privacy
           </Link>
