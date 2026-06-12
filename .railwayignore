@@ -23,13 +23,20 @@ venv/
 env/
 .playwright-mcp/
 # Per-deploy: leave the deploying service uncommented and comment its line.
-# Currently configured for: adil-landing
-adil-rag-api/
+# Currently configured for: adil-rag-api
+# (Both adil-landing and adil-rag-api auto-deploy from GitHub. Whichever
+# service's directory is in the ignore list will fail to build on the
+# next push. This is a real sharp-edge — see incident 2026-06-12 where
+# the Donate commit 67aa5f4 triggered an adil-rag-api rebuild while this
+# file was set for adil-landing, breaking the chat backend for ~1 hour.
+# TODO: split this into per-service .railwayignore files via Railway's
+# `watchPatterns` instead — see follow-up ticket [FIX].)
+# adil-rag-api/
 adil-outreach-engine/
 adil-frontend/
 adil-frontend-next/
 adil-document-uploader/
 adil-report-bridge/
-# adil-landing/
+adil-landing/
 scripts/
 tests/
