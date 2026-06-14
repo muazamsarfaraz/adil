@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { mintEditToken, emailDomainsMatch, emailDomainMatchesUrl } from "@/lib/edit-links";
+import { mintEditToken, emailDomainsMatch, emailDomainMatchesUrl, publicOrigin } from "@/lib/edit-links";
 import { getRagApiBaseUrl, getRagApiKey } from "@/lib/proxy";
 import { sendEmail } from "@/lib/mailer";
 
@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
   if (record && affiliated) {
     const token = mintEditToken(sraId, email);
-    const origin = process.env.NEXT_PUBLIC_SITE_URL ?? new URL(req.url).origin;
+    const origin = publicOrigin(req);
     const link = `${origin}/api/listing/verify?token=${encodeURIComponent(token)}`;
     const result = await sendEmail({
       to: email,

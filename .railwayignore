@@ -22,6 +22,12 @@ node_modules/
 venv/
 env/
 .playwright-mcp/
+# .claude/ holds ~30 git worktrees (full monorepo checkouts each). Without this,
+# un-ignoring a service pulls in every worktree's copy of it → snapshot balloons
+# to tens of MB → `railway up` /up upload times out. MUST stay ignored.
+.claude/
+pytest-of-muaza/
+test-results/
 # Per-deploy: leave the deploying service uncommented and comment its line.
 # Currently configured for: adil-rag-api
 # (Both adil-landing and adil-rag-api auto-deploy from GitHub. Whichever

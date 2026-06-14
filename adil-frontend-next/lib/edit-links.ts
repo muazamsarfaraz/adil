@@ -111,3 +111,16 @@ export function emailDomainMatchesUrl(email: string, url: string | null | undefi
     return false;
   }
 }
+
+// The public origin to build links/redirects with. `new URL(req.url).origin`
+// returns the container's internal bind address (e.g. 0.0.0.0:8080) behind
+// Railway's proxy, and NEXT_PUBLIC_* is inlined at build — so derive it from the
+// forwarded host headers, with an APP_ORIGIN runtime override.
+export function publicOrigin(req: Request): string {
+  const env = process.env.APP_ORIGIN;
+  if (env) return env.replace(/\/+$/, "");
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const proto = (req.headers.get("x-forwarded-proto") ?? "https").split(",")[0].trim();
+  if (host) return `${proto}://${host}`;
+  return new URL(req.url).origin;
+}

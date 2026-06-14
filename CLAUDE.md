@@ -17,13 +17,30 @@ Live at **askadil.org**.
 
 ## Deploy
 
-All services use `railway up` CLI — never GitHub auto-deploy.
+Most services deploy via the `railway up` CLI (adil-landing + adil-rag-api also
+auto-deploy from GitHub — see the `.railwayignore` sharp-edge below).
 
-**Standard services** (deploy from their own subdir):
+⚠️ **The repo-root `.railwayignore` is a shared, per-deploy toggle.** It must
+list every service EXCEPT the one being deployed: comment out the deploying
+service's line (so its files upload) and keep **all others uncommented** (so the
+snapshot stays small — leaving extras in can make the `/up` upload time out).
+Flip it for your deploy, then **`git checkout -- .railwayignore` immediately** —
+leaving it flipped breaks the next GitHub build of adil-landing / adil-rag-api
+(incident 2026-06-12). TODO: move to Railway `watchPatterns`.
+
+**adil-frontend-next** (askadil.org) has `rootDirectory=adil-frontend-next`, so
+deploy **from the repo ROOT — not the subdir** (a subdir `railway up`
+double-nests: `lstat …/adil-frontend-next: no such file`):
 ```bash
-cd adil-rag-api && railway up
-cd adil-frontend-next && railway up
+# in .railwayignore: comment `adil-frontend-next/`, ignore all others. Then:
+railway up --service adil-frontend-next      # from repo root
+git checkout -- .railwayignore               # revert
 ```
+If the `/up` upload "operation timed out", that's transient Railway flakiness —
+just retry (it either reaches "Build Logs:" or fails fast).
+
+**adil-rag-api** — `railway up --service adil-rag-api` from the repo root (it's
+the `.railwayignore` default config).
 
 **Repo-root services** (the upload bundle must be the repo root — running
 `railway up` from inside the subdir wraps the bundle in an extra folder and
