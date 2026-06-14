@@ -17,16 +17,12 @@ Live at **askadil.org**.
 
 ## Deploy
 
-Most services deploy via the `railway up` CLI (adil-landing + adil-rag-api also
-auto-deploy from GitHub — see the `.railwayignore` sharp-edge below).
-
-⚠️ **The repo-root `.railwayignore` is a shared, per-deploy toggle.** It must
-list every service EXCEPT the one being deployed: comment out the deploying
-service's line (so its files upload) and keep **all others uncommented** (so the
-snapshot stays small — leaving extras in can make the `/up` upload time out).
-Flip it for your deploy, then **`git checkout -- .railwayignore` immediately** —
-leaving it flipped breaks the next GitHub build of adil-landing / adil-rag-api
-(incident 2026-06-12). TODO: move to Railway `watchPatterns`.
+**No per-service `.railwayignore` toggling — retired 2026-06-14.** Each monorepo
+service has Railway `watchPatterns` set to its own dir, so a push rebuilds ONLY
+the service whose files changed (a frontend push can no longer break the chat
+backend — that was the 2026-06-12 outage). The root `.railwayignore` is now
+**static** (universal excludes only: node_modules / .next / .venv / .claude /
+scripts / tests). Nothing to flip, nothing to revert.
 
 **adil-frontend-next** (askadil.org) — `rootDirectory` is now **UNSET** (2026-06-14),
 so it deploys from **its own subdir**: a small, self-contained snapshot built
@@ -39,11 +35,10 @@ into the snapshot → tens of MB → `/up` timeout). Just:
 cd adil-frontend-next && railway up --service adil-frontend-next
 # or:  ./adil-frontend-next/deploy.ps1
 ```
-The same `rootDirectory`-unset fix should be applied to the other services to
-retire the shared-`.railwayignore` toggle entirely.
-
-**adil-rag-api** — `railway up --service adil-rag-api` from the repo root (it's
-the `.railwayignore` default config).
+**adil-rag-api** + **adil-landing** — auto-deploy from **GitHub** on a push that
+touches their own dir (`watchPatterns` = `adil-rag-api/**` / `adil-landing/**`);
+they keep `rootDirectory` set so the GitHub build targets the right subdir. A
+manual deploy still works: `railway up --service <name>` from the repo root.
 
 **Repo-root services** (the upload bundle must be the repo root — running
 `railway up` from inside the subdir wraps the bundle in an extra folder and

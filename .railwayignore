@@ -28,21 +28,16 @@ env/
 .claude/
 pytest-of-muaza/
 test-results/
-# Per-deploy: leave the deploying service uncommented and comment its line.
-# Currently configured for: adil-rag-api
-# (Both adil-landing and adil-rag-api auto-deploy from GitHub. Whichever
-# service's directory is in the ignore list will fail to build on the
-# next push. This is a real sharp-edge — see incident 2026-06-12 where
-# the Donate commit 67aa5f4 triggered an adil-rag-api rebuild while this
-# file was set for adil-landing, breaking the chat backend for ~1 hour.
-# TODO: split this into per-service .railwayignore files via Railway's
-# `watchPatterns` instead — see follow-up ticket [FIX].)
-# adil-rag-api/
-adil-outreach-engine/
-adil-frontend/
-adil-frontend-next/
-adil-document-uploader/
-adil-report-bridge/
-adil-landing/
+# Service directories are intentionally NOT excluded — the per-service toggle was
+# RETIRED 2026-06-14. Deploys stay clean now without flipping any lines:
+#   * Railway `watchPatterns` scope GitHub builds: each service rebuilds only when
+#     its OWN dir changes (rag-api -> adil-rag-api/**, landing -> adil-landing/**,
+#     doc-worker -> adil-document-uploader/**). A push to one can't break another
+#     (that was the 2026-06-12 chat-backend outage).
+#   * adil-frontend-next deploys from its own subdir (rootDirectory unset) — it
+#     never does a repo-root upload at all.
+# A repo-root CLI deploy (document-uploader / report-bridge via their deploy.sh)
+# now includes every service's source — kept small by the universal excludes above
+# (node_modules/.next/.venv/.claude worktrees) — and each finds its own files.
 scripts/
 tests/
