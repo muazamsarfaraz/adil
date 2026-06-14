@@ -26,6 +26,12 @@ type Facets = { areas: string[]; area_groups: AreaGroup[]; languages: string[] }
 const PAGE_SIZE = 24;
 const SEARCH_LIMIT = 200; // backend hard-caps at 200
 const SRA_REGISTER_URL = "https://www.sra.org.uk/consumers/register/";
+// Deep-link straight to an individual's record on the SRA register. The
+// /person/ path is the live one — the older /solicitor/ path 404s. The
+// prevSearch* params mirror the SRA register's own search breadcrumbs.
+const sraPersonUrl = (sraId: string) =>
+  `https://www.sra.org.uk/consumers/register/person/?sraNumber=${encodeURIComponent(sraId)}` +
+  `&prevSearchText=${encodeURIComponent(sraId)}&prevSearchFilter=`;
 
 // WAVE-3 GATE — Criminal Defence, Personal Injury and Conveyancing (wave 3) are
 // intentionally NOT offered as filter tiles. Their public-facing outreach is
@@ -444,7 +450,7 @@ function SolicitorCard({ s }: { s: Solicitor }) {
         <p className="mt-2 font-ui text-[12px] text-[color:var(--color-ink-faded)]">
           SRA&nbsp;ID {s.sra_id} ·{" "}
           <a
-            href={SRA_REGISTER_URL}
+            href={sraPersonUrl(String(s.sra_id))}
             target="_blank"
             rel="noopener noreferrer"
             className="text-[color:var(--color-emerald)] underline underline-offset-2 hover:text-[color:var(--color-emerald-bright)]"
@@ -544,7 +550,16 @@ function VerifySraId() {
         {state === "missing" && (
           <p className="text-[color:var(--color-ink-soft)]">
             Not in AskAdil&rsquo;s directory. That doesn&rsquo;t mean the firm
-            isn&rsquo;t regulated — check the official SRA register above.
+            isn&rsquo;t regulated —{" "}
+            <a
+              href={sraPersonUrl(id.trim())}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[color:var(--color-emerald)] underline underline-offset-2 hover:text-[color:var(--color-emerald-bright)]"
+            >
+              look up SRA&nbsp;ID {id.trim()} on the SRA register ↗
+            </a>
+            .
           </p>
         )}
         {state === "error" && (
