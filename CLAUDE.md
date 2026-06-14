@@ -28,16 +28,19 @@ Flip it for your deploy, then **`git checkout -- .railwayignore` immediately** �
 leaving it flipped breaks the next GitHub build of adil-landing / adil-rag-api
 (incident 2026-06-12). TODO: move to Railway `watchPatterns`.
 
-**adil-frontend-next** (askadil.org) has `rootDirectory=adil-frontend-next`, so
-deploy **from the repo ROOT — not the subdir** (a subdir `railway up`
-double-nests: `lstat …/adil-frontend-next: no such file`):
+**adil-frontend-next** (askadil.org) — `rootDirectory` is now **UNSET** (2026-06-14),
+so it deploys from **its own subdir**: a small, self-contained snapshot built
+from `adil-frontend-next/` (its own Dockerfile + railway.toml + .railwayignore).
+**No repo-root upload, no `.railwayignore` toggle, no `.claude` worktree bloat** —
+this is what cured the upload-timeout "flakiness" (un-ignoring the service from
+repo root used to pull all ~30 `.claude/worktrees/*/adil-frontend-next` copies
+into the snapshot → tens of MB → `/up` timeout). Just:
 ```bash
-# in .railwayignore: comment `adil-frontend-next/`, ignore all others. Then:
-railway up --service adil-frontend-next      # from repo root
-git checkout -- .railwayignore               # revert
+cd adil-frontend-next && railway up --service adil-frontend-next
+# or:  ./adil-frontend-next/deploy.ps1
 ```
-If the `/up` upload "operation timed out", that's transient Railway flakiness —
-just retry (it either reaches "Build Logs:" or fails fast).
+The same `rootDirectory`-unset fix should be applied to the other services to
+retire the shared-`.railwayignore` toggle entirely.
 
 **adil-rag-api** — `railway up --service adil-rag-api` from the repo root (it's
 the `.railwayignore` default config).
