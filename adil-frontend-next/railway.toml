@@ -1,3 +1,18 @@
+# Deploy posture: CLI-ONLY. rootDirectory is unset, so `railway up` from THIS
+# subdir uploads a snapshot rooted at adil-frontend-next/. These patterns are
+# SUBDIR-RELATIVE: they match the CLI snapshot (e.g. app/**) so an `up` builds,
+# but they NEVER match a GitHub push (whose paths are prefixed
+# `adil-frontend-next/…`), so GitHub does not auto-deploy this service.
+# A prior `["adil-frontend-next/.deploy-via-cli-only"]` sentinel stopped GitHub
+# auto-deploy but ALSO silently SKIPPED every CLI deploy ("no changes detected
+# in watch paths"). Kept in sync on the service instance (set via Railway API).
+watchPatterns = [
+  "app/**", "components/**", "lib/**", "public/**",
+  "package.json", "package-lock.json", "Dockerfile", "next.config.ts",
+  "instrumentation.ts", "tsconfig.json", "tailwind.config.ts",
+  "postcss.config.mjs", "eslint.config.mjs", "railway.toml",
+]
+
 [build]
 builder = "dockerfile"
 dockerfilePath = "Dockerfile"
